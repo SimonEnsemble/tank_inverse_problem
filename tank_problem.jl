@@ -4,8 +4,18 @@
 using Markdown
 using InteractiveUtils
 
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+end
+
 # ╔═╡ faf59350-8d67-11ee-0bdd-2510e986118b
-using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing
+using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI
 
 # ╔═╡ a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
 calibration = CSV.read("liquid calibration.csv", DataFrame)
@@ -14,30 +24,30 @@ calibration = CSV.read("liquid calibration.csv", DataFrame)
 sensor_level_mapping = linear_interpolation(calibration[:, "level sensor reading"], 
 									 calibration[:, "liquid level (cm)"])
 
+# ╔═╡ 759852ee-50e7-4deb-ac7e-c4693103c2a7
+@bind experiment Select(["experiment 3- 1-12.csv", "experiment 4- 1-12.csv"])
+
 # ╔═╡ c8718101-7dd6-4933-a0bd-9790e64d4451
 begin
-	data = CSV.read("experiment 3- 1-12.csv", header=3, DataFrame)
-	data = data[1:end-1, :]
+	data = CSV.read(experiment, DataFrame)
 	rename!(data, ["Time [s]", "liquid_level_reading"])
 end
 
+# ╔═╡ 14107f95-888b-416b-982b-9c7e1dba1fcd
+begin
+	id = argmax(data[:, "liquid_level_reading"])
+	_data = data[id:end, :]
+	_data[:, "Time [s]"] = _data[:, "Time [s]"] .- _data[1, "Time [s]"]
+end
+
 # ╔═╡ baef3c1a-3ffa-432f-b214-b56c5b5bc918
-data[:, "liquid level [cm]"] = sensor_level_mapping(data[:, "liquid_level_reading"])
+_data[:, "liquid level [cm]"] = sensor_level_mapping(_data[:, "liquid_level_reading"])
 
 # ╔═╡ 9af216b7-4bf2-42fb-bd95-5b2040d019a7
 sensor_height_to_perpendicular(h) = h * sqrt(28.1 ^ 2 - 0.5 ^ 2) / 28.1
 
 # ╔═╡ 58ab61d2-6067-44c9-8f0c-acc9cd4bea3b
-data[:, "p_liquid level [cm]"] = sensor_height_to_perpendicular.(data[:, "liquid level [cm]"] )
-
-# ╔═╡ 5b24ac40-0e58-45d8-a767-0dbd785ee0ce
-id = argmax(data[:, "liquid_level_reading"])
-
-# ╔═╡ 14107f95-888b-416b-982b-9c7e1dba1fcd
-begin
-	_data = data[id:end, :]
-	_data[:, "Time [s]"] = _data[:, "Time [s]"] .- _data[1, "Time [s]"]
-end
+_data[:, "p_liquid level [cm]"] = sensor_height_to_perpendicular.(_data[:, "liquid level [cm]"] )
 
 # ╔═╡ 23ee0e85-a84b-4b63-b432-5526559efcee
 begin
@@ -68,24 +78,23 @@ begin
 end
 
 # ╔═╡ c6a263eb-cb45-4ee7-9c02-549c89298652
-f(h, p, t) =  -sqrt.(p.a^2 .* (2 * p.g * (h .- p.h_hole))) .* p.c ./ p.A(h)
+f(h, p, t) = - p.a .* sqrt.(max.((2 * p.g * (h .- p.h_hole)), 0)) .* p.c ./ p.A(h)
 
 # ╔═╡ 31306e0b-9748-48a8-b9d2-892cb501b7ba
 begin
 	h0 = [_data[1, "p_liquid level [cm]"]]
-	tspan = (0, 50)
-	a = 0.079
+	tspan = (0, 1)
+	a = 0.079 # d = 0.3175; a = (π * d²) / 4 
 	h_hole = 2.3
+	c = 0.63
 	p = (
 			  a = a, # cm²
 			  g =  980.665, # cm/s², 
-			  c = 0.63, 
+			  c = c, 
 			  h_hole = h_hole, # cm 
 			  A = A # A(h)
 			)
 
-	
-	# maximum(_data[:, "Time [s]"]))
 end
 
 # ╔═╡ d3307918-1fdb-4f87-bb92-67330d22e58b
@@ -108,49 +117,59 @@ begin
 	fig
 end
 
+# ╔═╡ b3a235d8-a278-40a7-a6d8-6ddd65bc3c5e
+begin
+	# downsample
+		n_sample = 12
+		ids = trunc.(Int, collect(range(1, nrow(_data), length=n_sample)))
+		infer_data = _data[ids, :]
+end
+
 # ╔═╡ 8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
-@model function infer_params(data, prob)
+@model function infer_params(data_infer)
+	
 	# Prior distributions.
-	A_b ~ Uniform(A_bottom - 50, A_bottom + 50)
-		# Normal(A_bottom, 10)
-		# Uniform(A_bottom - 50, A_bottom + 50)
-	A_t ~ Uniform(A_top - 50, A_top + 50)
-		# Normal(A_top, 10)
-		# Uniform(A_top - 50, A_top + 50)
-	a ~ Uniform(0.05, 0.1)
-		# Normal(0.079, 0.1)
-		# Uniform(0.05, 0.1)
-	c ~ Uniform(0.5, 0.7)
-		# Normal(0.65, 0.2)
-	h_hole ~ Uniform(1, 4)
-		# Normal(2.3, 1)
-	σ ~ Uniform(0, 200)
+	A_b ~ Normal(A_bottom, 0.1) # cross-sectional area at the base of tank
+	
+	A_t ~ Normal(A_top, 0.1) # cross-sectional area at the top of tank
+	
+	_a ~ TruncatedNormal(a, 0.01, 0.0, Inf) # area of the orifice [cm²]
+	
+	_c ~ TruncatedNormal(0.65, 0.1, 0.0, 1.0) # discharge coefficient
+	
+	_h_hole ~ TruncatedNormal(h_hole, 0.1, 2.0, 3.0) # height of orifice from the base of tank
+	
+	σ ~ Uniform(0.0, 1.0) # measurement noise
+	
+	h0_obs = infer_data[1, "p_liquid level [cm]"]
+	h_0 ~ TruncatedNormal(h0_obs, σ, h0_obs - 2 * σ, h0_obs +  2 * σ) # initial liquid level
+
 
 	# recalibrate area interpolation
-	local areas = [A_b, A_t] # cm^2
-	local slices = [0.0, sensor_height_to_perpendicular(H)] # cm
-	A = linear_interpolation(slices, areas)
-
+	_areas = [A_b, A_t] # cm^2
+	
+	_A = linear_interpolation(slices, _areas)
+	
 	# parameter for ODE
 	p = (
-			  a = a, # cm²
+			  a = _a, # area of the orifice [cm²]
 			  g =  980.665, # cm/s², 
-			  c = c, 
-			  h_hole = h_hole, # cm 
-			  A = A # A(h)
+			  c = _c, # discharge coefficient
+			  h_hole = _h_hole, # height of hole to the base of tank [cm] 
+			  A = _A # A(h)
 			)
 
-	# downsample
-	n_sample = 100
-	ids = trunc.(Int, collect(range(1, nrow(data), length=n_sample)))
+	
 	
 	# set up ODE
-	sol = solve(prob, Tsit5(); p=p)
-
+	_prob = ODEProblem(f, [h_0], tspan, p)
+	# @show p h_0
+	sol = solve(_prob, Tsit5())
+	
 	# Observations.
-	for i in ids
-		tᵢ = data[i, "Time [s]"]
-		data[i, "p_liquid level [cm]"] ~ Normal(sol(tᵢ)[1], σ^2)
+	for i in 2:nrow(data_infer)
+		tᵢ = data_infer[i, "Time [s]"]
+		data_infer[i, "p_liquid level [cm]"] ~ Normal(sol(tᵢ)[1], σ)
 	end
 
 	return nothing
@@ -160,60 +179,65 @@ end
 
 # ╔═╡ 8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 begin
-	model = infer_params(_data, prob)
+	model = infer_params(infer_data)
 	
-	# Sample 3 independent chains with forward-mode automatic differentiation (the default).
-	chain = sample(model, NUTS(0.65), MCMCSerial(), 100, 3; progress=false)
+	chain = sample(model, NUTS(0.65), MCMCSerial(), 200, 3; progress=false)
 end
 
 # ╔═╡ 7ebe4680-c583-4f92-8bae-dd84c3fb5139
-params = DataFrame(chain)
+posterior = DataFrame(chain)
 
-# ╔═╡ 2210f40b-5c37-4562-a8f0-1b7b384fcc79
-0.975-0.025
-
-# ╔═╡ 244b412d-8d11-451d-8f38-8d2d54dcfc26
-A_bottom_post = [mean(params.A_b), quantile(params.A_b, [0.025, 0.975])...]
-
-# ╔═╡ 069f97b5-8d44-46a1-887d-cc7ad8ab544e
-A_top_post = [mean(params.A_t), quantile(params.A_t, [0.025, 0.975])...]
-
-# ╔═╡ 5dac09c3-6e9b-4dfa-8eef-70fd34911fcc
-c_post = [mean(params.c), quantile(params.c, [0.025, 0.975])...]
-
-# ╔═╡ 2739b829-0d59-4ad1-9dbd-2ad18456e7b9
-a_post = [mean(params.a), quantile(params.a, [0.025, 0.975])...]
-
-# ╔═╡ 65c9a8ed-a9a5-449c-b23d-66691678de86
-h_hole_post = [mean(params.h_hole), quantile(params.h_hole, [0.025, 0.975])...]
-
-# ╔═╡ 04622ca0-f79a-460c-87d9-11257fee131e
+# ╔═╡ a2048a65-7b7c-41fc-b7ee-f9199f3e96b5
 begin
-	post_h = Dict()
-	labels = ["mean", "lo", "hi"]
-	for i in 1:3
-		areas = [A_bottom_post[i], A_top_post[i]] # cm^2
-		slices = [0.0, sensor_height_to_perpendicular(H)] # cm
-		
-		A = linear_interpolation(slices, areas)
+	posterior_to_true = Dict(
+							"A_b" => A_bottom, 
+							"A_t" => A_top,
+							"_a" => a,
+							"_c" => c,
+							"_h_hole" => h_hole,
+							"h_0" => h0[1]
+							)
 	
-		p = (
-				  a = a_post[i], # cm²
-				  g =  980.665, # cm/s², 
-				  c = c_post[i], 
-				  h_hole = h_hole_post[i], # cm 
-				  A = A # A(h)
-				)
-		sol = solve(prob, Tsit5(); p=p)
-	
-		ts = range(0, maximum(_data[:, "Time [s]"]), length=1000)
-		post_h[labels[i]] = [sol.(t)[1] for t in ts]
-		
-	end
+	params_to_title = Dict(
+							"A_b" => "Area of the bottom tank", 
+							"A_t" => "Area of the top tank",
+							"_a" => "Area of the oriface",
+							"_c" => "discharge coefficient",
+							"_h_hole" => "height of orifice from the base of tank",
+							"h_0" => "initial water level"
+							)
 end
 
-# ╔═╡ 309ad202-0c3b-4a54-a6c1-cb9c024f28aa
-h_post = DataFrame(post_h)
+# ╔═╡ 4c62550a-7eb6-4451-9747-4b1c9926e8ce
+begin
+	local fig = Figure()
+	local ax = [Axis(fig[i, j]) for i in 1:3, j in 1:2]
+	j, i = 1, 1
+	 
+	for p in keys(posterior_to_true)
+		# vizualize the distribution
+		density!(ax[i, j], posterior[:, p], color = (:blue, 0.0), strokewidth = 3, 
+				 strokecolor = :blue)
+
+		# plot real value
+		vlines!(ax[i, j], [posterior_to_true[p]], linestyle="--",
+				 color=:black, label="true value")
+
+		# plot 95% interval
+		lo, hi = quantile(posterior[:, p], [0.025, 0.975])
+		lines!(ax[i, j], [lo, hi], [0, 0], linewidth=5, color=:black)
+
+		# hidedecorations!(ax[i, j], ticks=false)
+		
+		ax[i, j].title = params_to_title[p]
+		 i += 1
+		if i > 3
+			j += 1
+			i = 1
+		end
+	end
+	fig	
+end
 
 # ╔═╡ d968bf3f-e011-47d4-801d-b9d6ae189819
 begin
@@ -222,13 +246,33 @@ begin
 	
 	local ts = range(0, maximum(_data[:, "Time [s]"]), length=1000)
 	
-	band!(ts, h_post.lo, h_post.hi, color=(:grey, 0.5))
 	
-	scatter!(_data[:, "Time [s]"], _data[:, "p_liquid level [cm]"], label="experimental")
+	ids_post = sample(1:nrow(posterior), 300; replace=false)
+	for i in ids_post
+		_areas = [posterior[i, "A_b"], posterior[i, "A_t"]] # cm^2
+		_A = linear_interpolation(slices, _areas)
+		
+		p = (
+			  a = posterior[i, "_a"], # area of the orifice [cm²]
+			  g =  980.665, # cm/s², 
+			  c = posterior[i, "_c"], # discharge coefficient
+			  h_hole = posterior[i, "_h_hole"], # height of hole to the base of tank [cm] 
+			  A = _A # A(h)
+			)
+
+		
 	
-	lines!(ts, h_post.mean, label="model", color=:red)
+		# set up ODE
+		_prob = ODEProblem(f, [posterior[i, "h_0"]], tspan, p)
+		sol = solve(_prob, Tsit5())
+			
+		
+		lines!(ts, [sol.(t)[1] for t in ts], label="model", color=(:green, 0.1))
+	end
+
+	scatter!(infer_data[:, "Time [s]"], infer_data[:, "p_liquid level [cm]"], label="experimental")
 	
-	axislegend()
+	axislegend(unique=true)
 	fig
 end
 
@@ -240,6 +284,8 @@ CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Turing = "fce5fe82-541a-59a6-adf8-730c64b5f9a0"
 
 [compat]
@@ -248,6 +294,8 @@ CairoMakie = "~0.6.2"
 DataFrames = "~1.6.1"
 DifferentialEquations = "~7.6.0"
 Interpolations = "~0.14.7"
+PlutoUI = "~0.7.55"
+StatsBase = "~0.33.21"
 Turing = "~0.28.3"
 """
 
@@ -257,7 +305,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.0"
 manifest_format = "2.0"
-project_hash = "b8108cd97dcf3381d1a2fe95ba841c0e209adaff"
+project_hash = "f1d52e930c7ad9f48381a66a5e18b140efcf1292"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -281,6 +329,12 @@ deps = ["AbstractMCMC", "DensityInterface", "Random", "Setfield", "SparseArrays"
 git-tree-sha1 = "caa9b62583577b0d6b222f11f54aa29fabbdb5ca"
 uuid = "7a57a42e-76ec-4ea3-a279-07e840d6d9cf"
 version = "0.6.2"
+
+[[deps.AbstractPlutoDingetjes]]
+deps = ["Pkg"]
+git-tree-sha1 = "c278dfab760520b8bb7e9511b968bf4ba38b7acc"
+uuid = "6e696c72-6542-2067-7265-42206c756150"
+version = "1.2.3"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "03e0550477d86222521d254b741d470ba17ea0b5"
@@ -1094,6 +1148,24 @@ git-tree-sha1 = "eb8fed28f4994600e29beef49744639d985a04b2"
 uuid = "3e5b6fbb-0976-4d2c-9146-d79de83f2fb0"
 version = "0.1.16"
 
+[[deps.Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "179267cfa5e712760cd43dcae385d7ea90cc25a4"
+uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+version = "0.0.5"
+
+[[deps.HypertextLiteral]]
+deps = ["Tricks"]
+git-tree-sha1 = "7134810b1afce04bbc1045ca1985fbe81ce17653"
+uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
+version = "0.9.5"
+
+[[deps.IOCapture]]
+deps = ["Logging", "Random"]
+git-tree-sha1 = "8b72179abc660bfab5e28472e019392b97d0985c"
+uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+version = "0.2.4"
+
 [[deps.IfElse]]
 git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
 uuid = "615f187c-cbe4-4ef1-ba3b-2fcf58d6d173"
@@ -1505,6 +1577,11 @@ git-tree-sha1 = "d1737c39191aa26f42a64e320de313f1d1fd74b1"
 uuid = "be115224-59cd-429b-ad48-344e309966f0"
 version = "0.2.1"
 
+[[deps.MIMEs]]
+git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
+uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
+version = "0.1.4"
+
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl"]
 git-tree-sha1 = "72dc3cf284559eb8f53aa593fe62cb33f83ed0c0"
@@ -1786,6 +1863,12 @@ deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random"
 git-tree-sha1 = "862942baf5663da528f66d24996eb6da85218e76"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.4.0"
+
+[[deps.PlutoUI]]
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
+git-tree-sha1 = "68723afdb616445c6caaef6255067a8339f91325"
+uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+version = "0.7.55"
 
 [[deps.PoissonRandom]]
 deps = ["Random"]
@@ -2345,6 +2428,11 @@ version = "0.28.3"
     DynamicHMC = "bbc10e6e-7c05-544b-b16e-64fede858acb"
     Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 
+[[deps.URIs]]
+git-tree-sha1 = "67db6cc7b3821e19ebe75791a9dd19c9b1188f2b"
+uuid = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
+version = "1.5.1"
+
 [[deps.UUIDs]]
 deps = ["Random", "SHA"]
 uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
@@ -2542,12 +2630,12 @@ version = "3.5.0+0"
 # ╠═faf59350-8d67-11ee-0bdd-2510e986118b
 # ╠═a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
 # ╠═6e922ea4-01d0-4202-baed-3cb693b663bc
+# ╠═759852ee-50e7-4deb-ac7e-c4693103c2a7
 # ╠═c8718101-7dd6-4933-a0bd-9790e64d4451
+# ╠═14107f95-888b-416b-982b-9c7e1dba1fcd
 # ╠═baef3c1a-3ffa-432f-b214-b56c5b5bc918
 # ╠═9af216b7-4bf2-42fb-bd95-5b2040d019a7
 # ╠═58ab61d2-6067-44c9-8f0c-acc9cd4bea3b
-# ╠═14107f95-888b-416b-982b-9c7e1dba1fcd
-# ╠═5b24ac40-0e58-45d8-a767-0dbd785ee0ce
 # ╠═23ee0e85-a84b-4b63-b432-5526559efcee
 # ╠═20fa4266-be80-4d8e-b1d0-155a40a1241f
 # ╠═33f889d7-e875-40d8-9d6d-cc87b0fbaf22
@@ -2556,17 +2644,12 @@ version = "3.5.0+0"
 # ╠═d3307918-1fdb-4f87-bb92-67330d22e58b
 # ╠═fbb7b6ed-ed41-4a5e-9ce9-732c0f261016
 # ╠═444f6d74-273e-486d-905a-1443ec0e98df
+# ╠═b3a235d8-a278-40a7-a6d8-6ddd65bc3c5e
 # ╠═8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
 # ╠═8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 # ╠═7ebe4680-c583-4f92-8bae-dd84c3fb5139
-# ╠═2210f40b-5c37-4562-a8f0-1b7b384fcc79
-# ╠═244b412d-8d11-451d-8f38-8d2d54dcfc26
-# ╠═069f97b5-8d44-46a1-887d-cc7ad8ab544e
-# ╠═5dac09c3-6e9b-4dfa-8eef-70fd34911fcc
-# ╠═2739b829-0d59-4ad1-9dbd-2ad18456e7b9
-# ╠═65c9a8ed-a9a5-449c-b23d-66691678de86
-# ╠═04622ca0-f79a-460c-87d9-11257fee131e
-# ╠═309ad202-0c3b-4a54-a6c1-cb9c024f28aa
+# ╠═a2048a65-7b7c-41fc-b7ee-f9199f3e96b5
+# ╠═4c62550a-7eb6-4451-9747-4b1c9926e8ce
 # ╠═d968bf3f-e011-47d4-801d-b9d6ae189819
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
