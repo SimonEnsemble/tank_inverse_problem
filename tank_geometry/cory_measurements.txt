@@ -1,0 +1,22 @@
+# March 4, 2023
+
+Cory's measurements of the tank.
+instrument = pink tape from Gbenga.
+
+## total height (slanted, from inside bottom to top to just before lip)
+H* = 28.6 cm
+
+## hole
+H_hole = 2.5 cm
+
+2 * r_hole = 1/8 in # drill bit diameter, confirmed by ruler.
+
+## top (from the inside, BEFORE the top "lip" starts. so not the very top.
+L_t = 14.6 cm
+W_t = 9.0 cm
+perimeter = 44.3 cm
+
+## bottom (from the inside)
+L_b = 13.4 cm
+W_b = 7.8 cm
+perimeter = 40.1 cm
