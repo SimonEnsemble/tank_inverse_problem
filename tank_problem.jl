@@ -15,7 +15,7 @@ macro bind(def, element)
 end
 
 # ╔═╡ faf59350-8d67-11ee-0bdd-2510e986118b
-using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI
+using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions
 
 # ╔═╡ a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
 calibration = CSV.read("liquid calibration.csv", DataFrame)
@@ -25,35 +25,66 @@ sensor_level_mapping = linear_interpolation(calibration[:, "level sensor reading
 									 calibration[:, "liquid level (cm)"])
 
 # ╔═╡ 759852ee-50e7-4deb-ac7e-c4693103c2a7
-@bind experiment Select(["experiment 3- 1-12.csv", "experiment 4- 1-12.csv"])
-
-# ╔═╡ c8718101-7dd6-4933-a0bd-9790e64d4451
 begin
-	data = CSV.read(experiment, DataFrame)
-	rename!(data, ["Time [s]", "liquid_level_reading"])
+	experiments = ["experiment 3- 1-12.csv", "experiment 4- 1-12.csv"]
+	@bind experiment Select(experiments)
 end
 
-# ╔═╡ 14107f95-888b-416b-982b-9c7e1dba1fcd
+# ╔═╡ b06a1c07-6250-4324-8802-010e5d847edb
 begin
-	id = argmax(data[:, "liquid_level_reading"])
-	_data = data[id:end, :]
-	_data[:, "Time [s]"] = _data[:, "Time [s]"] .- _data[1, "Time [s]"]
+	obstruction_data = ["obstruction-1-2-28.csv", "obstruction-2-2-28.csv", 
+						"obstruction-3-2-28.csv"]
+	@bind obstruction Select(obstruction_data)
 end
-
-# ╔═╡ baef3c1a-3ffa-432f-b214-b56c5b5bc918
-_data[:, "liquid level [cm]"] = sensor_level_mapping(_data[:, "liquid_level_reading"])
 
 # ╔═╡ 9af216b7-4bf2-42fb-bd95-5b2040d019a7
 sensor_height_to_perpendicular(h) = h * sqrt(28.1 ^ 2 - 0.5 ^ 2) / 28.1
 
-# ╔═╡ 58ab61d2-6067-44c9-8f0c-acc9cd4bea3b
-_data[:, "p_liquid level [cm]"] = sensor_height_to_perpendicular.(_data[:, "liquid level [cm]"] )
+# ╔═╡ 8b00d2b3-9182-42ab-8393-91707b813f60
+function process_file(file)
+	data = CSV.read(file, DataFrame)
+	
+	rename!(data, ["Time [s]", "liquid_level_reading"])
+	
+	id = argmax(data[:, "liquid_level_reading"])
+	data = data[id:end, :]
+	data[:, "Time [s]"] = data[:, "Time [s]"] .- data[1, "Time [s]"]
+	
+	data[:, "liquid level [cm]"] = sensor_level_mapping(
+												data[:, "liquid_level_reading"]
+												)
+	
+	data[:, "p_liquid level [cm]"] = sensor_height_to_perpendicular.(
+												data[:, "liquid level [cm]"]
+												)
+	
+	return data
+end
+
+# ╔═╡ 2a3d5a3f-5d20-4efb-91fd-cc84e77d5922
+test = symdiff(experiments, [experiment])[1]
+
+# ╔═╡ 5100771a-38b6-437a-91e4-70495391067b
+begin
+	_data = process_file(experiment)
+	test_data = process_file(test)
+end
+
+# ╔═╡ 8b6d766a-8f7b-4b9a-9a15-0f7375087120
+block = process_file(obstruction)
 
 # ╔═╡ 23ee0e85-a84b-4b63-b432-5526559efcee
 begin
 	local fig = Figure()
-	local ax = Axis(fig[1, 1], xlabel="level sensor reading", ylabel="liquid level (cm)")
-	lines!(calibration[:, "level sensor reading"], calibration[:, "liquid level (cm)"])
+	local ax = Axis(
+		fig[1, 1], 
+		xlabel="level sensor reading", 
+		ylabel="liquid level (cm)"
+	)
+	lines!(
+		calibration[:, "level sensor reading"], 
+		calibration[:, "liquid level (cm)"]
+	)
 	fig
 end
 
@@ -69,21 +100,26 @@ begin
 	A = linear_interpolation(slices, areas)
 end
 
+# ╔═╡ 9a7e5903-69be-4e0a-8514-3e05feedfed5
+
+
 # ╔═╡ 33f889d7-e875-40d8-9d6d-cc87b0fbaf22
 begin
 	local fig = Figure()
 	local ax = Axis(fig[1, 1], xlabel="Time [s]", ylabel="water level [cm]")
-	lines!(_data[:, "Time [s]"], _data[:, "p_liquid level [cm]"])
+	lines!(_data[:, "Time [s]"], _data[:, "p_liquid level [cm]"], label="no obs")
+	lines!(block[:, "Time [s]"], block[:, "p_liquid level [cm]"], label="obstruction")
+	axislegend()
 	fig
 end
 
 # ╔═╡ c6a263eb-cb45-4ee7-9c02-549c89298652
-f(h, p, t) = - p.a .* sqrt.(max.((2 * p.g * (h .- p.h_hole)), 0)) .* p.c ./ p.A(h)
+f(h, p, t) = - p.a .* sqrt.(max.(2 * p.g * (h .- p.h_hole), 0.0)) .* p.c ./ p.A(h)
 
 # ╔═╡ 31306e0b-9748-48a8-b9d2-892cb501b7ba
 begin
 	h0 = [_data[1, "p_liquid level [cm]"]]
-	tspan = (0, 1)
+	tspan = (0, _data[end, "Time [s]"])
 	a = 0.079 # d = 0.3175; a = (π * d²) / 4 
 	h_hole = 2.3
 	c = 0.63
@@ -100,11 +136,20 @@ end
 # ╔═╡ d3307918-1fdb-4f87-bb92-67330d22e58b
 begin
 	prob = ODEProblem(f, h0, tspan, p)
-	sol = solve(prob, Tsit5())
+	condition(h, t, integrator) = h[1] < p.h_hole
+	affect!(integrator) = terminate!(integrator)
+	cb = DiscreteCallback(condition, affect!)
+	sol = solve(prob, Tsit5(), callback = cb)
 end
+
+# ╔═╡ 3853c2fb-3665-4c7b-8511-af01694f04b3
+
 
 # ╔═╡ fbb7b6ed-ed41-4a5e-9ce9-732c0f261016
 _data[:, "p_liquid level [cm]"]
+
+# ╔═╡ a4e670a6-705f-4ae0-8a28-e08ebd99f08b
+sol(500000)
 
 # ╔═╡ 444f6d74-273e-486d-905a-1443ec0e98df
 begin
@@ -112,7 +157,7 @@ begin
 	local ax = Axis(fig[1, 1], xlabel="Time [s]", ylabel="liquid level [cm]")
 	scatter!(_data[:, "Time [s]"], _data[:, "p_liquid level [cm]"], label="experimental")
 	ts = range(0, maximum(_data[:, "Time [s]"]), length=1000)
-	lines!(ts, [sol.(t)[1] for t in ts], label="model", color=:red)
+	lines!(ts, [sol.(t, continuity=:right)[1] for t in ts], label="model", color=:red)
 	axislegend()
 	fig
 end
@@ -133,15 +178,15 @@ end
 	
 	A_t ~ Normal(A_top, 0.1) # cross-sectional area at the top of tank
 	
-	_a ~ TruncatedNormal(a, 0.01, 0.0, Inf) # area of the orifice [cm²]
+	_a ~ TruncatedNormal(a, 0.01, a - 0.02, a + 0.02) # area of the orifice [cm²]
 	
-	_c ~ TruncatedNormal(0.65, 0.1, 0.0, 1.0) # discharge coefficient
+	_c ~ TruncatedNormal(0.65, 0.1, 0.01, 1.0) # discharge coefficient
 	
 	_h_hole ~ TruncatedNormal(h_hole, 0.1, 2.0, 3.0) # height of orifice from the base of tank
 	
 	σ ~ Uniform(0.0, 1.0) # measurement noise
 	
-	h0_obs = infer_data[1, "p_liquid level [cm]"]
+	h0_obs = data_infer[1, "p_liquid level [cm]"]
 	h_0 ~ TruncatedNormal(h0_obs, σ, h0_obs - 2 * σ, h0_obs +  2 * σ) # initial liquid level
 
 
@@ -159,17 +204,19 @@ end
 			  A = _A # A(h)
 			)
 
-	
+	condition(h, t, integrator) = h[1] <= p.h_hole
+	affect!(integrator) = terminate!(integrator)
+	cb = ContinuousCallback(condition, affect!, affect!)
 	
 	# set up ODE
 	_prob = ODEProblem(f, [h_0], tspan, p)
-	# @show p h_0
-	sol = solve(_prob, Tsit5())
+	# @show p 
+	sol = solve(_prob, Tsit5(), callback = cb)
 	
 	# Observations.
 	for i in 2:nrow(data_infer)
 		tᵢ = data_infer[i, "Time [s]"]
-		data_infer[i, "p_liquid level [cm]"] ~ Normal(sol(tᵢ)[1], σ)
+		data_infer[i, "p_liquid level [cm]"] ~ Normal(sol(tᵢ, continuity=:right)[1], σ)
 	end
 
 	return nothing
@@ -177,11 +224,14 @@ end
 
 
 
+# ╔═╡ d4fd6a99-4009-43fb-b40c-cc675afb602b
+a
+
 # ╔═╡ 8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 begin
 	model = infer_params(infer_data)
 	
-	chain = sample(model, NUTS(0.65), MCMCSerial(), 200, 3; progress=false)
+	chain = sample(model, NUTS(0.65), MCMCSerial(), 3, 3; progress=true)
 end
 
 # ╔═╡ 7ebe4680-c583-4f92-8bae-dd84c3fb5139
@@ -208,10 +258,10 @@ begin
 							)
 end
 
-# ╔═╡ 4c62550a-7eb6-4451-9747-4b1c9926e8ce
-begin
-	local fig = Figure()
-	local ax = [Axis(fig[i, j]) for i in 1:3, j in 1:2]
+# ╔═╡ 5bb0b72a-8c77-4fcb-bbde-d144986d9c1e
+function viz_posterior(posterior)
+	fig = Figure()
+	ax = [Axis(fig[i, j]) for i in 1:3, j in 1:2]
 	j, i = 1, 1
 	 
 	for p in keys(posterior_to_true)
@@ -236,15 +286,15 @@ begin
 			i = 1
 		end
 	end
-	fig	
+	return fig	
 end
 
-# ╔═╡ d968bf3f-e011-47d4-801d-b9d6ae189819
-begin
-	local fig = Figure()
-	local ax = Axis(fig[1, 1], xlabel="Time [s]", ylabel="liquid level [cm]")
+# ╔═╡ 2ab35999-3615-4f5c-8d89-36d77802fe9b
+function viz_fit(posterior, infer_data, data)
+	fig = Figure()
+	ax = Axis(fig[1, 1], xlabel="Time [s]", ylabel="liquid level [cm]")
 	
-	local ts = range(0, maximum(_data[:, "Time [s]"]), length=1000)
+	ts = range(0, maximum(data[:, "Time [s]"]), length=1000)
 	
 	
 	ids_post = sample(1:nrow(posterior), 300; replace=false)
@@ -273,8 +323,213 @@ begin
 	scatter!(infer_data[:, "Time [s]"], infer_data[:, "p_liquid level [cm]"], label="experimental")
 	
 	axislegend(unique=true)
-	fig
+	return fig
 end
+
+# ╔═╡ 5bea087e-c241-424d-a526-25eae30bfe15
+viz_posterior(posterior)
+
+# ╔═╡ 765ff940-1328-4806-aeaa-de8a41a6f4df
+
+
+# ╔═╡ 2a01b228-f281-46c4-9764-fac6cc1b4217
+viz_fit(posterior, infer_data, _data)
+
+# ╔═╡ 193d0e02-988e-4f58-b57d-7a1d125069a4
+@model function infer_test(data_infer, posterior)
+	
+	# Prior distributions.
+	A_b ~ Normal(mean(posterior.A_b), std(posterior.A_b)) # cross-sectional area at the base of tank
+	
+	A_t ~ Normal(mean(posterior.A_t), std(posterior.A_t)) # cross-sectional area at the top of tank
+	
+	_a ~ TruncatedNormal(mean(posterior._a), std(posterior._a), 0.0, Inf) # area of the orifice [cm²]
+	
+	_c ~ TruncatedNormal(mean(posterior._c), std(posterior._c), 0.0, 1.0) # discharge coefficient
+	
+	_h_hole ~ TruncatedNormal(mean(posterior._h_hole), std(posterior._h_hole), 2.0, 3.0) # height of orifice from the base of tank
+	
+	σ ~ Uniform(0.0, 1.0) # measurement noise
+	
+	h0_obs = data_infer[1, "p_liquid level [cm]"]
+	h_0 ~ TruncatedNormal(h0_obs, σ, h0_obs - 2 * σ, h0_obs +  2 * σ) # initial liquid level
+
+
+	# recalibrate area interpolation
+	_areas = [A_b, A_t] # cm^2
+	
+	_A = linear_interpolation(slices, _areas)
+	
+	# parameter for ODE
+	p = (
+			  a = _a, # area of the orifice [cm²]
+			  g =  980.665, # cm/s², 
+			  c = _c, # discharge coefficient
+			  h_hole = _h_hole, # height of hole to the base of tank [cm] 
+			  A = _A # A(h)
+			)
+
+	
+	
+	# set up ODE
+	_prob = ODEProblem(f, [h_0], tspan, p)
+	# @show p h_0
+	sol = solve(_prob, Tsit5())
+	
+	# Observations.
+	tᵢ = data_infer[1, "Time [s]"]
+	data_infer[1, "p_liquid level [cm]"] ~ Normal(sol(tᵢ)[1], σ)
+	
+
+	return nothing
+end
+
+
+
+# ╔═╡ 706a0c20-d42c-4fd6-980c-122b9c66de46
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	test_model = infer_test(test_data, posterior)
+	
+	test_chain = sample(test_model, NUTS(0.65), MCMCSerial(), 200, 3; progress=false)
+end
+  ╠═╡ =#
+
+# ╔═╡ 4ceeb508-413e-4a3c-9790-bfec1900ef4d
+#=╠═╡
+test_posterior = DataFrame(test_chain)
+  ╠═╡ =#
+
+# ╔═╡ 319ecc01-f2d6-46e8-87dd-9cb7992d544c
+#=╠═╡
+viz_fit(test_posterior, test_data, test_data)
+  ╠═╡ =#
+
+# ╔═╡ e95b3140-7658-483d-bfc3-c86399dfd6a0
+#=╠═╡
+viz_posterior(test_posterior)
+  ╠═╡ =#
+
+# ╔═╡ 2086cdce-516e-424a-a010-9433197e0699
+A_top
+
+# ╔═╡ 9d37f68c-f27b-4b2e-bd61-756d24d1352d
+slices
+
+# ╔═╡ 5c53d8b4-4929-47d9-ab18-aee0ec8e9efc
+std(posterior.A_b)
+
+# ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
+@model function infer_area(data_infer, posterior)
+	N = nrow(data_infer)
+
+	# get start area from posterior
+	h0_obs = data_infer[1, "p_liquid level [cm]"]
+	prior_area = linear_interpolation(slices, [mean(posterior.A_b), 
+											  mean(posterior.A_t)]) 
+	
+	# Prior distributions.
+	p_A ~ Normal(prior_area(h0_obs), std(posterior.A_t))
+		# Normal(prior_area(h0_obs), std(posterior.A_t))
+	
+	W ~ filldist(Normal(0, 1), N)
+	
+	γ ~ Uniform(0.0, 10000.0)
+	
+	
+	_a ~ TruncatedNormal(mean(posterior._a), std(posterior._a), 0.0, Inf) # area of the orifice [cm²]
+	
+	_c ~ TruncatedNormal(mean(posterior._c), std(posterior._c), 0.0, 1.0) # discharge coefficient
+	
+	_h_hole ~ TruncatedNormal(mean(posterior._h_hole), std(posterior._h_hole), 2.0, 3.0) # height of orifice from the base of tank
+	
+	σ ~ Uniform(0.0, 1.0) # measurement noise
+	
+	h_0 ~ TruncatedNormal(h0_obs, σ, h0_obs - 2 * σ, h0_obs +  2 * σ) # initial liquid level
+	
+	# for j in 2:N
+	# 	p_A[j] = γ * W[j]  + p_A[j-1]
+	# end
+
+	_areas = [p_A]
+	
+	[append!(_areas, _areas[i-1] + γ * W[i]) for i in 2:N]
+
+	idx = sortperm(data_infer[:, "p_liquid level [cm]"])
+	
+	_A = linear_interpolation(data_infer[idx, "p_liquid level [cm]"], _areas[idx], 
+							  extrapolation_bc=Line())
+	# print(W)
+	# parameter for ODE
+	p = (
+			  a = _a, # area of the orifice [cm²]
+			  g =  980.665, # cm/s², 
+			  c = _c, # discharge coefficient
+			  h_hole = _h_hole, # height of hole to the base of tank [cm] 
+			  A = _A # A(h)
+			)
+
+	
+	
+	# # set up ODE
+	_prob = ODEProblem(f, [h_0], tspan, p)
+
+	sol = solve(_prob, Tsit5())
+	
+	# Observations.
+	for i in 2:N
+		tᵢ = data_infer[i, "Time [s]"]
+		data_infer[i, "p_liquid level [cm]"] ~ Normal(sol(tᵢ)[1], σ)
+	end
+	return nothing
+end
+
+
+
+# ╔═╡ b4c62168-24e4-4cd3-8358-7599813af45d
+tspan
+
+# ╔═╡ bcd9167a-8fe3-4458-9afe-42d750719d35
+A_top
+
+# ╔═╡ 02939a87-e811-4ae4-8b6b-173370029889
+begin
+	area_model = infer_area(infer_data, posterior)
+	area_posterior = DataFrame(sample(area_model, NUTS(0.65), MCMCSerial(), 100, 3; 
+									  progress=false))
+end
+
+# ╔═╡ a127225a-5b79-4074-a16b-cecd11030800
+function viz_area(original_post, posterior, data)
+	fig = Figure()
+	ax = Axis(fig[1, 1], xlabel="height [cm]", ylabel="Area [cm²]")
+	
+	ids_post = sample(1:nrow(posterior), 100; replace=false)
+
+	areas = [mean(original_post[:, "A_b"]), mean(original_post[:, "A_t"])] # cm^2
+	A = linear_interpolation(slices, areas)
+	
+	for j in ids_post
+		
+		_areas = [posterior[j, "p_A"]]
+		[append!(_areas, _areas[i-1] + posterior[j, "γ"] * posterior[j, "W[$(i)]"]) for i in 2:nrow(data)]
+		
+		
+		lines!(data[:, "p_liquid level [cm]"], _areas, label="model", color=(:green, 0.1))
+	end
+
+	scatter!(data[:, "p_liquid level [cm]"], A.(data[:, "p_liquid level [cm]"]), label="experimental")
+	ylims!(A_bottom, A_top)
+	axislegend(unique=true, position=:rb)
+	return fig
+end
+
+# ╔═╡ b43f9f58-94fd-4c92-8e91-9a6b86cfc041
+viz_area(posterior, area_posterior, infer_data)
+
+# ╔═╡ 9c7e9485-2b7c-4847-bc7a-2049fbddf2cc
+infer_data
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -283,6 +538,7 @@ CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
@@ -293,6 +549,7 @@ CSV = "~0.10.11"
 CairoMakie = "~0.6.2"
 DataFrames = "~1.6.1"
 DifferentialEquations = "~7.6.0"
+Distributions = "~0.25.107"
 Interpolations = "~0.14.7"
 PlutoUI = "~0.7.55"
 StatsBase = "~0.33.21"
@@ -305,7 +562,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.0"
 manifest_format = "2.0"
-project_hash = "f1d52e930c7ad9f48381a66a5e18b140efcf1292"
+project_hash = "37662d98eb672758d29453f609b756fa0e3c1e40"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -2631,25 +2888,48 @@ version = "3.5.0+0"
 # ╠═a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
 # ╠═6e922ea4-01d0-4202-baed-3cb693b663bc
 # ╠═759852ee-50e7-4deb-ac7e-c4693103c2a7
-# ╠═c8718101-7dd6-4933-a0bd-9790e64d4451
-# ╠═14107f95-888b-416b-982b-9c7e1dba1fcd
-# ╠═baef3c1a-3ffa-432f-b214-b56c5b5bc918
+# ╠═b06a1c07-6250-4324-8802-010e5d847edb
+# ╠═8b00d2b3-9182-42ab-8393-91707b813f60
 # ╠═9af216b7-4bf2-42fb-bd95-5b2040d019a7
-# ╠═58ab61d2-6067-44c9-8f0c-acc9cd4bea3b
+# ╠═2a3d5a3f-5d20-4efb-91fd-cc84e77d5922
+# ╠═5100771a-38b6-437a-91e4-70495391067b
+# ╠═8b6d766a-8f7b-4b9a-9a15-0f7375087120
 # ╠═23ee0e85-a84b-4b63-b432-5526559efcee
 # ╠═20fa4266-be80-4d8e-b1d0-155a40a1241f
+# ╠═9a7e5903-69be-4e0a-8514-3e05feedfed5
 # ╠═33f889d7-e875-40d8-9d6d-cc87b0fbaf22
 # ╠═c6a263eb-cb45-4ee7-9c02-549c89298652
 # ╠═31306e0b-9748-48a8-b9d2-892cb501b7ba
 # ╠═d3307918-1fdb-4f87-bb92-67330d22e58b
+# ╠═3853c2fb-3665-4c7b-8511-af01694f04b3
 # ╠═fbb7b6ed-ed41-4a5e-9ce9-732c0f261016
+# ╠═a4e670a6-705f-4ae0-8a28-e08ebd99f08b
 # ╠═444f6d74-273e-486d-905a-1443ec0e98df
 # ╠═b3a235d8-a278-40a7-a6d8-6ddd65bc3c5e
 # ╠═8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
+# ╠═d4fd6a99-4009-43fb-b40c-cc675afb602b
 # ╠═8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 # ╠═7ebe4680-c583-4f92-8bae-dd84c3fb5139
 # ╠═a2048a65-7b7c-41fc-b7ee-f9199f3e96b5
-# ╠═4c62550a-7eb6-4451-9747-4b1c9926e8ce
-# ╠═d968bf3f-e011-47d4-801d-b9d6ae189819
+# ╠═5bb0b72a-8c77-4fcb-bbde-d144986d9c1e
+# ╠═2ab35999-3615-4f5c-8d89-36d77802fe9b
+# ╠═5bea087e-c241-424d-a526-25eae30bfe15
+# ╠═765ff940-1328-4806-aeaa-de8a41a6f4df
+# ╠═2a01b228-f281-46c4-9764-fac6cc1b4217
+# ╠═193d0e02-988e-4f58-b57d-7a1d125069a4
+# ╠═706a0c20-d42c-4fd6-980c-122b9c66de46
+# ╠═4ceeb508-413e-4a3c-9790-bfec1900ef4d
+# ╠═319ecc01-f2d6-46e8-87dd-9cb7992d544c
+# ╠═e95b3140-7658-483d-bfc3-c86399dfd6a0
+# ╠═2086cdce-516e-424a-a010-9433197e0699
+# ╠═9d37f68c-f27b-4b2e-bd61-756d24d1352d
+# ╠═5c53d8b4-4929-47d9-ab18-aee0ec8e9efc
+# ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
+# ╠═b4c62168-24e4-4cd3-8358-7599813af45d
+# ╠═bcd9167a-8fe3-4458-9afe-42d750719d35
+# ╠═02939a87-e811-4ae4-8b6b-173370029889
+# ╠═a127225a-5b79-4074-a16b-cecd11030800
+# ╠═b43f9f58-94fd-4c92-8e91-9a6b86cfc041
+# ╠═9c7e9485-2b7c-4847-bc7a-2049fbddf2cc
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
