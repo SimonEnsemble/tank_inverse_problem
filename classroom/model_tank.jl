@@ -59,10 +59,28 @@ function A(h::Float64)
 end
 
 # ╔═╡ e884b0ef-f5b1-44c8-8f55-35f8480cadc1
-md"## calibration of liquid sensor"
+md"## calibration of liquid sensor
+
+read in data for calibration of the liquid level sensor.
+"
 
 # ╔═╡ e602eab3-b4a1-41d5-9181-4f9c253a5677
 calibration_data = CSV.read("../liquid calibration.csv", DataFrame)
+
+# ╔═╡ 03a52d5f-2931-42be-9270-e15ac322057a
+md"create a linear interpolator to obtain liquid level at level sensor readings between those recorded in the calibration data set."
+
+# ╔═╡ ad0d77c2-2c9d-4d6d-849a-52a95343d8ab
+sensor_output_to_h = linear_interpolation(
+	calibration_data[:, "level sensor reading"], 
+	calibration_data[:, "liquid level (cm)"]
+)
+
+# ╔═╡ e73ae703-5814-44b1-b546-f983299a591e
+sensor_output_to_h(522.0)
+
+# ╔═╡ da2df80d-313f-4a8c-ac2b-483eea98c142
+md"visualize the calibration curve and check the linear interpolator."
 
 # ╔═╡ 3a2a1f79-bdae-411b-8f7e-62b3edcacb2e
 begin
@@ -72,24 +90,27 @@ begin
 		xlabel="level sensor reading", 
 		ylabel="liquid level (cm)"
 	)
-	lines!(
+	
+	scatter!(
 		calibration_data[:, "level sensor reading"], 
 		calibration_data[:, "liquid level (cm)"]
 	)
+	
+	lr = range(
+		minimum(calibration_data[:, "level sensor reading"]),
+		maximum(calibration_data[:, "level sensor reading"]),
+		length=150
+	)
+	lines!(lr, sensor_output_to_h.(lr))
+	
 	fig
 end
 
-# ╔═╡ ad0d77c2-2c9d-4d6d-849a-52a95343d8ab
-sensor_output_to_h = linear_interpolation(
-	calibration_data[:, "level sensor reading"], 
-	calibration_data[:, "liquid level (cm)"]
-)
-
-# ╔═╡ 7c804847-d4fa-4ad3-8063-59f0c793150c
-sensor_output_to_h(522.0)
-
 # ╔═╡ 180dfe22-6948-431f-a7eb-8e85e4b0f6df
-md"## process data"
+md"## process data
+
+read in and process time series data collected during an experiment where the tank is emptying.
+"
 
 # ╔═╡ 27c461b1-9ded-417a-83a8-d08643e72e32
 function read_process_data(expt_no::Int; t_begin::Float64=0.0)
@@ -109,7 +130,7 @@ function read_process_data(expt_no::Int; t_begin::Float64=0.0)
 	# apply calibration curve
 	data[:, "h [cm]"] = map(sensor_output_to_h, data[:, " liquid_level_reading"])
 	
-	return data
+	return select(data, ["Time [s]", "h [cm]"])
 end
 
 # ╔═╡ 9e760ae6-bd5b-4fdc-a385-133b4869e163
@@ -135,12 +156,15 @@ end
 viz_data(data)
 
 # ╔═╡ bb175715-e92c-46db-83a6-1941ff7b5815
-md"## ODE model"
+md"## ODE model
+set up ODE model governing $h(t;c)$ where $c$ is a paramter.
+"
 
 # ╔═╡ e8de8919-4147-4255-afbf-de9f13e5e37a
 g = 980.0 # cm / s²
 
 # ╔═╡ afaa06c2-da85-11ee-1846-cb19e3e8c03b
+# right-hand side of ODE
 function f(h, params, t)
 	c = params[1]
 	
@@ -151,7 +175,7 @@ function f(h, params, t)
 end
 
 # ╔═╡ 9bdca4d1-9c1d-4f7f-a30d-bf5bfc571028
-h₀ = data[1, "h [cm]"]
+h₀ = data[1, "h [cm]"] # initial liquid level
 
 # ╔═╡ 7afa6f66-4e6e-4d45-b038-19a26ffb605d
 tspan = (0.0, 410.0) # s
@@ -161,6 +185,9 @@ prob = ODEProblem(f, h₀, tspan, [1.0], saveat=1.0)
 
 # ╔═╡ d3e4cf56-22de-44c3-9d65-4c46cc2f6392
 sim_data = DataFrame(solve(prob, Tsit5()))
+
+# ╔═╡ db2a6ec1-c424-4839-93c3-967ff3fff973
+md"assess quality of fit with $c=1$"
 
 # ╔═╡ eb2afb65-f7f1-49e4-b5d0-b41366c4e350
 begin
@@ -172,13 +199,18 @@ begin
 end
 
 # ╔═╡ 66f9b070-a677-45ce-ae2e-c67b4b816243
-md"## tune c"
+md"## tune c
+
+let's use the time series data to find the optimal $c$ parameter.
+
+first, we code up a loss function
+"
 
 # ╔═╡ b846feb2-f072-4b5d-bd0c-ced6f5e91849
 function loss(c)
-	# define ODE problem
+	# use ODE solver to create h(t; c)
 	prob = ODEProblem(f, h₀, tspan, [c], saveat=1.0)
-	sim_h = solve(prob, Tsit5())
+	h = solve(prob, Tsit5())
 
 	# compute loss
 	ℓ = 0.0
@@ -188,7 +220,7 @@ function loss(c)
 		hᵢ = row["h [cm]"]
 		
 		# get predicted h
-		ĥᵢ = sim_h(tᵢ)
+		ĥᵢ = h(tᵢ)
 
 		# increment loss
 		ℓ += (hᵢ - ĥᵢ) ^ 2
@@ -197,7 +229,7 @@ function loss(c)
 end
 
 # ╔═╡ c8e6165e-7bca-4784-bed9-e655fb33644d
-cs = range(0.7, 1.1, length=15)
+cs = range(0.4, 1.1, length=15)
 
 # ╔═╡ f9860b59-9943-4eac-b7aa-d7a06340ad79
 begin
@@ -207,11 +239,17 @@ begin
 	fig
 end
 
+# ╔═╡ a321075d-4da7-4123-a03f-82b28cd56046
+md"find optimal $c$ by minimizing the loss."
+
 # ╔═╡ 0de278a0-0f4d-416c-800a-f7790c02e343
-c_opt = optimize(loss, 0.5, 1.0).minimizer
+c_opt = optimize(loss, 0.4, 1.0).minimizer
 
 # ╔═╡ 92068db5-faa1-4d15-bdba-e1d0bf9ddc93
-md"## plot optimal model"
+md"## assess fit of optimal model
+
+re-solve ODE with optimal $c$. plot against data to assess fit.
+"
 
 # ╔═╡ f30f8862-81fc-4ae6-a218-fd9df8e60093
 prob_opt = ODEProblem(f, h₀, tspan, [c_opt], saveat=1.0)
@@ -235,7 +273,12 @@ begin
 end
 
 # ╔═╡ 5acc0622-68ed-48f8-ad5d-56225fa51afe
-md"### test data"
+md"### test model
+
+the ultimate judge of the quality of the model is how well it predicts the outcome of a different experiment.
+
+the test data contains time series data for $h(t)$ when the tank was draining in a second experiment.
+"
 
 # ╔═╡ d8fe78f3-ab8b-4716-bea2-47edcad2d912
 data_test = read_process_data(4, t_begin=50.0)
@@ -279,9 +322,11 @@ end
 # ╠═633af570-2e83-41b8-8854-fcaad776b1de
 # ╟─e884b0ef-f5b1-44c8-8f55-35f8480cadc1
 # ╠═e602eab3-b4a1-41d5-9181-4f9c253a5677
-# ╠═3a2a1f79-bdae-411b-8f7e-62b3edcacb2e
+# ╟─03a52d5f-2931-42be-9270-e15ac322057a
 # ╠═ad0d77c2-2c9d-4d6d-849a-52a95343d8ab
-# ╠═7c804847-d4fa-4ad3-8063-59f0c793150c
+# ╠═e73ae703-5814-44b1-b546-f983299a591e
+# ╟─da2df80d-313f-4a8c-ac2b-483eea98c142
+# ╠═3a2a1f79-bdae-411b-8f7e-62b3edcacb2e
 # ╟─180dfe22-6948-431f-a7eb-8e85e4b0f6df
 # ╠═27c461b1-9ded-417a-83a8-d08643e72e32
 # ╠═9e760ae6-bd5b-4fdc-a385-133b4869e163
@@ -294,11 +339,13 @@ end
 # ╠═7afa6f66-4e6e-4d45-b038-19a26ffb605d
 # ╠═dce788c9-ed23-453e-afe4-76b384799ee1
 # ╠═d3e4cf56-22de-44c3-9d65-4c46cc2f6392
+# ╟─db2a6ec1-c424-4839-93c3-967ff3fff973
 # ╠═eb2afb65-f7f1-49e4-b5d0-b41366c4e350
 # ╟─66f9b070-a677-45ce-ae2e-c67b4b816243
 # ╠═b846feb2-f072-4b5d-bd0c-ced6f5e91849
 # ╠═c8e6165e-7bca-4784-bed9-e655fb33644d
 # ╠═f9860b59-9943-4eac-b7aa-d7a06340ad79
+# ╟─a321075d-4da7-4123-a03f-82b28cd56046
 # ╠═0de278a0-0f4d-416c-800a-f7790c02e343
 # ╟─92068db5-faa1-4d15-bdba-e1d0bf9ddc93
 # ╠═f30f8862-81fc-4ae6-a218-fd9df8e60093
