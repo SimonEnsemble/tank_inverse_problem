@@ -17,61 +17,38 @@ end
 # ╔═╡ faf59350-8d67-11ee-0bdd-2510e986118b
 using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions
 
+# ╔═╡ e1b54f1e-3c1b-4657-ae3d-d68a78617a4d
+import AlgebraOfGraphics
+
+# ╔═╡ 4391f124-cbef-46e5-8462-e4e5126f5b38
+begin
+	AlgebraOfGraphics.set_aog_theme!(
+		fonts=[AlgebraOfGraphics.firasans("Light"), 
+			   AlgebraOfGraphics.firasans("Light")]
+	)
+	resolution = (0.9*500, 0.9*380)
+	update_theme!(
+		fontsize=20, 
+		linewidth=4,
+		markersize=14,
+		titlefont=AlgebraOfGraphics.firasans("Light"),
+		# resolution=resolution
+	)
+end
+
+# ╔═╡ 3a215798-084f-4f0e-9dfc-71a16f9e69df
+
+
+# ╔═╡ 245836a9-6b44-4639-9209-e7ad9035e293
+TableOfContents()
+
+# ╔═╡ 418525b7-c358-41da-b865-5df3feb15855
+md"""
+## Sensor Calibration
+"""
+
 # ╔═╡ a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
 calibration = CSV.read("liquid calibration.csv", DataFrame)
-
-# ╔═╡ 6e922ea4-01d0-4202-baed-3cb693b663bc
-sensor_level_mapping = linear_interpolation(calibration[:, "level sensor reading"], 
-									 calibration[:, "liquid level (cm)"])
-
-# ╔═╡ 759852ee-50e7-4deb-ac7e-c4693103c2a7
-begin
-	experiments = ["experiment 3- 1-12.csv", "experiment 4- 1-12.csv"]
-	@bind experiment Select(experiments)
-end
-
-# ╔═╡ b06a1c07-6250-4324-8802-010e5d847edb
-begin
-	obstruction_data = ["obstruction-1-2-28.csv", "obstruction-2-2-28.csv", 
-						"obstruction-3-2-28.csv"]
-	@bind obstruction Select(obstruction_data)
-end
-
-# ╔═╡ 9af216b7-4bf2-42fb-bd95-5b2040d019a7
-sensor_height_to_perpendicular(h) = h * sqrt(28.1 ^ 2 - 0.5 ^ 2) / 28.1
-
-# ╔═╡ 8b00d2b3-9182-42ab-8393-91707b813f60
-function process_file(file)
-	data = CSV.read(file, DataFrame)
-	
-	rename!(data, ["Time [s]", "liquid_level_reading"])
-	
-	id = argmax(data[:, "liquid_level_reading"])
-	data = data[id:end, :]
-	data[:, "Time [s]"] = data[:, "Time [s]"] .- data[1, "Time [s]"]
-	
-	data[:, "liquid level [cm]"] = sensor_level_mapping(
-												data[:, "liquid_level_reading"]
-												)
-	
-	data[:, "p_liquid level [cm]"] = sensor_height_to_perpendicular.(
-												data[:, "liquid level [cm]"]
-												)
-	
-	return data
-end
-
-# ╔═╡ 2a3d5a3f-5d20-4efb-91fd-cc84e77d5922
-test = symdiff(experiments, [experiment])[1]
-
-# ╔═╡ 5100771a-38b6-437a-91e4-70495391067b
-begin
-	_data = process_file(experiment)
-	test_data = process_file(test)
-end
-
-# ╔═╡ 8b6d766a-8f7b-4b9a-9a15-0f7375087120
-block = process_file(obstruction)
 
 # ╔═╡ 23ee0e85-a84b-4b63-b432-5526559efcee
 begin
@@ -88,135 +65,260 @@ begin
 	fig
 end
 
+# ╔═╡ 078c01f7-e47e-4af0-be1c-ac4527b735fd
+md"""
+## Data Preprocessing
+"""
+
+# ╔═╡ 9af216b7-4bf2-42fb-bd95-5b2040d019a7
+map_slant_height_to_perpendicular(ĥ) = ĥ * sqrt(28.1 ^ 2 - 0.5 ^ 2) / 28.1
+
+# ╔═╡ 6e922ea4-01d0-4202-baed-3cb693b663bc
+function level_strip_reading_to_h(sensor_reading::Array; 
+								  calibration::DataFrame=calibration)
+	mapping = linear_interpolation(
+							calibration[:, "level sensor reading"], 
+							calibration[:, "liquid level (cm)"]
+							)
+	ĥ = mapping(sensor_reading) # convert sensor reading to slant height
+	
+	h =map_slant_height_to_perpendicular(ĥ) # convert slant height to perpendicular 
+	return h
+end
+
+# ╔═╡ 759852ee-50e7-4deb-ac7e-c4693103c2a7
+begin
+	experiments = ["experiment 3- 1-12.csv", "experiment 4- 1-12.csv"]
+	@bind experiment Select(experiments)
+end
+
+# ╔═╡ b06a1c07-6250-4324-8802-010e5d847edb
+begin
+	obstruction_data = ["obstruction-1-2-28.csv", "obstruction-2-2-28.csv", 
+						"obstruction-3-2-28.csv"]
+	@bind obstruction Select(obstruction_data)
+end
+
+# ╔═╡ 8b00d2b3-9182-42ab-8393-91707b813f60
+function read_h_time_series(file::String)
+	data = CSV.read(file, DataFrame) # read in file
+	
+	rename!(data, ["Time [s]", "liquid_level_reading"])
+	
+	id = argmax(data[:, "liquid_level_reading"]) # index of highest water level
+	data = data[id:end, :] # index of highest water level
+	data[:, "Time [s]"] = data[:, "Time [s]"] .- data[1, "Time [s]"]
+	
+	data[:, "liquid level [cm]"] = level_strip_reading_to_h(
+												data[:, "liquid_level_reading"]
+												)
+	
+	# data[:, "p_liquid level [cm]"] = sensor_height_to_perpendicular.(
+	# 											data[:, "liquid level [cm]"]
+	# 											)
+	
+	return data[:, ["Time [s]", "liquid level [cm]"]]
+end
+
+# ╔═╡ 2a3d5a3f-5d20-4efb-91fd-cc84e77d5922
+test_data_filename = symdiff(experiments, [experiment])[1]
+
+# ╔═╡ f0675774-b9ba-40a9-953f-ce5784454378
+experiment
+
+# ╔═╡ 5100771a-38b6-437a-91e4-70495391067b
+begin
+	train_data = read_h_time_series(experiment)
+	test_data = read_h_time_series(test_data_filename)
+end
+
+# ╔═╡ 8b6d766a-8f7b-4b9a-9a15-0f7375087120
+block_data = read_h_time_series(obstruction)
+
+# ╔═╡ df589086-cc94-4da9-b982-563cd6ecc643
+md"""
+## Tank Geometry 
+"""
+
 # ╔═╡ 20fa4266-be80-4d8e-b1d0-155a40a1241f
 begin
-	H = 33 # heigth of tank [cm]
+	Ĥ = 33 # slant height of tank [cm]
+	H_tank = map_slant_height_to_perpendicular(Ĥ) # perpendicular height of tank [cm]
+	
 	A_bottom = 100.8 # cm^2
 	A_top = 134.62 # cm^2
 	
-	areas = [A_bottom, A_top] # cm^2
-	slices = [0.0, sensor_height_to_perpendicular(H)] # cm
+	# areas =  # cm^2
+	# slices = [0.0, sensor_height_to_perpendicular(H)] # cm
 	
-	A = linear_interpolation(slices, areas)
+	A_of_h = linear_interpolation([0.0, H_tank], [A_bottom, A_top])
 end
 
 # ╔═╡ 9a7e5903-69be-4e0a-8514-3e05feedfed5
+begin
+	local fig = Figure()
+	local ax = Axis(
+				fig[1, 1], 
+				xlabel="water level [cm]", 
+				ylabel="Surface area at water level"
+	)
 
+	water_level = train_data[:, "liquid level [cm]"]
+	lines!(water_level, A_of_h.(water_level))
+	
+	fig
+end
 
 # ╔═╡ 33f889d7-e875-40d8-9d6d-cc87b0fbaf22
 begin
 	local fig = Figure()
 	local ax = Axis(fig[1, 1], xlabel="Time [s]", ylabel="water level [cm]")
-	lines!(_data[:, "Time [s]"], _data[:, "p_liquid level [cm]"], label="no obs")
-	lines!(block[:, "Time [s]"], block[:, "p_liquid level [cm]"], label="obstruction")
+	lines!(
+			train_data[:, "Time [s]"], 
+			train_data[:, "liquid level [cm]"], 
+			label="no obstruction"
+		)
+	
+	# lines!(
+	# 		block_data[:, "Time [s]"], 
+	# 		block_data[:, "liquid level [cm]"], 
+	# 		label="obstruction"
+	# 	)
+	
 	axislegend()
 	fig
 end
 
-# ╔═╡ c6a263eb-cb45-4ee7-9c02-549c89298652
-f(h, p, t) = - p.a .* sqrt.(max.(2 * p.g * (h .- p.h_hole), 0.0)) .* p.c ./ p.A(h)
+# ╔═╡ e379461f-8896-4e2a-a71b-1871a8a37eb5
+md"""
+## Differential tank model setup
+"""
 
 # ╔═╡ 31306e0b-9748-48a8-b9d2-892cb501b7ba
 begin
-	h0 = [_data[1, "p_liquid level [cm]"]]
-	tspan = (0, _data[end, "Time [s]"])
-	a = 0.079 # d = 0.3175; a = (π * d²) / 4 
-	h_hole = 2.3
-	c = 0.63
-	p = (
-			  a = a, # cm²
-			  g =  980.665, # cm/s², 
-			  c = c, 
-			  h_hole = h_hole, # cm 
-			  A = A # A(h)
+	g = 980.665 # cm/s²
+	h0 = [train_data[1, "liquid level [cm]"]]
+	tspan = (0, train_data[end, "Time [s]"])
+	 
+	measurements = (
+			  a = 0.079, # d = 0.3175; a = (π * d²) / 4  [cm²] 
+			  c = 0.63, 
+			  h_hole = 2.3, # cm 
+			  A_of_h = A_of_h # A(h)
 			)
 
 end
 
+# ╔═╡ c6a263eb-cb45-4ee7-9c02-549c89298652
+f(h, p, t) = - p.a .* sqrt.(max.(2 * g * (h .- p.h_hole), 0.0)) .* p.c ./ p.A_of_h(h)
+
+# ╔═╡ a934a309-6ab6-46e0-b448-2572334f5b7a
+# function condition(h, t, integrator) # Event when condition(u,t,integrator) == 0
+#     h[1] = p.h_hole
+# end
+
 # ╔═╡ d3307918-1fdb-4f87-bb92-67330d22e58b
 begin
-	prob = ODEProblem(f, h0, tspan, p)
-	condition(h, t, integrator) = h[1] < p.h_hole
+	prob = ODEProblem(f, h0, tspan, measurements)
+	condition(h, t, integrator) = h[1] <= measurements.h_hole
 	affect!(integrator) = terminate!(integrator)
-	cb = DiscreteCallback(condition, affect!)
-	sol = solve(prob, Tsit5(), callback = cb)
+	cb = ContinuousCallback(condition, affect!)
+	sol = solve(prob, Tsit5(), callback=cb)
 end
 
 # ╔═╡ 3853c2fb-3665-4c7b-8511-af01694f04b3
 
 
-# ╔═╡ fbb7b6ed-ed41-4a5e-9ce9-732c0f261016
-_data[:, "p_liquid level [cm]"]
-
-# ╔═╡ a4e670a6-705f-4ae0-8a28-e08ebd99f08b
-sol(500000)
-
 # ╔═╡ 444f6d74-273e-486d-905a-1443ec0e98df
 begin
 	local fig = Figure()
 	local ax = Axis(fig[1, 1], xlabel="Time [s]", ylabel="liquid level [cm]")
-	scatter!(_data[:, "Time [s]"], _data[:, "p_liquid level [cm]"], label="experimental")
-	ts = range(0, maximum(_data[:, "Time [s]"]), length=1000)
+	scatter!(
+			train_data[:, "Time [s]"], 
+			train_data[:, "liquid level [cm]"], 
+			label="experimental")
+	
+	ts = range(0, maximum(train_data[:, "Time [s]"]), length=1000)
 	lines!(ts, [sol.(t, continuity=:right)[1] for t in ts], label="model", color=:red)
+	
 	axislegend()
 	fig
 end
 
-# ╔═╡ b3a235d8-a278-40a7-a6d8-6ddd65bc3c5e
-begin
-	# downsample
-		n_sample = 12
-		ids = trunc.(Int, collect(range(1, nrow(_data), length=n_sample)))
-		infer_data = _data[ids, :]
+# ╔═╡ a1a10e2f-1b78-4b93-9295-7c0055e32692
+md"""
+## Bayesian inference approach for measurement estimation  
+"""
+
+# ╔═╡ f21dc58e-d4e8-4314-b5dd-abbcb29efe86
+function downsample(data::DataFrame, n::Int)
+	ids = trunc.(Int, collect(range(1, nrow(data), length=n)))
+	return data[ids, :]
 end
 
 # ╔═╡ 8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
-@model function infer_params(data_infer)
+@model function infer_params(data, measurements)
+
+	σ_measurement = 0.1
 	
 	# Prior distributions.
-	A_b ~ Normal(A_bottom, 0.1) # cross-sectional area at the base of tank
+	A_b ~ Normal(A_bottom, σ_measurement) # cross-sectional area at the base of tank
 	
-	A_t ~ Normal(A_top, 0.1) # cross-sectional area at the top of tank
+	A_t ~ Normal(A_top, σ_measurement) # cross-sectional area at the top of tank
 	
-	_a ~ TruncatedNormal(a, 0.01, a - 0.02, a + 0.02) # area of the orifice [cm²]
+	a ~ TruncatedNormal(
+						measurements.a, 
+						0.01, 
+						measurements.a - 0.02, 
+						measurements.a + 0.02
+						) # area of the orifice [cm²]
 	
-	_c ~ TruncatedNormal(0.65, 0.1, 0.01, 1.0) # discharge coefficient
+	c ~ TruncatedNormal(
+						measurements.c, 
+						σ_measurement, 
+						measurements.c - 2 * σ_measurement, 
+						measurements.c + 2 * σ_measurement
+						) # discharge coefficient
 	
-	_h_hole ~ TruncatedNormal(h_hole, 0.1, 2.0, 3.0) # height of orifice from the base of tank
+	h_hole ~ TruncatedNormal(
+							 measurements.h_hole, 
+							 σ_measurement, 
+						  	 measurements.h_hole - 2 * σ_measurement, 
+						  	 measurements.h_hole + 2 * σ_measurement
+							) # height of orifice from the base of tank
 	
 	σ ~ Uniform(0.0, 1.0) # measurement noise
 	
-	h0_obs = data_infer[1, "p_liquid level [cm]"]
+	h0_obs = data[1, "liquid level [cm]"]
 	h_0 ~ TruncatedNormal(h0_obs, σ, h0_obs - 2 * σ, h0_obs +  2 * σ) # initial liquid level
 
 
 	# recalibrate area interpolation
-	_areas = [A_b, A_t] # cm^2
 	
-	_A = linear_interpolation(slices, _areas)
+	A_of_h = linear_interpolation([0.0, H_tank], [A_b, A_t])
 	
 	# parameter for ODE
-	p = (
-			  a = _a, # area of the orifice [cm²]
-			  g =  980.665, # cm/s², 
-			  c = _c, # discharge coefficient
-			  h_hole = _h_hole, # height of hole to the base of tank [cm] 
-			  A = _A # A(h)
+	params = (
+			  a = a, # area of the orifice [cm²]
+			  c = c, # discharge coefficient
+			  h_hole = h_hole, # height of hole to the base of tank [cm] 
+			  A_of_h = A_of_h 
 			)
-
-	condition(h, t, integrator) = h[1] <= p.h_hole
-	affect!(integrator) = terminate!(integrator)
-	cb = ContinuousCallback(condition, affect!, affect!)
 	
 	# set up ODE
-	_prob = ODEProblem(f, [h_0], tspan, p)
-	# @show p 
-	sol = solve(_prob, Tsit5(), callback = cb)
+	prob = ODEProblem(f, [h_0], tspan, params)
+
+	# callbacks
+	condition(h, t, integrator) = h[1] <= params.h_hole
+	affect!(integrator) = terminate!(integrator)
+	cb = ContinuousCallback(condition, affect!)
+	@show params 
+	sol = solve(prob, Tsit5(), callback=cb)
 	
 	# Observations.
-	for i in 2:nrow(data_infer)
-		tᵢ = data_infer[i, "Time [s]"]
-		data_infer[i, "p_liquid level [cm]"] ~ Normal(sol(tᵢ, continuity=:right)[1], σ)
+	for i in 2:nrow(data)
+		tᵢ = data[i, "Time [s]"]
+		data[i, "liquid level [cm]"] ~ Normal(sol(tᵢ, continuity=:right)[1], σ)
 	end
 
 	return nothing
@@ -224,12 +326,10 @@ end
 
 
 
-# ╔═╡ d4fd6a99-4009-43fb-b40c-cc675afb602b
-a
-
 # ╔═╡ 8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 begin
-	model = infer_params(infer_data)
+	inference_data = downsample(train_data, 12)
+	model = infer_params(inference_data, measurements)
 	
 	chain = sample(model, NUTS(0.65), MCMCSerial(), 3, 3; progress=true)
 end
@@ -242,18 +342,18 @@ begin
 	posterior_to_true = Dict(
 							"A_b" => A_bottom, 
 							"A_t" => A_top,
-							"_a" => a,
-							"_c" => c,
-							"_h_hole" => h_hole,
+							"a" => measurements.a,
+							"c" => measurements.c,
+							"h_hole" => measurements.h_hole,
 							"h_0" => h0[1]
 							)
 	
 	params_to_title = Dict(
 							"A_b" => "Area of the bottom tank", 
 							"A_t" => "Area of the top tank",
-							"_a" => "Area of the oriface",
-							"_c" => "discharge coefficient",
-							"_h_hole" => "height of orifice from the base of tank",
+							"a" => "Area of the oriface",
+							"c" => "discharge coefficient",
+							"h_hole" => "height of orifice from the base of tank",
 							"h_0" => "initial water level"
 							)
 end
@@ -290,37 +390,39 @@ function viz_posterior(posterior)
 end
 
 # ╔═╡ 2ab35999-3615-4f5c-8d89-36d77802fe9b
-function viz_fit(posterior, infer_data, data)
+function viz_fit(posterior, data)
 	fig = Figure()
 	ax = Axis(fig[1, 1], xlabel="Time [s]", ylabel="liquid level [cm]")
 	
 	ts = range(0, maximum(data[:, "Time [s]"]), length=1000)
 	
 	
-	ids_post = sample(1:nrow(posterior), 300; replace=false)
+	ids_post = sample(1:nrow(posterior), 100; replace=false)
 	for i in ids_post
-		_areas = [posterior[i, "A_b"], posterior[i, "A_t"]] # cm^2
-		_A = linear_interpolation(slices, _areas)
+		areas =  # cm^2
+		A_of_h = linear_interpolation(
+								[0.0, H_tank], 
+								[posterior[i, "A_b"], posterior[i, "A_t"]]
+								)
 		
-		p = (
-			  a = posterior[i, "_a"], # area of the orifice [cm²]
-			  g =  980.665, # cm/s², 
-			  c = posterior[i, "_c"], # discharge coefficient
-			  h_hole = posterior[i, "_h_hole"], # height of hole to the base of tank [cm] 
-			  A = _A # A(h)
+		params = (
+			  a = posterior[i, "a"], # area of the orifice [cm²]
+			  c = posterior[i, "c"], # discharge coefficient
+			  h_hole = posterior[i, "h_hole"], # height of hole to the base of tank [cm] 
+			  A_of_h = A_of_h # A(h)
 			)
 
 		
 	
 		# set up ODE
-		_prob = ODEProblem(f, [posterior[i, "h_0"]], tspan, p)
+		_prob = ODEProblem(f, [posterior[i, "h_0"]], tspan, params)
 		sol = solve(_prob, Tsit5())
 			
 		
 		lines!(ts, [sol.(t)[1] for t in ts], label="model", color=(:green, 0.1))
 	end
 
-	scatter!(infer_data[:, "Time [s]"], infer_data[:, "p_liquid level [cm]"], label="experimental")
+	scatter!(data[:, "Time [s]"], data[:, "liquid level [cm]"], label="experimental")
 	
 	axislegend(unique=true)
 	return fig
@@ -333,52 +435,69 @@ viz_posterior(posterior)
 
 
 # ╔═╡ 2a01b228-f281-46c4-9764-fac6cc1b4217
-viz_fit(posterior, infer_data, _data)
+viz_fit(posterior, inference_data)
 
 # ╔═╡ 193d0e02-988e-4f58-b57d-7a1d125069a4
-@model function infer_test(data_infer, posterior)
+@model function infer_test(test_data, posterior)
 	
 	# Prior distributions.
 	A_b ~ Normal(mean(posterior.A_b), std(posterior.A_b)) # cross-sectional area at the base of tank
 	
 	A_t ~ Normal(mean(posterior.A_t), std(posterior.A_t)) # cross-sectional area at the top of tank
 	
-	_a ~ TruncatedNormal(mean(posterior._a), std(posterior._a), 0.0, Inf) # area of the orifice [cm²]
+	a ~ TruncatedNormal(
+						 mean(posterior.a), 
+						 std(posterior.a), 
+						 mean(posterior.a) - 2 * std(posterior.a), 
+						 mean(posterior.a) + 2 * std(posterior.a)
+						) # area of the orifice [cm²]
 	
-	_c ~ TruncatedNormal(mean(posterior._c), std(posterior._c), 0.0, 1.0) # discharge coefficient
+	c ~ TruncatedNormal(
+						mean(posterior.c), 
+						std(posterior.c), 
+						mean(posterior.c) - 2 * std(posterior.c), 
+						mean(posterior.c) + 2 * std(posterior.c)
+						) # discharge coefficient
 	
-	_h_hole ~ TruncatedNormal(mean(posterior._h_hole), std(posterior._h_hole), 2.0, 3.0) # height of orifice from the base of tank
+	h_hole ~ TruncatedNormal(
+							 mean(posterior.h_hole), 
+							 std(posterior.h_hole),
+							 mean(posterior.h_hole) - 2 * std(posterior.h_hole), 
+						     mean(posterior.h_hole) + 2 * std(posterior.h_hole)
+							) # height of orifice from the base of tank
 	
 	σ ~ Uniform(0.0, 1.0) # measurement noise
 	
-	h0_obs = data_infer[1, "p_liquid level [cm]"]
+	h0_obs = test_data[1, "liquid level [cm]"]
 	h_0 ~ TruncatedNormal(h0_obs, σ, h0_obs - 2 * σ, h0_obs +  2 * σ) # initial liquid level
 
 
 	# recalibrate area interpolation
-	_areas = [A_b, A_t] # cm^2
-	
-	_A = linear_interpolation(slices, _areas)
+	A_of_h = linear_interpolation([0.0, H_tank], [A_b, A_t])
 	
 	# parameter for ODE
-	p = (
-			  a = _a, # area of the orifice [cm²]
-			  g =  980.665, # cm/s², 
-			  c = _c, # discharge coefficient
-			  h_hole = _h_hole, # height of hole to the base of tank [cm] 
-			  A = _A # A(h)
+	params = (
+			  a = a, # area of the orifice [cm²]
+			  c = c, # discharge coefficient
+			  h_hole = h_hole, # height of hole to the base of tank [cm] 
+			  A_of_h = A_of_h # A(h)
 			)
-
+	tspan = (0, test_data[end, "Time [s]"])
 	
 	
 	# set up ODE
-	_prob = ODEProblem(f, [h_0], tspan, p)
-	# @show p h_0
-	sol = solve(_prob, Tsit5())
+	prob = ODEProblem(f, [h_0], tspan, params)
+	
+	# callbacks
+	condition(h, t, integrator) = h[1] <= params.h_hole
+	affect!(integrator) = terminate!(integrator)
+	cb = ContinuousCallback(condition, affect!)
+	# @show p 
+	sol = solve(prob, Tsit5(), callback=cb)
 	
 	# Observations.
-	tᵢ = data_infer[1, "Time [s]"]
-	data_infer[1, "p_liquid level [cm]"] ~ Normal(sol(tᵢ)[1], σ)
+	tᵢ = test_data[1, "Time [s]"]
+	test_data[1, "liquid level [cm]"] ~ Normal(sol(tᵢ)[1], σ)
 	
 
 	return nothing
@@ -386,36 +505,28 @@ end
 
 
 
+# ╔═╡ aa31509b-b1e3-4e5e-8c34-54f89b6d6e30
+test_data
+
 # ╔═╡ 706a0c20-d42c-4fd6-980c-122b9c66de46
-# ╠═╡ disabled = true
-#=╠═╡
 begin
-	test_model = infer_test(test_data, posterior)
+	test_infer = downsample(test_data, 12)
+	test_model = infer_test(test_infer, posterior)
 	
-	test_chain = sample(test_model, NUTS(0.65), MCMCSerial(), 200, 3; progress=false)
+	test_chain = sample(test_model, NUTS(0.65), MCMCSerial(), 100, 3; progress=false)
 end
-  ╠═╡ =#
 
 # ╔═╡ 4ceeb508-413e-4a3c-9790-bfec1900ef4d
-#=╠═╡
 test_posterior = DataFrame(test_chain)
-  ╠═╡ =#
 
 # ╔═╡ 319ecc01-f2d6-46e8-87dd-9cb7992d544c
-#=╠═╡
 viz_fit(test_posterior, test_data, test_data)
-  ╠═╡ =#
 
 # ╔═╡ e95b3140-7658-483d-bfc3-c86399dfd6a0
-#=╠═╡
 viz_posterior(test_posterior)
-  ╠═╡ =#
 
 # ╔═╡ 2086cdce-516e-424a-a010-9433197e0699
 A_top
-
-# ╔═╡ 9d37f68c-f27b-4b2e-bd61-756d24d1352d
-slices
 
 # ╔═╡ 5c53d8b4-4929-47d9-ab18-aee0ec8e9efc
 std(posterior.A_b)
@@ -534,6 +645,7 @@ infer_data
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+AlgebraOfGraphics = "cbdf2221-f076-402e-a563-3d30da359d67"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
@@ -545,6 +657,7 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Turing = "fce5fe82-541a-59a6-adf8-730c64b5f9a0"
 
 [compat]
+AlgebraOfGraphics = "~0.6.0"
 CSV = "~0.10.11"
 CairoMakie = "~0.6.2"
 DataFrames = "~1.6.1"
@@ -562,7 +675,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.0"
 manifest_format = "2.0"
-project_hash = "37662d98eb672758d29453f609b756fa0e3c1e40"
+project_hash = "f080eacac717a10a3122504967abc0ba0963b156"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -647,6 +760,12 @@ deps = ["Bijectors", "Distributions", "DistributionsAD", "DocStringExtensions", 
 git-tree-sha1 = "1f919a9c59cf3dfc68b64c22c453a2e356fca473"
 uuid = "b5ca4192-6429-45e5-a2d9-87aec30a685c"
 version = "0.2.4"
+
+[[deps.AlgebraOfGraphics]]
+deps = ["Colors", "Dates", "FileIO", "GLM", "GeoInterface", "GeometryBasics", "GridLayoutBase", "KernelDensity", "Loess", "Makie", "PlotUtils", "PooledArrays", "RelocatableFolders", "StatsBase", "StructArrays", "Tables"]
+git-tree-sha1 = "a79d1facb9fb0cd858e693088aa366e328109901"
+uuid = "cbdf2221-f076-402e-a563-3d30da359d67"
+version = "0.6.0"
 
 [[deps.Animations]]
 deps = ["Colors"]
@@ -746,9 +865,9 @@ version = "0.17.18"
 
 [[deps.BangBang]]
 deps = ["Compat", "ConstructionBase", "InitialValues", "LinearAlgebra", "Requires", "Setfield", "Tables"]
-git-tree-sha1 = "e28912ce94077686443433c2800104b061a827ed"
+git-tree-sha1 = "7aa7ad1682f3d5754e3491bb59b8103cae28e3a3"
 uuid = "198e06fe-97b7-11e9-32a5-e1d131e6ad66"
-version = "0.3.39"
+version = "0.3.40"
 
     [deps.BangBang.extensions]
     BangBangChainRulesCoreExt = "ChainRulesCore"
@@ -771,6 +890,12 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 git-tree-sha1 = "aebf55e6d7795e02ca500a689d326ac979aaf89e"
 uuid = "9718e550-a3fa-408a-8086-8db961cd8217"
 version = "0.1.1"
+
+[[deps.BenchmarkTools]]
+deps = ["JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
+git-tree-sha1 = "f1f03a9fa24271160ed7e73051fba3c1a759b53f"
+uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+version = "1.4.0"
 
 [[deps.Bijectors]]
 deps = ["ArgCheck", "ChainRules", "ChainRulesCore", "ChangesOfVariables", "Compat", "Distributions", "Functors", "InverseFunctions", "IrrationalConstants", "LinearAlgebra", "LogExpFunctions", "MappedArrays", "Random", "Reexport", "Requires", "Roots", "SparseArrays", "Statistics"]
@@ -808,9 +933,9 @@ version = "2.11.0"
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "19a35467a82e236ff51bc17a3a44b69ef35185a2"
+git-tree-sha1 = "9e2a6b69137e6969bab0152632dcb3bc108c8bdd"
 uuid = "6e34b625-4abd-537c-b88f-471c36dfa7a0"
-version = "1.0.8+0"
+version = "1.0.8+1"
 
 [[deps.CEnum]]
 git-tree-sha1 = "eb4cb44a499229b3b8426dcfb5dd85333951ff90"
@@ -849,15 +974,15 @@ version = "1.16.1+1"
 
 [[deps.ChainRules]]
 deps = ["Adapt", "ChainRulesCore", "Compat", "Distributed", "GPUArraysCore", "IrrationalConstants", "LinearAlgebra", "Random", "RealDot", "SparseArrays", "SparseInverseSubset", "Statistics", "StructArrays", "SuiteSparse"]
-git-tree-sha1 = "07fbef147241b3869deb9cb08b10a2fc37600101"
+git-tree-sha1 = "213f001d1233fd3b8ef007f50c8cab29061917d8"
 uuid = "082447d4-558c-5d27-93f4-14fc19e9eca2"
-version = "1.59.0"
+version = "1.61.0"
 
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra"]
-git-tree-sha1 = "2118cb2765f8197b08e5958cdd17c165427425ee"
+git-tree-sha1 = "ad25e7d21ce10e01de973cdc68ad0f850a953c52"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "1.19.0"
+version = "1.21.1"
 weakdeps = ["SparseArrays"]
 
     [deps.ChainRulesCore.extensions]
@@ -879,11 +1004,17 @@ git-tree-sha1 = "d61300b9895f129f4bd684b2aff97cf319b6c493"
 uuid = "fb6a15b2-703c-40df-9091-08a04967cfa9"
 version = "0.1.11"
 
+[[deps.CodecBzip2]]
+deps = ["Bzip2_jll", "Libdl", "TranscodingStreams"]
+git-tree-sha1 = "9b1ca1aa6ce3f71b3d1840c538a8210a043625eb"
+uuid = "523fee87-0ab8-5b00-afb7-3ecf72e48cfd"
+version = "0.8.2"
+
 [[deps.CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
-git-tree-sha1 = "cd67fc487743b2f0fd4380d4cbd3a24660d0eec8"
+git-tree-sha1 = "59939d8a997469ee05c4b4944560a820f9ba0d73"
 uuid = "944b1d66-785c-5afd-91f1-9de20f533193"
-version = "0.7.3"
+version = "0.7.4"
 
 [[deps.ColorBrewer]]
 deps = ["Colors", "JSON", "Test"]
@@ -932,10 +1063,10 @@ uuid = "bbf7d656-a473-5ed7-a52c-81e309532950"
 version = "0.3.0"
 
 [[deps.Compat]]
-deps = ["UUIDs"]
-git-tree-sha1 = "886826d76ea9e72b35fcd000e535588f7b60f21d"
+deps = ["TOML", "UUIDs"]
+git-tree-sha1 = "75bd5b6fc5089df449b5d35fa501c846c9b6549b"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "4.10.1"
+version = "4.12.0"
 weakdeps = ["Dates", "LinearAlgebra"]
 
     [deps.Compat.extensions]
@@ -990,9 +1121,9 @@ uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
 version = "4.1.1"
 
 [[deps.DataAPI]]
-git-tree-sha1 = "8da84edb865b0b5b0100c0666a9bc9a0b71c553c"
+git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
-version = "1.15.0"
+version = "1.16.0"
 
 [[deps.DataFrames]]
 deps = ["Compat", "DataAPI", "DataStructures", "Future", "InlineStrings", "InvertedIndices", "IteratorInterfaceExtensions", "LinearAlgebra", "Markdown", "Missings", "PooledArrays", "PrecompileTools", "PrettyTables", "Printf", "REPL", "Random", "Reexport", "SentinelArrays", "SortingAlgorithms", "Statistics", "TableTraits", "Tables", "Unicode"]
@@ -1052,9 +1183,9 @@ version = "2.26.1"
 
 [[deps.DiffEqNoiseProcess]]
 deps = ["DiffEqBase", "Distributions", "GPUArraysCore", "LinearAlgebra", "Markdown", "Optim", "PoissonRandom", "QuadGK", "Random", "Random123", "RandomNumbers", "RecipesBase", "RecursiveArrayTools", "Requires", "ResettableStacks", "SciMLBase", "StaticArraysCore", "Statistics"]
-git-tree-sha1 = "319377c927a4aa1f491228b2ac23f3554a3497c6"
+git-tree-sha1 = "3d440ee25f48e5c7b08af71f2997daca45bf6856"
 uuid = "77a26b50-5914-5dd7-bc55-306e6241c503"
-version = "5.20.0"
+version = "5.20.1"
 
     [deps.DiffEqNoiseProcess.extensions]
     DiffEqNoiseProcessReverseDiffExt = "ReverseDiff"
@@ -1182,11 +1313,6 @@ git-tree-sha1 = "27415f162e6028e81c72b82ef756bf321213b6ec"
 uuid = "e2ba6199-217a-4e67-a87a-7c52f15ade04"
 version = "0.1.10"
 
-[[deps.Extents]]
-git-tree-sha1 = "2140cd04483da90b2da7f99b2add0750504fc39c"
-uuid = "411431e0-e8b7-467b-b5e0-f676ba4f2910"
-version = "0.1.2"
-
 [[deps.FFMPEG]]
 deps = ["FFMPEG_jll"]
 git-tree-sha1 = "b57e3acbe22f8484b4b5ff66a7499717fe1a9cc8"
@@ -1201,9 +1327,9 @@ version = "4.4.4+1"
 
 [[deps.FFTW]]
 deps = ["AbstractFFTs", "FFTW_jll", "LinearAlgebra", "MKL_jll", "Preferences", "Reexport"]
-git-tree-sha1 = "ec22cbbcd01cba8f41eecd7d44aac1f23ee985e3"
+git-tree-sha1 = "4820348781ae578893311153d69049a93d05f39d"
 uuid = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
-version = "1.7.2"
+version = "1.8.0"
 
 [[deps.FFTW_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1320,13 +1446,19 @@ version = "0.1.3"
 
 [[deps.Functors]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "9a68d75d466ccc1218d0552a8e1631151c569545"
+git-tree-sha1 = "166c544477f97bbadc7179ede1c1868e0e9b426b"
 uuid = "d9f16b24-f501-4c13-a1f2-28368ffc5196"
-version = "0.4.5"
+version = "0.4.7"
 
 [[deps.Future]]
 deps = ["Random"]
 uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
+
+[[deps.GLM]]
+deps = ["Distributions", "LinearAlgebra", "Printf", "Reexport", "SparseArrays", "SpecialFunctions", "Statistics", "StatsAPI", "StatsBase", "StatsFuns", "StatsModels"]
+git-tree-sha1 = "273bd1cd30768a2fddfa3fd63bbc746ed7249e5f"
+uuid = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
+version = "1.9.0"
 
 [[deps.GPUArraysCore]]
 deps = ["Adapt"]
@@ -1341,16 +1473,16 @@ uuid = "c145ed77-6b09-5dd9-b285-bf645a82121e"
 version = "0.5.3"
 
 [[deps.GeoInterface]]
-deps = ["Extents"]
-git-tree-sha1 = "d4f85701f569584f2cff7ba67a137d03f0cfb7d0"
+deps = ["RecipesBase"]
+git-tree-sha1 = "6b1a29c757f56e0ae01a35918a2c39260e2c4b98"
 uuid = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
-version = "1.3.3"
+version = "0.5.7"
 
 [[deps.GeometryBasics]]
-deps = ["EarCut_jll", "Extents", "GeoInterface", "IterTools", "LinearAlgebra", "StaticArrays", "StructArrays", "Tables"]
-git-tree-sha1 = "424a5a6ce7c5d97cca7bcc4eac551b97294c54af"
+deps = ["EarCut_jll", "IterTools", "LinearAlgebra", "StaticArrays", "StructArrays", "Tables"]
+git-tree-sha1 = "83ea630384a13fc4f002b77690bc0afeb4255ac9"
 uuid = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
-version = "0.4.9"
+version = "0.4.2"
 
 [[deps.Gettext_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "XML2_jll"]
@@ -1447,16 +1579,22 @@ uuid = "a09fc81d-aa75-5fe9-8630-4744c3626534"
 version = "0.9.4"
 
 [[deps.ImageIO]]
-deps = ["FileIO", "Netpbm", "PNGFiles"]
-git-tree-sha1 = "0d6d09c28d67611c68e25af0c2df7269c82b73c7"
+deps = ["FileIO", "Netpbm", "OpenEXR", "PNGFiles", "TiffImages", "UUIDs"]
+git-tree-sha1 = "a2951c93684551467265e0e32b577914f69532be"
 uuid = "82e4d734-157c-48bb-816b-45c225c6df19"
-version = "0.4.1"
+version = "0.5.9"
 
 [[deps.ImageMetadata]]
 deps = ["AxisArrays", "ImageAxes", "ImageBase", "ImageCore"]
 git-tree-sha1 = "355e2b974f2e3212a75dfb60519de21361ad3cb7"
 uuid = "bc367c6b-8a6b-528e-b4bd-a4b897500b49"
 version = "0.9.9"
+
+[[deps.Imath_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "3d09a9f60edf77f8a4d99f9e015e8fbf9989605d"
+uuid = "905a6f67-0a94-5f89-b386-d35d92009cd1"
+version = "3.1.7+0"
 
 [[deps.IndirectArrays]]
 git-tree-sha1 = "012e604e1c7458645cb8b436f8fba789a51b257f"
@@ -1595,9 +1733,9 @@ version = "0.9.5"
 
 [[deps.KrylovKit]]
 deps = ["ChainRulesCore", "GPUArraysCore", "LinearAlgebra", "Printf"]
-git-tree-sha1 = "1a5e1d9941c783b0119897d29f2eb665d876ecf3"
+git-tree-sha1 = "5cebb47f472f086f7dd31fb8e738a8db728f1f84"
 uuid = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
-version = "0.6.0"
+version = "0.6.1"
 
 [[deps.LAME_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1630,9 +1768,13 @@ uuid = "1d63c593-3942-5779-bab2-d838dc0a180e"
 version = "15.0.7+0"
 
 [[deps.LRUCache]]
-git-tree-sha1 = "5930ef949f30a9a947c69ef6b069c0b1aa27619d"
+git-tree-sha1 = "b3cc6698599b10e652832c2f23db3cab99d51b59"
 uuid = "8ac3fa9e-de4c-5943-b1dc-09c6b5f20637"
-version = "1.6.0"
+version = "1.6.1"
+weakdeps = ["Serialization"]
+
+    [deps.LRUCache.extensions]
+    SerializationExt = ["Serialization"]
 
 [[deps.LZO_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1758,6 +1900,12 @@ version = "1.34.1"
     [deps.LinearSolve.weakdeps]
     HYPRE = "b5ffcf37-a2bd-41ab-a3da-4bd9bc8ad771"
 
+[[deps.Loess]]
+deps = ["Distances", "LinearAlgebra", "Statistics"]
+git-tree-sha1 = "46efcea75c890e5d820e670516dc156689851722"
+uuid = "4345ca2d-374a-55d4-8d30-97f9976e7612"
+version = "0.5.4"
+
 [[deps.LogDensityProblems]]
 deps = ["ArgCheck", "DocStringExtensions", "Random"]
 git-tree-sha1 = "f9a11237204bc137617194d79d813069838fcf61"
@@ -1853,9 +2001,9 @@ version = "1.9.5"
 
 [[deps.MacroTools]]
 deps = ["Markdown", "Random"]
-git-tree-sha1 = "b211c553c199c111d998ecdaf7623d1b89b69f93"
+git-tree-sha1 = "2fa9ee3e63fd3a4f7a9a4f4744a52f4856de82df"
 uuid = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
-version = "0.5.12"
+version = "0.5.13"
 
 [[deps.Makie]]
 deps = ["Animations", "Base64", "ColorBrewer", "ColorSchemes", "ColorTypes", "Colors", "Contour", "Distributions", "DocStringExtensions", "FFMPEG", "FileIO", "FixedPointNumbers", "Formatting", "FreeType", "FreeTypeAbstraction", "GeometryBasics", "GridLayoutBase", "ImageIO", "IntervalSets", "Isoband", "KernelDensity", "LaTeXStrings", "LinearAlgebra", "MakieCore", "Markdown", "Match", "MathTeXEngine", "Observables", "Packing", "PlotUtils", "PolygonOps", "Printf", "Random", "RelocatableFolders", "Serialization", "Showoff", "SignedDistanceFields", "SparseArrays", "StaticArrays", "Statistics", "StatsBase", "StatsFuns", "StructArrays", "UnicodeFun"]
@@ -1887,6 +2035,12 @@ uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 git-tree-sha1 = "1d9bc5c1a6e7ee24effb93f175c9342f9154d97f"
 uuid = "7eb4fadd-790c-5f42-8a69-bfa0b872bfbf"
 version = "1.2.0"
+
+[[deps.MathOptInterface]]
+deps = ["BenchmarkTools", "CodecBzip2", "CodecZlib", "DataStructures", "ForwardDiff", "JSON", "LinearAlgebra", "MutableArithmetics", "NaNMath", "OrderedCollections", "PrecompileTools", "Printf", "SparseArrays", "SpecialFunctions", "Test", "Unicode"]
+git-tree-sha1 = "8b40681684df46785a0012d352982e22ac3be59e"
+uuid = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+version = "1.25.2"
 
 [[deps.MathTeXEngine]]
 deps = ["AbstractTrees", "Automa", "DataStructures", "FreeTypeAbstraction", "GeometryBasics", "LaTeXStrings", "REPL", "RelocatableFolders", "Test"]
@@ -1929,6 +2083,12 @@ git-tree-sha1 = "cac9cc5499c25554cba55cd3c30543cff5ca4fab"
 uuid = "46d2c3a1-f734-5fdb-9937-b9b9aeba4221"
 version = "0.2.4"
 
+[[deps.MutableArithmetics]]
+deps = ["LinearAlgebra", "SparseArrays", "Test"]
+git-tree-sha1 = "806eea990fb41f9b36f1253e5697aa645bf6a9f8"
+uuid = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
+version = "1.4.0"
+
 [[deps.NLSolversBase]]
 deps = ["DiffResults", "Distributed", "FiniteDiff", "ForwardDiff"]
 git-tree-sha1 = "a0b464d183da839699f4c79e7606d9d186ec172c"
@@ -1943,9 +2103,9 @@ version = "4.5.1"
 
 [[deps.NNlib]]
 deps = ["Adapt", "Atomix", "ChainRulesCore", "GPUArraysCore", "KernelAbstractions", "LinearAlgebra", "Pkg", "Random", "Requires", "Statistics"]
-git-tree-sha1 = "900a11b3a2b02e36b25cb55a80777d4a4670f0f6"
+git-tree-sha1 = "d2811b435d2f571bdfdfa644bb806a66b458e186"
 uuid = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
-version = "0.9.10"
+version = "0.9.11"
 
     [deps.NNlib.extensions]
     NNlibAMDGPUExt = "AMDGPU"
@@ -2011,6 +2171,18 @@ deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
 version = "0.3.23+2"
 
+[[deps.OpenEXR]]
+deps = ["Colors", "FileIO", "OpenEXR_jll"]
+git-tree-sha1 = "327f53360fdb54df7ecd01e96ef1983536d1e633"
+uuid = "52e1d378-f018-4a11-a4be-720524705ac7"
+version = "0.3.2"
+
+[[deps.OpenEXR_jll]]
+deps = ["Artifacts", "Imath_jll", "JLLWrappers", "Libdl", "Zlib_jll"]
+git-tree-sha1 = "a4ca623df1ae99d09bc9868b008262d0c0ac1e4f"
+uuid = "18a262bb-aa17-5467-a713-aee519bc75cb"
+version = "3.1.4+0"
+
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
@@ -2018,9 +2190,9 @@ version = "0.8.1+2"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "cc6e1927ac521b659af340e0ca45828a3ffc748f"
+git-tree-sha1 = "60e3045590bd104a16fefb12836c00c0ef8c7f8c"
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "3.0.12+0"
+version = "3.0.13+0"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
@@ -2029,16 +2201,16 @@ uuid = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
 version = "0.5.5+0"
 
 [[deps.Optim]]
-deps = ["Compat", "FillArrays", "ForwardDiff", "LineSearches", "LinearAlgebra", "NLSolversBase", "NaNMath", "Parameters", "PositiveFactorizations", "Printf", "SparseArrays", "StatsBase"]
-git-tree-sha1 = "01f85d9269b13fedc61e63cc72ee2213565f7a72"
+deps = ["Compat", "FillArrays", "ForwardDiff", "LineSearches", "LinearAlgebra", "MathOptInterface", "NLSolversBase", "NaNMath", "Parameters", "PositiveFactorizations", "Printf", "SparseArrays", "StatsBase"]
+git-tree-sha1 = "d024bfb56144d947d4fafcd9cb5cafbe3410b133"
 uuid = "429524aa-4258-5aef-a3af-852621145aeb"
-version = "1.7.8"
+version = "1.9.2"
 
 [[deps.Optimisers]]
 deps = ["ChainRulesCore", "Functors", "LinearAlgebra", "Random", "Statistics"]
-git-tree-sha1 = "34205b1204cc83c43cd9cfe53ffbd3b310f6e8c5"
+git-tree-sha1 = "264b061c1903bc0fe9be77cb9050ebacff66bb63"
 uuid = "3bd65402-5787-11e9-1adc-39752487f4e2"
-version = "0.3.1"
+version = "0.3.2"
 
 [[deps.Opus_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2114,6 +2286,12 @@ version = "0.42.2+0"
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 version = "1.10.0"
+
+[[deps.PkgVersion]]
+deps = ["Pkg"]
+git-tree-sha1 = "a7a7e1a88853564e551e4eba8650f8c38df79b37"
+uuid = "eebad327-c553-4316-9ea0-9fa01ccd7688"
+version = "0.1.1"
 
 [[deps.PlotUtils]]
 deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random", "Reexport", "Statistics"]
@@ -2196,6 +2374,10 @@ version = "2.3.1"
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
+[[deps.Profile]]
+deps = ["Printf"]
+uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
+
 [[deps.ProgressLogging]]
 deps = ["Logging", "SHA", "UUIDs"]
 git-tree-sha1 = "80d919dee55b9c50e8d9e2da5eeafff3fe58b539"
@@ -2210,9 +2392,9 @@ version = "1.9.0"
 
 [[deps.QuadGK]]
 deps = ["DataStructures", "LinearAlgebra"]
-git-tree-sha1 = "9ebcd48c498668c7fa0e97a9cae873fbee7bfee1"
+git-tree-sha1 = "9b23c31e76e333e6fb4c1595ae6afa74966a729e"
 uuid = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
-version = "2.9.1"
+version = "2.9.4"
 
 [[deps.REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
@@ -2383,6 +2565,11 @@ version = "1.1.1"
 deps = ["Distributed", "Mmap", "Random", "Serialization"]
 uuid = "1a1011a3-84de-559e-8e89-a11a2f7dc383"
 
+[[deps.ShiftedArrays]]
+git-tree-sha1 = "503688b59397b3307443af35cd953a13e8005c16"
+uuid = "1277b4bf-5013-50f5-be3d-901d8477a67a"
+version = "2.0.0"
+
 [[deps.Showoff]]
 deps = ["Dates", "Grisu"]
 git-tree-sha1 = "91eddf657aca81df9ae6ceb20b959ae5653ad1de"
@@ -2474,15 +2661,15 @@ version = "0.1.1"
 
 [[deps.Static]]
 deps = ["IfElse"]
-git-tree-sha1 = "f295e0a1da4ca425659c57441bcb59abb035a4bc"
+git-tree-sha1 = "b366eb1eb68075745777d80861c6706c33f588ae"
 uuid = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
-version = "0.8.8"
+version = "0.8.9"
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "PrecompileTools", "Random", "StaticArraysCore"]
-git-tree-sha1 = "4e17a790909b17f7bf1496e3aec138cf01b60b3b"
+git-tree-sha1 = "7b0e9c14c624e435076d19aea1e5cbdec2b9ca37"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.9.0"
+version = "1.9.2"
 weakdeps = ["ChainRulesCore", "Statistics"]
 
     [deps.StaticArrays.extensions]
@@ -2523,6 +2710,12 @@ git-tree-sha1 = "5950925ff997ed6fb3e985dcce8eb1ba42a0bbe7"
 uuid = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
 version = "0.9.18"
 
+[[deps.StatsModels]]
+deps = ["DataAPI", "DataStructures", "LinearAlgebra", "Printf", "REPL", "ShiftedArrays", "SparseArrays", "StatsAPI", "StatsBase", "StatsFuns", "Tables"]
+git-tree-sha1 = "5cf6c4583533ee38639f73b880f35fc85f2941e0"
+uuid = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
+version = "0.7.3"
+
 [[deps.SteadyStateDiffEq]]
 deps = ["DiffEqBase", "DiffEqCallbacks", "EnumX", "LinearAlgebra", "Markdown", "NLsolve", "Reexport", "SciMLBase"]
 git-tree-sha1 = "a0cdb38cc0207213a95aa6caa40b3c94ab323f05"
@@ -2549,9 +2742,9 @@ version = "0.3.4"
 
 [[deps.StructArrays]]
 deps = ["Adapt", "ConstructionBase", "DataAPI", "GPUArraysCore", "StaticArraysCore", "Tables"]
-git-tree-sha1 = "0a3db38e4cce3c54fe7a71f831cd7b6194a54213"
+git-tree-sha1 = "1b0b1205a56dc288b71b1961d48e351520702e24"
 uuid = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
-version = "0.6.16"
+version = "0.6.17"
 
 [[deps.SuiteSparse]]
 deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
@@ -2617,6 +2810,12 @@ deps = ["ManualMemory"]
 git-tree-sha1 = "eda08f7e9818eb53661b3deb74e3159460dfbc27"
 uuid = "8290d209-cae3-49c0-8002-c8c24d57dab5"
 version = "0.5.2"
+
+[[deps.TiffImages]]
+deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "OffsetArrays", "PkgVersion", "ProgressMeter", "UUIDs"]
+git-tree-sha1 = "f90022b44b7bf97952756a6b6737d1a0024a3233"
+uuid = "731e570b-9d59-4bfa-96dc-6df516fadf69"
+version = "0.5.5"
 
 [[deps.Tracker]]
 deps = ["Adapt", "DiffRules", "ForwardDiff", "Functors", "LinearAlgebra", "LogExpFunctions", "MacroTools", "NNlib", "NaNMath", "Optimisers", "Printf", "Random", "Requires", "SpecialFunctions", "Statistics"]
@@ -2815,9 +3014,9 @@ version = "1.2.13+1"
 
 [[deps.ZygoteRules]]
 deps = ["ChainRulesCore", "MacroTools"]
-git-tree-sha1 = "9d749cd449fb448aeca4feee9a2f4186dbb5d184"
+git-tree-sha1 = "27798139afc0a2afa7b1824c206d5e87ea587a00"
 uuid = "700de1a5-db45-46bc-99cf-38207098b444"
-version = "0.2.4"
+version = "0.2.5"
 
 [[deps.isoband_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2884,30 +3083,38 @@ version = "3.5.0+0"
 """
 
 # ╔═╡ Cell order:
+# ╠═e1b54f1e-3c1b-4657-ae3d-d68a78617a4d
 # ╠═faf59350-8d67-11ee-0bdd-2510e986118b
+# ╠═4391f124-cbef-46e5-8462-e4e5126f5b38
+# ╠═3a215798-084f-4f0e-9dfc-71a16f9e69df
+# ╠═245836a9-6b44-4639-9209-e7ad9035e293
+# ╟─418525b7-c358-41da-b865-5df3feb15855
 # ╠═a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
+# ╠═23ee0e85-a84b-4b63-b432-5526559efcee
+# ╟─078c01f7-e47e-4af0-be1c-ac4527b735fd
+# ╠═9af216b7-4bf2-42fb-bd95-5b2040d019a7
 # ╠═6e922ea4-01d0-4202-baed-3cb693b663bc
 # ╠═759852ee-50e7-4deb-ac7e-c4693103c2a7
 # ╠═b06a1c07-6250-4324-8802-010e5d847edb
 # ╠═8b00d2b3-9182-42ab-8393-91707b813f60
-# ╠═9af216b7-4bf2-42fb-bd95-5b2040d019a7
 # ╠═2a3d5a3f-5d20-4efb-91fd-cc84e77d5922
+# ╠═f0675774-b9ba-40a9-953f-ce5784454378
 # ╠═5100771a-38b6-437a-91e4-70495391067b
 # ╠═8b6d766a-8f7b-4b9a-9a15-0f7375087120
-# ╠═23ee0e85-a84b-4b63-b432-5526559efcee
+# ╟─df589086-cc94-4da9-b982-563cd6ecc643
 # ╠═20fa4266-be80-4d8e-b1d0-155a40a1241f
 # ╠═9a7e5903-69be-4e0a-8514-3e05feedfed5
 # ╠═33f889d7-e875-40d8-9d6d-cc87b0fbaf22
+# ╠═e379461f-8896-4e2a-a71b-1871a8a37eb5
 # ╠═c6a263eb-cb45-4ee7-9c02-549c89298652
 # ╠═31306e0b-9748-48a8-b9d2-892cb501b7ba
+# ╠═a934a309-6ab6-46e0-b448-2572334f5b7a
 # ╠═d3307918-1fdb-4f87-bb92-67330d22e58b
 # ╠═3853c2fb-3665-4c7b-8511-af01694f04b3
-# ╠═fbb7b6ed-ed41-4a5e-9ce9-732c0f261016
-# ╠═a4e670a6-705f-4ae0-8a28-e08ebd99f08b
 # ╠═444f6d74-273e-486d-905a-1443ec0e98df
-# ╠═b3a235d8-a278-40a7-a6d8-6ddd65bc3c5e
+# ╠═a1a10e2f-1b78-4b93-9295-7c0055e32692
+# ╠═f21dc58e-d4e8-4314-b5dd-abbcb29efe86
 # ╠═8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
-# ╠═d4fd6a99-4009-43fb-b40c-cc675afb602b
 # ╠═8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 # ╠═7ebe4680-c583-4f92-8bae-dd84c3fb5139
 # ╠═a2048a65-7b7c-41fc-b7ee-f9199f3e96b5
@@ -2917,12 +3124,12 @@ version = "3.5.0+0"
 # ╠═765ff940-1328-4806-aeaa-de8a41a6f4df
 # ╠═2a01b228-f281-46c4-9764-fac6cc1b4217
 # ╠═193d0e02-988e-4f58-b57d-7a1d125069a4
+# ╠═aa31509b-b1e3-4e5e-8c34-54f89b6d6e30
 # ╠═706a0c20-d42c-4fd6-980c-122b9c66de46
 # ╠═4ceeb508-413e-4a3c-9790-bfec1900ef4d
 # ╠═319ecc01-f2d6-46e8-87dd-9cb7992d544c
 # ╠═e95b3140-7658-483d-bfc3-c86399dfd6a0
 # ╠═2086cdce-516e-424a-a010-9433197e0699
-# ╠═9d37f68c-f27b-4b2e-bd61-756d24d1352d
 # ╠═5c53d8b4-4929-47d9-ab18-aee0ec8e9efc
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
 # ╠═b4c62168-24e4-4cd3-8358-7599813af45d
