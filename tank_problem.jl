@@ -20,56 +20,42 @@ begin
     using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions
 end
 
-# ╔═╡ e1b54f1e-3c1b-4657-ae3d-d68a78617a4d
-import AlgebraOfGraphics
-
 # ╔═╡ 4391f124-cbef-46e5-8462-e4e5126f5b38
 begin
+	# cool plot theme
+	import AlgebraOfGraphics
+	
 	AlgebraOfGraphics.set_aog_theme!(
-		fonts=[AlgebraOfGraphics.firasans("Light"), 
-			   AlgebraOfGraphics.firasans("Light")]
+		fonts=[
+			AlgebraOfGraphics.firasans("Light"), 
+			AlgebraOfGraphics.firasans("Light")
+		]
 	)
-	resolution = (0.9*500, 0.9*380)
+	
+	resolution = (0.9 * 500, 0.9 * 380)
+	
 	update_theme!(
 		fontsize=20, 
 		linewidth=4,
 		markersize=14,
 		titlefont=AlgebraOfGraphics.firasans("Light"),
-		# resolution=resolution
+		resolution=resolution
 	)
 end
 
 # ╔═╡ 245836a9-6b44-4639-9209-e7ad9035e293
 TableOfContents()
 
-# ╔═╡ 418525b7-c358-41da-b865-5df3feb15855
-md"
-## Sensor Calibration
-
-read in data characterizing the calibration curve of the liquid level sensor.
-"
-
-# ╔═╡ a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
-calibration = CSV.read("liquid calibration.csv", DataFrame)
-
-# ╔═╡ 23ee0e85-a84b-4b63-b432-5526559efcee
-begin
-	local fig = Figure()
-	local ax = Axis(
-		fig[1, 1], 
-		xlabel="level sensor reading", 
-		ylabel="liquid level [cm]"
-	)
-	scatterlines!(
-		calibration[:, "level sensor reading"], 
-		calibration[:, "liquid level (cm)"]
-	)
-	fig
-end
-
 # ╔═╡ 7752316d-9dd0-4403-aa08-22c977ff3727
 md"""
-## Tank Geometry
+## Tank Geometry and Hole Measurements
+
+we approximate the area from a helicopter view as a rounded rectangle.
+
+see [here](https://mathworld.wolfram.com/RoundedRectangle.html).
+
+see notes in `tank_geometry/cory_measurements.txt`.
+
 """
 
 # ╔═╡ 20fa4266-be80-4d8e-b1d0-155a40a1241f
@@ -88,101 +74,38 @@ begin
 	p_b = 40.1 # perimeter, cm
 	
 	# height of tank (from perpendicular) [cm]
-	local δ = (L_t - L_b) / 2
+	local δ = (L_t - L_b) / 2 # overhang
 	H = sqrt(H★ ^ 2 - δ ^ 2)
 
 	# solve for the r consistent with a rounded rectangle [cm]
-	r_b = (p_b / 2 - (L_b + W_b)) / (π - 4)
-	r_t = (p_t / 2 - (L_t + W_t)) / (π - 4)
+	#  https://mathworld.wolfram.com/RoundedRectangle.html
+	local r(p, L, W) = (p / 2 - (L + W)) / (π - 4)
+	r_b = r(p_b, L_b, W_b)
+	r_t = r(p_b, L_b, W_b)
 	@show r_b, r_t
 
 	# finally, calculate areas.
-	A_b = (L_b - 2 * r_b) * (W_b - 2 * r_b) + 
-		2 * r_b * (L_b + W_b - 4 * r_b) + π * r_b ^ 2
-	A_t = (L_t - 2 * r_t) * (W_t - 2 * r_t) + 
-		2 * r_t * (L_t + W_t - 4 * r_t) + π * r_t ^ 2
+	local A(L, W, r) = (L - 2 * r) * (W - 2 * r) + 2 * r * (L + W - 4 * r) + π * r ^ 2
+	A_b = A(L_b, W_b, r_b)
+	A_t = A(L_t, W_t, r_t)
 	@show A_b, A_t
 
-	function A_of_h(h)
-		if h < 0 || h > H
-			error("tank over/under-flow!")
-		end
-		return h / H * A_t + (1 - h / H) * A_b
-	end
+	# hole in tank
+	r_hole = 1 / 8 * 2.54 / 2 # cm
+    a_hole = π * r_hole ^ 2 # cm²
+
+    h_hole = 2.5 # cm
 end
 
-# ╔═╡ 078c01f7-e47e-4af0-be1c-ac4527b735fd
-md"""
-## Data Preprocessing
-
-the liquid level sensor is up against the side of the tank hence has a bit of a slant. we correct for this.
+# ╔═╡ 48d7273e-a48b-49fd-991b-6e29f64a0760
 """
-
-# ╔═╡ 9af216b7-4bf2-42fb-bd95-5b2040d019a7
-function map_slant_height_to_perpendicular(h★)
-	return H * h★ / H★
-end
-
-# ╔═╡ d3eeccff-39b3-429d-aec6-e7f1a500b729
-map_slant_height_to_perpendicular(1.0) # note, this correction is TINY!
-
-# ╔═╡ 6e922ea4-01d0-4202-baed-3cb693b663bc
-function level_strip_reading_to_h(sensor_reading::Array; 
-								  calibration::DataFrame=calibration)
-	mapping = linear_interpolation(
-							calibration[:, "level sensor reading"], 
-							calibration[:, "liquid level (cm)"]
-							)
-	ĥ = mapping(sensor_reading) # convert sensor reading to slant height
-	
-	h =map_slant_height_to_perpendicular(ĥ) # convert slant height to perpendicular 
-	return h
-end
-
-# ╔═╡ 759852ee-50e7-4deb-ac7e-c4693103c2a7
-begin
-	experiments = ["experiment 3- 1-12.csv", "experiment 4- 1-12.csv"]
-	@bind experiment Select(experiments)
-end
-
-# ╔═╡ b06a1c07-6250-4324-8802-010e5d847edb
-begin
-	obstruction_data = ["obstruction-1-2-28.csv", "obstruction-2-2-28.csv", 
-						"obstruction-3-2-28.csv"]
-	@bind obstruction Select(obstruction_data)
-end
-
-# ╔═╡ 8b00d2b3-9182-42ab-8393-91707b813f60
-function read_h_time_series(file::String)
-	data = CSV.read(file, DataFrame) # read in file
-	
-	rename!(data, ["Time [s]", "liquid_level_reading"])
-	
-	id = argmax(data[:, "liquid_level_reading"]) # index of highest water level
-	data = data[id:end, :] # index of highest water level
-	data[:, "Time [s]"] = data[:, "Time [s]"] .- data[1, "Time [s]"]
-	
-	data[:, "liquid level [cm]"] = level_strip_reading_to_h(
-												data[:, "liquid_level_reading"]
-												)
-	
-	# data[:, "p_liquid level [cm]"] = sensor_height_to_perpendicular.(
-	# 											data[:, "liquid level [cm]"]
-	# 											)
-	
-	return data[:, ["Time [s]", "liquid level [cm]"]]
-end
-
-# ╔═╡ 2a3d5a3f-5d20-4efb-91fd-cc84e77d5922
-test_data_filename = symdiff(experiments, [experiment])[1]
-
-# ╔═╡ f0675774-b9ba-40a9-953f-ce5784454378
-experiment
-
-# ╔═╡ 5100771a-38b6-437a-91e4-70495391067b
-begin
-	train_data = read_h_time_series(experiment)
-	test_data = read_h_time_series(test_data_filename)
+cross-sectional area of water from helicopter view, as a function of liquid level, h.
+"""
+function A_of_h(h)
+	if h < 0 || h > H
+		error("tank over/under-flow!")
+	end
+	return h / H * A_t + (1 - h / H) * A_b
 end
 
 # ╔═╡ 9a7e5903-69be-4e0a-8514-3e05feedfed5
@@ -191,94 +114,222 @@ begin
 	local ax = Axis(
 		fig[1, 1], 
 		xlabel="water level, h [cm]", 
-		ylabel="area of water surface at top, A(h) [cm²]"
+		ylabel="area of water\nfrom top-view, A(h) [cm²]"
 	)
-
-	water_level = train_data[:, "liquid level [cm]"]
-	lines!(water_level, A_of_h.(water_level))
+	lines!(range(0, H), A_of_h.(range(0, H)))
 	ylims!(0, nothing)
 	fig
+end
+
+# ╔═╡ 418525b7-c358-41da-b865-5df3feb15855
+md"
+## Calibration of Liquid Level Sensor
+
+read in data characterizing the calibration curve of the liquid level sensor.
+note liquid level here is actually slanted h★.
+"
+
+# ╔═╡ a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
+begin
+	calibration_data = CSV.read("liquid calibration.csv", DataFrame)
+	sort!(calibration_data, "level sensor reading")
+	rename!(calibration_data, "liquid level (cm)" => "h★ [cm]")
+end
+
+# ╔═╡ 6d48d04b-0786-4d15-a07b-8941805a5b09
+md"we correct for the slant, though slight.
+
+this function maps the slanted h★ to the height h perpendicular to the ground.
+"
+
+# ╔═╡ 9af216b7-4bf2-42fb-bd95-5b2040d019a7
+h★_to_h(h★) = H * h★ / H★
+
+# ╔═╡ d3eeccff-39b3-429d-aec6-e7f1a500b729
+h★_to_h(1.0) # note, this correction is TINY!
+
+# ╔═╡ 6ebe0cb0-ba35-411c-9a7a-a8b6eecf326f
+md"compute the true liquid level."
+
+# ╔═╡ 385442da-f101-4ddf-8293-46d71d6a48fc
+begin
+	calibration_data[:, "h [cm]"] = h★_to_h.(calibration_data[:, "h★ [cm]"])
+	calibration_data
+end
+
+# ╔═╡ 9dabad13-cfa4-4e06-950d-f7c7d96c1147
+"""
+map liquid level sensor reading to liquid level h.
+"""
+level_sensor_to_h = linear_interpolation(
+	calibration_data[:, "level sensor reading"], 
+	calibration_data[:, "h [cm]"]
+)
+
+# ╔═╡ e040094c-7511-4831-b94a-1c1185868202
+md"viz calibration data as well as interpolator."
+
+# ╔═╡ 23ee0e85-a84b-4b63-b432-5526559efcee
+begin
+	local fig = Figure()
+	local ax = Axis(
+		fig[1, 1], 
+		xlabel="level sensor reading", 
+		ylabel="liquid level, h [cm]"
+	)
+	scatter!(
+		calibration_data[:, "level sensor reading"], 
+		calibration_data[:, "h [cm]"]
+	)
+	lsr = range(
+		minimum(calibration_data[:, "level sensor reading"]),
+		maximum(calibration_data[:, "level sensor reading"]),
+		length=100
+	)
+	lines!(lsr, level_sensor_to_h.(lsr))
+	fig
+end
+
+# ╔═╡ 078c01f7-e47e-4af0-be1c-ac4527b735fd
+md"""
+## Data Preprocessing
+"""
+
+# ╔═╡ 8b00d2b3-9182-42ab-8393-91707b813f60
+function read_h_time_series(file::String)
+	#=
+	read in file
+	=#
+	data = CSV.read(file, DataFrame)
+	rename!(data, 
+		" liquid_level_reading" => "liquid_level_reading",
+		"Time [s]" => "t [s]"
+	)
+
+	#=
+	find starting point, t = 0, as when max water level occurs.
+	=#
+	# index of highest water level
+	id_start = argmax(data[:, "liquid_level_reading"])
+	# remove data before that
+	data = data[id_start:end, :]
+	# shift time
+	data[:, "t [s]"] = data[:, "t [s]"] .- data[1, "t [s]"]
+
+	#=
+	apply calibration curve to get h
+	=#
+	data[:, "h [cm]"] = level_sensor_to_h.(data[:, "liquid_level_reading"])
+	
+	return select(data, ["t [s]", "h [cm]"])
+end
+
+# ╔═╡ 759852ee-50e7-4deb-ac7e-c4693103c2a7
+begin
+	train_experiment = "experiment 3- 1-12.csv"
+	test_experiment  = "experiment 4- 1-12.csv"
+end
+
+# ╔═╡ 661feb84-339c-4bbe-a8a5-65de74ed58c8
+train_data = read_h_time_series(train_experiment)
+
+# ╔═╡ 1e8a535e-25ea-490b-b545-e532c4fbc0f3
+test_data = read_h_time_series(test_experiment)
+
+# ╔═╡ b06a1c07-6250-4324-8802-010e5d847edb
+begin
+	obstruction_data = ["obstruction-1-2-28.csv", "obstruction-2-2-28.csv", 
+						"obstruction-3-2-28.csv"]
+	@bind obstruction Select(obstruction_data)
 end
 
 # ╔═╡ 8b6d766a-8f7b-4b9a-9a15-0f7375087120
 block_data = read_h_time_series(obstruction)
 
-# ╔═╡ df589086-cc94-4da9-b982-563cd6ecc643
-md"""
-## Tank Geometry 
-"""
-
 # ╔═╡ 33f889d7-e875-40d8-9d6d-cc87b0fbaf22
-begin
-	local fig = Figure()
-	local ax = Axis(fig[1, 1], xlabel="Time [s]", ylabel="water level [cm]")
+function viz_data(data::DataFrame)
+	fig = Figure()
+	ax = Axis(
+		fig[1, 1], 
+		xlabel="time, t [s]", 
+		ylabel="water level, h [cm]"
+	)
 	lines!(
-			train_data[:, "Time [s]"], 
-			train_data[:, "liquid level [cm]"], 
-			label="no obstruction"
+			data[:, "t [s]"], 
+			data[:, "h [cm]"]
 		)
-	
-	# lines!(
-	# 		block_data[:, "Time [s]"], 
-	# 		block_data[:, "liquid level [cm]"], 
-	# 		label="obstruction"
-	# 	)
-	
-	axislegend()
 	fig
 end
 
+# ╔═╡ 0e4b3c36-2f09-405e-912b-22c893cd1715
+viz_data(train_data)
+
+# ╔═╡ ddd8f749-3126-4563-8177-4941b6b0447b
+viz_data(test_data)
+
 # ╔═╡ e379461f-8896-4e2a-a71b-1871a8a37eb5
 md"""
-## Differential tank model setup
+## Dynamic model of the tank
+
+```math
+A(h)\frac{dh}{dt} = - c\pi r_{\rm hole}^2 \sqrt{2g [h(t)-h_{\rm hole}]}
+```
 """
+
+# ╔═╡ 7b7baa41-0185-4ed6-8fae-3a44e9912016
+g = 980.665 # cm/s²
+
+# ╔═╡ c6a263eb-cb45-4ee7-9c02-549c89298652
+function f(h, params, t)
+	if h < params.h_hole
+		return 0.0
+	end
+	return - params.a_hole * params.c * sqrt(
+		2 * g * (h .- params.h_hole)) / params.A_of_h(h)
+end
 
 # ╔═╡ 31306e0b-9748-48a8-b9d2-892cb501b7ba
 begin
-	g = 980.665 # cm/s²
-	h0 = [train_data[1, "liquid level [cm]"]]
-	tspan = (0, train_data[end, "Time [s]"])
+	# initial condition and time span over which to solve ODE
+	h₀ = train_data[1, "h [cm]"] # cm
+	tspan = (0, 500.0) # s
 	 
-	measurements = (
-			  a = 0.079, # d = 0.3175; a = (π * d²) / 4  [cm²] 
-			  c = 0.63, 
-			  h_hole = 2.3, # cm 
-			  A_of_h = A_of_h # A(h)
-			)
-
+	params = (
+		# area of the hole
+		a_hole = π * r_hole ^ 2,
+		# fudge factor
+		c = 0.63, 
+		# height of the hole
+		h_hole = h_hole,
+		# area as a function of h
+		A_of_h = A_of_h
+	)
 end
-
-# ╔═╡ c6a263eb-cb45-4ee7-9c02-549c89298652
-f(h, p, t) = - p.a .* sqrt.(max.(2 * g * (h .- p.h_hole), 0.0)) .* p.c ./ p.A_of_h(h)
-
-# ╔═╡ a934a309-6ab6-46e0-b448-2572334f5b7a
-# function condition(h, t, integrator) # Event when condition(u,t,integrator) == 0
-#     h[1] = p.h_hole
-# end
 
 # ╔═╡ d3307918-1fdb-4f87-bb92-67330d22e58b
 begin
-	prob = ODEProblem(f, h0, tspan, measurements)
-	condition(h, t, integrator) = h[1] <= measurements.h_hole
-	affect!(integrator) = terminate!(integrator)
-	cb = ContinuousCallback(condition, affect!)
-	sol = solve(prob, Tsit5(), callback=cb)
+	prob = ODEProblem(f, h₀, tspan, params)
+	sol = solve(prob, saveat=1.0)
+	sim_data = DataFrame(sol)
 end
-
-# ╔═╡ 3853c2fb-3665-4c7b-8511-af01694f04b3
-
 
 # ╔═╡ 444f6d74-273e-486d-905a-1443ec0e98df
 begin
 	local fig = Figure()
-	local ax = Axis(fig[1, 1], xlabel="Time [s]", ylabel="liquid level [cm]")
+	local ax = Axis(
+		fig[1, 1], 
+		xlabel="time, t [s]", 
+		ylabel="liquid level, h[cm]"
+	)
 	scatter!(
-			train_data[:, "Time [s]"], 
-			train_data[:, "liquid level [cm]"], 
-			label="experimental")
+		train_data[:, "t [s]"], 
+		train_data[:, "h [cm]"], 
+		label="experiment"
+	)
 	
-	ts = range(0, maximum(train_data[:, "Time [s]"]), length=1000)
-	lines!(ts, [sol.(t, continuity=:right)[1] for t in ts], label="model", color=:red)
+	lines!(sim_data[:, "timestamp"], sim_data[:, "value"], 
+		label="model", color=Cycled(2)
+	)
 	
 	axislegend()
 	fig
@@ -682,35 +733,38 @@ viz_area(posterior, area_posterior, infer_data)
 infer_data
 
 # ╔═╡ Cell order:
-# ╠═e1b54f1e-3c1b-4657-ae3d-d68a78617a4d
 # ╠═faf59350-8d67-11ee-0bdd-2510e986118b
 # ╠═4391f124-cbef-46e5-8462-e4e5126f5b38
 # ╠═245836a9-6b44-4639-9209-e7ad9035e293
-# ╟─418525b7-c358-41da-b865-5df3feb15855
-# ╠═a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
-# ╠═23ee0e85-a84b-4b63-b432-5526559efcee
 # ╟─7752316d-9dd0-4403-aa08-22c977ff3727
 # ╠═20fa4266-be80-4d8e-b1d0-155a40a1241f
+# ╠═48d7273e-a48b-49fd-991b-6e29f64a0760
 # ╠═9a7e5903-69be-4e0a-8514-3e05feedfed5
-# ╟─078c01f7-e47e-4af0-be1c-ac4527b735fd
+# ╟─418525b7-c358-41da-b865-5df3feb15855
+# ╠═a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
+# ╟─6d48d04b-0786-4d15-a07b-8941805a5b09
 # ╠═9af216b7-4bf2-42fb-bd95-5b2040d019a7
 # ╠═d3eeccff-39b3-429d-aec6-e7f1a500b729
-# ╠═6e922ea4-01d0-4202-baed-3cb693b663bc
-# ╠═759852ee-50e7-4deb-ac7e-c4693103c2a7
-# ╠═b06a1c07-6250-4324-8802-010e5d847edb
+# ╟─6ebe0cb0-ba35-411c-9a7a-a8b6eecf326f
+# ╠═385442da-f101-4ddf-8293-46d71d6a48fc
+# ╠═9dabad13-cfa4-4e06-950d-f7c7d96c1147
+# ╟─e040094c-7511-4831-b94a-1c1185868202
+# ╠═23ee0e85-a84b-4b63-b432-5526559efcee
+# ╟─078c01f7-e47e-4af0-be1c-ac4527b735fd
 # ╠═8b00d2b3-9182-42ab-8393-91707b813f60
-# ╠═2a3d5a3f-5d20-4efb-91fd-cc84e77d5922
-# ╠═f0675774-b9ba-40a9-953f-ce5784454378
-# ╠═5100771a-38b6-437a-91e4-70495391067b
+# ╠═759852ee-50e7-4deb-ac7e-c4693103c2a7
+# ╠═661feb84-339c-4bbe-a8a5-65de74ed58c8
+# ╠═1e8a535e-25ea-490b-b545-e532c4fbc0f3
+# ╠═b06a1c07-6250-4324-8802-010e5d847edb
 # ╠═8b6d766a-8f7b-4b9a-9a15-0f7375087120
-# ╟─df589086-cc94-4da9-b982-563cd6ecc643
 # ╠═33f889d7-e875-40d8-9d6d-cc87b0fbaf22
-# ╠═e379461f-8896-4e2a-a71b-1871a8a37eb5
+# ╠═0e4b3c36-2f09-405e-912b-22c893cd1715
+# ╠═ddd8f749-3126-4563-8177-4941b6b0447b
+# ╟─e379461f-8896-4e2a-a71b-1871a8a37eb5
+# ╠═7b7baa41-0185-4ed6-8fae-3a44e9912016
 # ╠═c6a263eb-cb45-4ee7-9c02-549c89298652
 # ╠═31306e0b-9748-48a8-b9d2-892cb501b7ba
-# ╠═a934a309-6ab6-46e0-b448-2572334f5b7a
 # ╠═d3307918-1fdb-4f87-bb92-67330d22e58b
-# ╠═3853c2fb-3665-4c7b-8511-af01694f04b3
 # ╠═444f6d74-273e-486d-905a-1443ec0e98df
 # ╠═a1a10e2f-1b78-4b93-9295-7c0055e32692
 # ╠═f21dc58e-d4e8-4314-b5dd-abbcb29efe86
