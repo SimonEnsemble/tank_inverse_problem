@@ -41,6 +41,11 @@ begin
 		titlefont=AlgebraOfGraphics.firasans("Light"),
 		resolution=resolution
 	)
+
+	colors = Dict(zip(
+		["data", "model", "distn", "other"], 
+		AlgebraOfGraphics.wongcolors()[1:4])
+	)
 end
 
 # ╔═╡ 245836a9-6b44-4639-9209-e7ad9035e293
@@ -57,6 +62,22 @@ see [here](https://mathworld.wolfram.com/RoundedRectangle.html).
 see notes in `tank_geometry/cory_measurements.txt`.
 
 """
+
+# ╔═╡ c976bc08-97b2-45c0-b1ff-1819e7290a68
+struct TankMeasurements
+	# top, bottom areas
+	A_t::Float64
+	A_b::Float64
+	
+	# height (cm)
+	H::Float64
+
+	# radius of hole
+	r_hole::Float64
+
+	# height of hole
+    h_hole::Float64
+end
 
 # ╔═╡ 20fa4266-be80-4d8e-b1d0-155a40a1241f
 begin
@@ -95,6 +116,10 @@ begin
     a_hole = π * r_hole ^ 2 # cm²
 
     h_hole = 2.5 # cm
+
+	tank_measurements = TankMeasurements(
+		A_t, A_b, H, r_hole, h_hole
+	)
 end
 
 # ╔═╡ 48d7273e-a48b-49fd-991b-6e29f64a0760
@@ -255,8 +280,10 @@ function viz_data(data::DataFrame)
 		ylabel="water level, h [cm]"
 	)
 	lines!(
-			data[:, "t [s]"], 
-			data[:, "h [cm]"]
+		data[:, "t [s]"], 
+		data[:, "h [cm]"],
+		label="experiment",
+		color=colors["data"]
 		)
 	fig
 end
@@ -284,7 +311,7 @@ function f(h, params, t)
 	if h < params.h_hole
 		return 0.0
 	end
-	return - params.a_hole * params.c * sqrt(
+	return - π * params.r_hole ^ 2 * params.c * sqrt(
 		2 * g * (h .- params.h_hole)) / params.A_of_h(h)
 end
 
@@ -296,7 +323,7 @@ begin
 	 
 	params = (
 		# area of the hole
-		a_hole = π * r_hole ^ 2,
+		r_hole = r_hole,
 		# fudge factor
 		c = 0.63, 
 		# height of the hole
@@ -346,82 +373,87 @@ function downsample(data::DataFrame, n::Int)
 	return data[ids, :]
 end
 
+# ╔═╡ 695f31d9-a506-4b2e-968c-706f5168862b
+tank_measurements.r_hole
+
 # ╔═╡ 8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
-@model function infer_params(data, measurements)
+@model function infer_params(data, tm::TankMeasurements)
+	#=
+	prior distributions
+	=#
+	# defines precision for measuring length.
+	σ_ℓ = 0.1 # cm
+	
+	# bottom, top tank area measurements
+	# std of product of two Guassians
+	#   https://ccrma.stanford.edu/~jos/sasp/Product_Two_Gaussian_PDFs.html
+	A_b ~ Normal(tm.A_b, σ_ℓ ^ 2 / 2)
+	A_t ~ Normal(tm.A_t, σ_ℓ ^ 2 / 2)
 
-	σ_measurement = 0.1
-	
-	# Prior distributions.
-	A_b ~ Normal(A_bottom, σ_measurement) # cross-sectional area at the base of tank
-	
-	A_t ~ Normal(A_top, σ_measurement) # cross-sectional area at the top of tank
-	
-	a ~ TruncatedNormal(
-						measurements.a, 
-						0.01, 
-						measurements.a - 0.02, 
-						measurements.a + 0.02
-						) # area of the orifice [cm²]
-	
-	c ~ TruncatedNormal(
-						measurements.c, 
-						σ_measurement, 
-						measurements.c - 2 * σ_measurement, 
-						measurements.c + 2 * σ_measurement
-						) # discharge coefficient
-	
-	h_hole ~ TruncatedNormal(
-							 measurements.h_hole, 
-							 σ_measurement, 
-						  	 measurements.h_hole - 2 * σ_measurement, 
-						  	 measurements.h_hole + 2 * σ_measurement
-							) # height of orifice from the base of tank
-	
-	σ ~ Uniform(0.0, 1.0) # measurement noise
-	
-	h0_obs = data[1, "liquid level [cm]"]
-	h_0 ~ TruncatedNormal(h0_obs, σ, h0_obs - 2 * σ, h0_obs +  2 * σ) # initial liquid level
+	# height of tank
+	H ~ Normal(tm.H, σ_ℓ)
 
+	# radius of the hole
+	r_hole ~ Truncated(
+		Normal(tm.r_hole, 0.01),
+		tm.r_hole - 0.03, tm.r_hole + 0.03
+	)
 
-	# recalibrate area interpolation
+	# discharge coefficient. Wikipedia says 0.65 for water.
+	c ~ Truncated(
+		Normal(0.65, 0.2),
+		0.4, 0.8
+	) 
+
+	# height of the hole
+	h_hole ~ Truncated(
+		Normal(tm.h_hole, σ_ℓ),
+		tm.h_hole - 3 * σ_ℓ, tm.h_hole + 3 * σ_ℓ
+	)
 	
-	A_of_h = linear_interpolation([0.0, H_tank], [A_b, A_t])
+	# defines precision of liquid level sensor
+	#   (Treated as an unknown and inferred)
+	σ ~ Uniform(0.0, 1.0)
+
+	# initial liquid level
+	h₀_obs = data[1, "h [cm]"]
+	h₀ ~ Normal(h₀_obs, σ)
+
+	#=
+	set up dynamic model for h(t)
+	=#
+	A_of_h(h) = h / H * A_t + (1 - h / H) * A_b
 	
-	# parameter for ODE
+	# parameter for ODE solver
 	params = (
-			  a = a, # area of the orifice [cm²]
-			  c = c, # discharge coefficient
-			  h_hole = h_hole, # height of hole to the base of tank [cm] 
-			  A_of_h = A_of_h 
+			  r_hole=r_hole,
+			  c=c,
+			  h_hole=h_hole,
+			  A_of_h=A_of_h 
 			)
 	
 	# set up ODE
-	prob = ODEProblem(f, [h_0], tspan, params)
-
-	# callbacks
-	condition(h, t, integrator) = h[1] <= params.h_hole
-	affect!(integrator) = terminate!(integrator)
-	cb = ContinuousCallback(condition, affect!)
-	@show params 
-	sol = solve(prob, Tsit5(), callback=cb)
+	tspan = (0, 500.0)
+	prob = ODEProblem(f, h₀, tspan, params, saveat=1.0)
+	sol = solve(prob)
 	
-	# Observations.
+	#=
+	code up likelihood
+	=#
 	for i in 2:nrow(data)
-		tᵢ = data[i, "Time [s]"]
-		data[i, "liquid level [cm]"] ~ Normal(sol(tᵢ, continuity=:right)[1], σ)
+		tᵢ = data[i, "t [s]"]
+		data[i, "h [cm]"] ~ Normal(sol(tᵢ, continuity=:right)[1], σ)
 	end
 
 	return nothing
 end
 
-
-
 # ╔═╡ 8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 begin
 	inference_data = downsample(train_data, 12)
-	model = infer_params(inference_data, measurements)
+	model = infer_params(inference_data, tank_measurements)
 	
-	chain = sample(model, NUTS(0.65), MCMCSerial(), 3, 3; progress=true)
+	chain = sample(model, NUTS(0.65), MCMCSerial(), 250, 3; progress=true)
 end
 
 # ╔═╡ 7ebe4680-c583-4f92-8bae-dd84c3fb5139
@@ -480,49 +512,46 @@ function viz_posterior(posterior)
 end
 
 # ╔═╡ 2ab35999-3615-4f5c-8d89-36d77802fe9b
-function viz_fit(posterior, data)
+function viz_fit(posterior::DataFrame, data::DataFrame)
 	fig = Figure()
-	ax = Axis(fig[1, 1], xlabel="Time [s]", ylabel="liquid level [cm]")
+	ax = Axis(
+		fig[1, 1], 
+		xlabel="time, t [s]", 
+		ylabel="water level, h [cm]"
+	)
 	
-	ts = range(0, maximum(data[:, "Time [s]"]), length=1000)
-	
-	
+	ts = range(0, maximum(data[:, "t [s]"]), length=500)
+	tspan = (0.0, maximum(ts)*1.05)
+
+	# sample posterior models
 	ids_post = sample(1:nrow(posterior), 100; replace=false)
 	for i in ids_post
-		areas =  # cm^2
-		A_of_h = linear_interpolation(
-								[0.0, H_tank], 
-								[posterior[i, "A_b"], posterior[i, "A_t"]]
-								)
-		
+
 		params = (
-			  a = posterior[i, "a"], # area of the orifice [cm²]
-			  c = posterior[i, "c"], # discharge coefficient
-			  h_hole = posterior[i, "h_hole"], # height of hole to the base of tank [cm] 
-			  A_of_h = A_of_h # A(h)
+			  r_hole=posterior[i, "r_hole"],
+			  c=posterior[i, "c"],
+			  h_hole=posterior[i, "h_hole"],
+			  A_of_h=h -> h / posterior[i, "H"] * posterior[i, "A_t"] + 
+			  	    (1 - h / posterior[i, "H"]) * posterior[i, "A_b"]
 			)
 
-		
-	
-		# set up ODE
-		_prob = ODEProblem(f, [posterior[i, "h_0"]], tspan, params)
-		sol = solve(_prob, Tsit5())
+		# set up, solve ODE
+		prob = ODEProblem(f, posterior[i, "h₀"], tspan, params)
+		sim_data = DataFrame(solve(prob, saveat=1.0))
 			
 		
-		lines!(ts, [sol.(t)[1] for t in ts], label="model", color=(:green, 0.1))
-	end
-
-	scatter!(data[:, "Time [s]"], data[:, "liquid level [cm]"], label="experimental")
-	
+		lines!(sim_data[:, "timestamp"], sim_data[:, "value"], 
+			label="model", color=(colors["model"], 0.1))
+	end	
+	scatter!(
+		data[:, "t [s]"], 
+		data[:, "h [cm]"],
+		label="experiment",
+		color=colors["data"]
+		)
 	axislegend(unique=true)
 	return fig
 end
-
-# ╔═╡ 5bea087e-c241-424d-a526-25eae30bfe15
-viz_posterior(posterior)
-
-# ╔═╡ 765ff940-1328-4806-aeaa-de8a41a6f4df
-
 
 # ╔═╡ 2a01b228-f281-46c4-9764-fac6cc1b4217
 viz_fit(posterior, inference_data)
@@ -737,6 +766,7 @@ infer_data
 # ╠═4391f124-cbef-46e5-8462-e4e5126f5b38
 # ╠═245836a9-6b44-4639-9209-e7ad9035e293
 # ╟─7752316d-9dd0-4403-aa08-22c977ff3727
+# ╠═c976bc08-97b2-45c0-b1ff-1819e7290a68
 # ╠═20fa4266-be80-4d8e-b1d0-155a40a1241f
 # ╠═48d7273e-a48b-49fd-991b-6e29f64a0760
 # ╠═9a7e5903-69be-4e0a-8514-3e05feedfed5
@@ -766,16 +796,15 @@ infer_data
 # ╠═31306e0b-9748-48a8-b9d2-892cb501b7ba
 # ╠═d3307918-1fdb-4f87-bb92-67330d22e58b
 # ╠═444f6d74-273e-486d-905a-1443ec0e98df
-# ╠═a1a10e2f-1b78-4b93-9295-7c0055e32692
+# ╟─a1a10e2f-1b78-4b93-9295-7c0055e32692
 # ╠═f21dc58e-d4e8-4314-b5dd-abbcb29efe86
+# ╠═695f31d9-a506-4b2e-968c-706f5168862b
 # ╠═8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
 # ╠═8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 # ╠═7ebe4680-c583-4f92-8bae-dd84c3fb5139
 # ╠═a2048a65-7b7c-41fc-b7ee-f9199f3e96b5
 # ╠═5bb0b72a-8c77-4fcb-bbde-d144986d9c1e
 # ╠═2ab35999-3615-4f5c-8d89-36d77802fe9b
-# ╠═5bea087e-c241-424d-a526-25eae30bfe15
-# ╠═765ff940-1328-4806-aeaa-de8a41a6f4df
 # ╠═2a01b228-f281-46c4-9764-fac6cc1b4217
 # ╠═193d0e02-988e-4f58-b57d-7a1d125069a4
 # ╠═aa31509b-b1e3-4e5e-8c34-54f89b6d6e30
