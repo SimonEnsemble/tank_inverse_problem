@@ -382,7 +382,7 @@ tank_measurements.r_hole
 	prior distributions
 	=#
 	# defines precision for measuring length.
-	σ_ℓ = 0.1 # cm
+	σ_ℓ ~ Uniform(0.0, 0.2) # cm
 	
 	# bottom, top tank area measurements
 	# std of product of two Guassians
