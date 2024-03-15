@@ -751,6 +751,23 @@ tank_measurements
 # ╔═╡ bb8d16dd-ec5d-467c-b52a-3a73f6138786
 
 
+# ╔═╡ 9cdd761e-6c22-4eea-90d8-9cf904d7a8e6
+@model function impose_smoothness(data, tm::TankMeasurements)
+	N = nrow(data)
+	# defines precision for measuring length.
+	σ_ℓ ~ Uniform(0.0, 0.2) # cm
+	
+	γ ~ Uniform(0.0, 10.0)
+	
+	A_of_h ~ filldist(Normal(tm.A_t, γ), N)
+
+	for i in 2:N
+		diff = (A_of_h[i] - A_of_h[i-1]) 
+		diff ~ Normal(0, γ)
+	end
+	return nothing
+end
+
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
 @model function infer_area(data, tm::TankMeasurements)
 	#=
@@ -760,16 +777,10 @@ tank_measurements
 	# defines precision for measuring length.
 	σ_ℓ ~ Uniform(0.0, 0.2) # cm
 	
-	
-		# Normal(tm.A_t, σ_ℓ ^ 2 / 2)
-
-	W ~ filldist(Normal(0, 1), N)
-		# arraydist([Normal(0, 1) for i in 1:N])
-		# 
-	
 	γ ~ Uniform(0.0, 50.0)
 	
 	A_of_h ~ filldist(Normal(tm.A_t, γ), N)
+		# filldist(Normal(tm.A_t, σ_ℓ ^ 2 / 2), N)
 	
 	# radius of the hole
 	r_hole ~ Truncated(
@@ -794,6 +805,11 @@ tank_measurements
 	h₀_obs = data[1, "h [cm]"]
 	h₀ ~ Normal(h₀_obs, σ)
 
+	for i in 2:N
+		diff = (A_of_h[i] - A_of_h[i-1]) 
+		A_of_h[i] ~ Normal(γ * A_of_h[i-1], A_of_h[i-1] + γ)
+	end
+
 	#=
 	set up dynamic model for h(t)
 	=#
@@ -804,7 +820,7 @@ tank_measurements
 	idx = sortperm(data[:, "h [cm]"])
 	# A_of_h ~ arraydist(A_dist[idx])
 	
-	A_of_h = linear_interpolation(data[idx, "h [cm]"], A_of_h, 
+	A_of_h = linear_interpolation(data[idx, "h [cm]"], A_of_h[idx], 
 							  extrapolation_bc=Line())
 	# print(A_dist)
 	
@@ -872,7 +888,7 @@ function viz_area(original_post, posterior, data)
 		lines!(data[:, "h [cm]"], _areas, label="model", color=(:green, 0.1))
 	end
 
-	scatter!(data[:, "h [cm]"], A_of_h.(data[:, "h [cm]"]), label="experimental")
+	# scatter!(data[:, "h [cm]"], A_of_h.(data[:, "h [cm]"]), label="experimental")
 
 	axislegend(unique=true, position=:rb)
 	return fig
@@ -3883,6 +3899,7 @@ version = "3.5.0+0"
 # ╠═945276e6-2fb1-4992-a9af-a5e1a2701678
 # ╠═e03c03ca-ede4-4eab-ad4a-64dbac366898
 # ╠═bb8d16dd-ec5d-467c-b52a-3a73f6138786
+# ╠═9cdd761e-6c22-4eea-90d8-9cf904d7a8e6
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
 # ╠═b4c62168-24e4-4cd3-8358-7599813af45d
 # ╠═daa1e6c7-867b-4cf7-b7b8-dc24f859ec96
