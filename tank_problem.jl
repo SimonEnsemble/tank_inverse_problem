@@ -757,15 +757,21 @@ tank_measurements
 	# defines precision for measuring length.
 	σ_ℓ ~ Uniform(0.0, 0.2) # cm
 	
-	γ ~ Uniform(0.0, 10.0)
+	γ ~ Uniform(0.0, 5.0)
 	
-	A_of_h ~ filldist(Normal(tm.A_t, γ), N)
+	A_of_h ~ filldist(Normal(tm.A_t, σ_ℓ), N)
 
 	for i in 2:N
-		diff = (A_of_h[i] - A_of_h[i-1]) 
-		diff ~ Normal(0, γ)
+		A_of_h[i] ~ A_of_h[i-1] + γ * Normal(0, 1)
 	end
 	return nothing
+end
+
+# ╔═╡ 61dfa1c2-e4c0-4df5-9fa3-7c13468dff0a
+begin
+	As = impose_smoothness(test_infer, tank_measurements)
+	areas = DataFrame(sample(As, NUTS(0.65), MCMCSerial(), 100, 3; 
+										  progress=false))
 end
 
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
@@ -777,16 +783,12 @@ end
 	# defines precision for measuring length.
 	σ_ℓ ~ Uniform(0.0, 0.2) # cm
 	
-	γ ~ Uniform(0.0, 50.0)
+	γ ~ Uniform(0.0, 10.0)
 	
-	A_of_h ~ filldist(Normal(tm.A_t, γ), N)
-		# filldist(Normal(tm.A_t, σ_ℓ ^ 2 / 2), N)
+	A_of_h ~ filldist(Normal(tm.A_t, σ_ℓ), N)
 	
 	# radius of the hole
-	r_hole ~ Truncated(
-		Normal(tm.r_hole, 0.01),
-		tm.r_hole - 0.03, tm.r_hole + 0.03
-	)
+	r_hole ~ Truncated(Normal(tm.r_hole, 0.01), tm.r_hole - 0.03, tm.r_hole + 0.03)
 
 	# discharge coefficient. Wikipedia says 0.65 for water.
 	c ~ Truncated(Normal(0.65, 0.2), 0.4, 0.8) 
@@ -806,8 +808,7 @@ end
 	h₀ ~ Normal(h₀_obs, σ)
 
 	for i in 2:N
-		diff = (A_of_h[i] - A_of_h[i-1]) 
-		A_of_h[i] ~ Normal(γ * A_of_h[i-1], A_of_h[i-1] + γ)
+		A_of_h[i] ~ A_of_h[i-1] + γ * Normal(0, 1)
 	end
 
 	#=
@@ -820,7 +821,7 @@ end
 	idx = sortperm(data[:, "h [cm]"])
 	# A_of_h ~ arraydist(A_dist[idx])
 	
-	A_of_h = linear_interpolation(data[idx, "h [cm]"], A_of_h[idx], 
+	A_of_h = linear_interpolation(data[idx, "h [cm]"], A_of_h, 
 							  extrapolation_bc=Line())
 	# print(A_dist)
 	
@@ -895,7 +896,7 @@ function viz_area(original_post, posterior, data)
 end
 
 # ╔═╡ b43f9f58-94fd-4c92-8e91-9a6b86cfc041
-viz_area(posterior, area_posterior, test_infer)
+viz_area(posterior, areas, test_infer)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -3900,6 +3901,8 @@ version = "3.5.0+0"
 # ╠═e03c03ca-ede4-4eab-ad4a-64dbac366898
 # ╠═bb8d16dd-ec5d-467c-b52a-3a73f6138786
 # ╠═9cdd761e-6c22-4eea-90d8-9cf904d7a8e6
+# ╠═61dfa1c2-e4c0-4df5-9fa3-7c13468dff0a
+# ╠═b43f9f58-94fd-4c92-8e91-9a6b86cfc041
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
 # ╠═b4c62168-24e4-4cd3-8358-7599813af45d
 # ╠═daa1e6c7-867b-4cf7-b7b8-dc24f859ec96
@@ -3907,6 +3910,5 @@ version = "3.5.0+0"
 # ╠═aff2e678-ab4f-4c45-bad6-33d332cd2c33
 # ╠═106016fb-3073-42e8-90f7-7ef61b06173b
 # ╠═a127225a-5b79-4074-a16b-cecd11030800
-# ╠═b43f9f58-94fd-4c92-8e91-9a6b86cfc041
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
