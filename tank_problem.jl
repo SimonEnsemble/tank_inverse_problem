@@ -39,7 +39,7 @@ begin
 		linewidth=4,
 		markersize=14,
 		titlefont=AlgebraOfGraphics.firasans("Light"),
-		resolution=resolution
+		size=resolution
 	)
 
 	colors = Dict(zip(
@@ -263,13 +263,44 @@ test_data = read_h_time_series(test_experiment)
 
 # ╔═╡ b06a1c07-6250-4324-8802-010e5d847edb
 begin
-	obstruction_data = ["obstruction-1-2-28.csv", "obstruction-2-2-28.csv", 
-						"obstruction-3-2-28.csv"]
+	obstruction_data = ["new_obstruction_1.csv", "new_obstruction_2.csv", 
+						"new_obstruction_3.csv"]
 	@bind obstruction Select(obstruction_data)
 end
 
 # ╔═╡ 8b6d766a-8f7b-4b9a-9a15-0f7375087120
 block_data = read_h_time_series(obstruction)
+
+# ╔═╡ 8d4d88da-a48a-4018-b6c6-3a2f041fcfb4
+colors
+
+# ╔═╡ 16158266-36ed-44c3-a418-0c454955ce78
+function viz_obstruction_w_no_obstruction(obstruction_data, no_obstruction_data)
+	fig = Figure()
+	ax = Axis(
+		fig[1, 1], 
+		xlabel="time, t [s]", 
+		ylabel="water level, h [cm]"
+	)
+	lines!(
+		no_obstruction_data[:, "t [s]"], 
+		no_obstruction_data[:, "h [cm]"],
+		label="no_obstruction",
+		color=colors["data"]
+		)
+	fig
+	lines!(
+		obstruction_data[:, "t [s]"], 
+		obstruction_data[:, "h [cm]"],
+		label="no_obstruction",
+		color=colors["other"]
+		)
+	fig
+
+end
+
+# ╔═╡ 1e351b83-b35d-4640-b0f8-4fe3b4de768e
+viz_obstruction_w_no_obstruction(block_data, train_data)
 
 # ╔═╡ 33f889d7-e875-40d8-9d6d-cc87b0fbaf22
 function viz_data(data::DataFrame)
@@ -351,9 +382,6 @@ h₀
 
 # ╔═╡ 6d9b6a78-cd40-4d8b-8678-8f9838489244
 h_hole
-
-# ╔═╡ 314b94a3-fcdb-4aa3-ab04-a13bd124929b
-event_time
 
 # ╔═╡ 444f6d74-273e-486d-905a-1443ec0e98df
 begin
@@ -683,7 +711,7 @@ begin
 	test_infer = downsample(test_data, 12)
 	test_model = infer_test(test_infer, posterior, tank_measurements)
 	
-	test_chain = sample(test_model, NUTS(0.65), MCMCSerial(), 100, 3; progress=false)
+	test_chain = sample(test_model, NUTS(0.65), MCMCSerial(), 250, 3; progress=false)
 end
 
 # ╔═╡ 4ceeb508-413e-4a3c-9790-bfec1900ef4d
@@ -757,22 +785,31 @@ tank_measurements
 	# defines precision for measuring length.
 	σ_ℓ ~ Uniform(0.0, 0.2) # cm
 	
-	γ ~ Uniform(0.0, 5.0)
+	γ ~ Uniform(0.0, .005)
 	
-	A_of_h ~ filldist(Normal(tm.A_t, σ_ℓ), N)
+	A_of_h ~ filldist(Normal(), N)
 
 	for i in 2:N
-		A_of_h[i] ~ A_of_h[i-1] + γ * Normal(0, 1)
+		A_of_h[i] ~ A_of_h[i-1] + 0.1 * Normal(0, 1)
 	end
 	return nothing
 end
 
+# ╔═╡ e30ae499-9855-4441-8511-4a5714fe5e45
+[Normal(10, 0.1) for i in 1:3][1]
+
+# ╔═╡ 74fa3916-a7da-49e7-8bac-47e9d53feefb
+rand(filldist(Normal(10, 0.1), 3))
+
 # ╔═╡ 61dfa1c2-e4c0-4df5-9fa3-7c13468dff0a
 begin
 	As = impose_smoothness(test_infer, tank_measurements)
-	areas = DataFrame(sample(As, NUTS(0.65), MCMCSerial(), 100, 3; 
+	areas = DataFrame(sample(As, NUTS(0.65), MCMCSerial(), 250, 3; 
 										  progress=false))
 end
+
+# ╔═╡ aebbd578-ed3b-4f0b-a87c-ac9cb36c6bc8
+p = [areas[2, "A_of_h[$i]"] - areas[2, "A_of_h[$(i-1)]"] for i in 2:12]
 
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
 @model function infer_area(data, tm::TankMeasurements)
@@ -783,10 +820,11 @@ end
 	# defines precision for measuring length.
 	σ_ℓ ~ Uniform(0.0, 0.2) # cm
 	
-	γ ~ Uniform(0.0, 10.0)
+	γ ~ Uniform(0.0, 50.0)
 	
-	A_of_h ~ filldist(Normal(tm.A_t, σ_ℓ), N)
-	
+	A_of_h ~ filldist(Normal(tm.A_b, σ_ℓ), N)
+	# W ~ filldist(Normal(0, 1), N)
+	# 
 	# radius of the hole
 	r_hole ~ Truncated(Normal(tm.r_hole, 0.01), tm.r_hole - 0.03, tm.r_hole + 0.03)
 
@@ -809,19 +847,19 @@ end
 
 	for i in 2:N
 		A_of_h[i] ~ A_of_h[i-1] + γ * Normal(0, 1)
+		# W[i]
+		# 
 	end
 
 	#=
 	set up dynamic model for h(t)
 	=#
-	# A_dist = [A_at_top]
-	# [append!(A_dist, A_dist[i-1] - γ * W[i]) for i in 2:N]
 	
 
 	idx = sortperm(data[:, "h [cm]"])
 	# A_of_h ~ arraydist(A_dist[idx])
-	
-	A_of_h = linear_interpolation(data[idx, "h [cm]"], A_of_h, 
+	hs = Interpolations.deduplicate_knots!(data[idx, "h [cm]"]; move_knots = false)
+	x = linear_interpolation(hs, A_of_h, 
 							  extrapolation_bc=Line())
 	# print(A_dist)
 	
@@ -830,7 +868,7 @@ end
 			  r_hole=r_hole,
 			  c=c,
 			  h_hole=h_hole,
-			  A_of_h=A_of_h 
+			  A_of_h=x 
 			)
 	
 	# set up ODE
@@ -857,27 +895,29 @@ test_infer
 # ╔═╡ 02939a87-e811-4ae4-8b6b-173370029889
 begin
 	area_model = infer_area(test_infer, tank_measurements)
-	area_posterior = DataFrame(sample(area_model, NUTS(0.65), MCMCSerial(), 100, 3; 
-									  progress=false))
+	area_posterior = DataFrame(sample(area_model, NUTS(0.65), MCMCSerial(), 250, 3; 
+									  progress=true))
 end
-
-# ╔═╡ aff2e678-ab4f-4c45-bad6-33d332cd2c33
-A_of_h
 
 # ╔═╡ 106016fb-3073-42e8-90f7-7ef61b06173b
 begin
 	local fig = Figure()
-	local ax = Axis(fig[1, 1])
-	density!(area_posterior[:, "γ"])
+	local ax = Axis(fig[1, 1], xlabel="γ")
+	density!(area_posterior[:, "γ"], color = (:blue, 0.0), strokewidth = 3, 
+				 strokecolor = :blue)
+	# vlines!(mean(area_posterior[:, "γ"]), linestyle=:dash, color=:black)
 	fig
 end
+
+# ╔═╡ 030563e1-7994-450a-9cb0-1bf48041cf75
+mean(area_posterior[:, "γ"])
 
 # ╔═╡ a127225a-5b79-4074-a16b-cecd11030800
 function viz_area(original_post, posterior, data)
 	fig = Figure()
 	ax = Axis(fig[1, 1], xlabel="height [cm]", ylabel="Area [cm²]")
 	
-	ids_post = sample(1:nrow(posterior), 10; replace=false)
+	ids_post = sample(1:nrow(posterior), 300; replace=false)
 	
 	for j in ids_post
 		
@@ -886,17 +926,17 @@ function viz_area(original_post, posterior, data)
 		# print(_areas)
 		
 		
-		lines!(data[:, "h [cm]"], _areas, label="model", color=(:green, 0.1))
+		lines!(data[:, "h [cm]"], reverse(_areas), label="model", color=(:green, 0.1))
 	end
 
-	# scatter!(data[:, "h [cm]"], A_of_h.(data[:, "h [cm]"]), label="experimental")
+	scatter!(data[:, "h [cm]"], A_of_h.(data[:, "h [cm]"]), label="experimental")
 
 	axislegend(unique=true, position=:rb)
 	return fig
 end
 
 # ╔═╡ b43f9f58-94fd-4c92-8e91-9a6b86cfc041
-viz_area(posterior, areas, test_infer)
+viz_area(posterior, area_posterior, test_infer)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -3855,6 +3895,9 @@ version = "3.5.0+0"
 # ╠═1e8a535e-25ea-490b-b545-e532c4fbc0f3
 # ╠═b06a1c07-6250-4324-8802-010e5d847edb
 # ╠═8b6d766a-8f7b-4b9a-9a15-0f7375087120
+# ╠═8d4d88da-a48a-4018-b6c6-3a2f041fcfb4
+# ╠═16158266-36ed-44c3-a418-0c454955ce78
+# ╠═1e351b83-b35d-4640-b0f8-4fe3b4de768e
 # ╠═33f889d7-e875-40d8-9d6d-cc87b0fbaf22
 # ╠═0e4b3c36-2f09-405e-912b-22c893cd1715
 # ╠═ddd8f749-3126-4563-8177-4941b6b0447b
@@ -3867,7 +3910,6 @@ version = "3.5.0+0"
 # ╠═7f72e6a0-4456-4d77-9868-9fef459ba432
 # ╠═c53f5650-e235-4aa7-a568-445a1d959164
 # ╠═6d9b6a78-cd40-4d8b-8678-8f9838489244
-# ╠═314b94a3-fcdb-4aa3-ab04-a13bd124929b
 # ╠═444f6d74-273e-486d-905a-1443ec0e98df
 # ╟─a1a10e2f-1b78-4b93-9295-7c0055e32692
 # ╠═f21dc58e-d4e8-4314-b5dd-abbcb29efe86
@@ -3901,14 +3943,17 @@ version = "3.5.0+0"
 # ╠═e03c03ca-ede4-4eab-ad4a-64dbac366898
 # ╠═bb8d16dd-ec5d-467c-b52a-3a73f6138786
 # ╠═9cdd761e-6c22-4eea-90d8-9cf904d7a8e6
+# ╠═e30ae499-9855-4441-8511-4a5714fe5e45
+# ╠═74fa3916-a7da-49e7-8bac-47e9d53feefb
 # ╠═61dfa1c2-e4c0-4df5-9fa3-7c13468dff0a
+# ╠═aebbd578-ed3b-4f0b-a87c-ac9cb36c6bc8
 # ╠═b43f9f58-94fd-4c92-8e91-9a6b86cfc041
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
 # ╠═b4c62168-24e4-4cd3-8358-7599813af45d
 # ╠═daa1e6c7-867b-4cf7-b7b8-dc24f859ec96
 # ╠═02939a87-e811-4ae4-8b6b-173370029889
-# ╠═aff2e678-ab4f-4c45-bad6-33d332cd2c33
 # ╠═106016fb-3073-42e8-90f7-7ef61b06173b
+# ╠═030563e1-7994-450a-9cb0-1bf48041cf75
 # ╠═a127225a-5b79-4074-a16b-cecd11030800
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
