@@ -20,6 +20,9 @@ begin
     using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions
 end
 
+# ╔═╡ 3338df84-bc7b-449d-9bc9-6fd246a3a344
+using Profile
+
 # ╔═╡ 4391f124-cbef-46e5-8462-e4e5126f5b38
 begin
 	# cool plot theme
@@ -252,6 +255,8 @@ end
 # ╔═╡ 759852ee-50e7-4deb-ac7e-c4693103c2a7
 begin
 	train_experiment = "experiment 3- 1-12.csv"
+		# "data_1.csv"
+		# 
 	test_experiment  = "experiment 4- 1-12.csv"
 end
 
@@ -263,7 +268,7 @@ test_data = read_h_time_series(test_experiment)
 
 # ╔═╡ b06a1c07-6250-4324-8802-010e5d847edb
 begin
-	obstruction_data = ["new_obstruction_1.csv", "new_obstruction_2.csv", 
+	obstruction_data = ["obs_1.csv", "obs_2.csv", "new_obstruction_1.csv", "new_obstruction_2.csv", 
 						"new_obstruction_3.csv"]
 	@bind obstruction Select(obstruction_data)
 end
@@ -292,9 +297,10 @@ function viz_obstruction_w_no_obstruction(obstruction_data, no_obstruction_data)
 	lines!(
 		obstruction_data[:, "t [s]"], 
 		obstruction_data[:, "h [cm]"],
-		label="no_obstruction",
+		label="obstruction",
 		color=colors["other"]
 		)
+	axislegend()
 	fig
 
 end
@@ -416,6 +422,9 @@ function downsample(data::DataFrame, n::Int)
 	return data[ids, :]
 end
 
+# ╔═╡ e454d315-1cc7-4648-8ac2-f1b3d888eb5f
+collect(range(1, nrow(test_data), 2))
+
 # ╔═╡ 695f31d9-a506-4b2e-968c-706f5168862b
 tank_measurements.r_hole
 
@@ -424,8 +433,8 @@ tank_measurements.r_hole
 	#=
 	prior distributions
 	=#
-	# defines precision for measuring length.
-	σ_ℓ ~ Uniform(0.0, 0.2) # cm
+	# defines variance for measuring length.
+	σ_ℓ ~ Uniform(0.0, 0.5) # cm
 	
 	# bottom, top tank area measurements
 	# std of product of two Guassians
@@ -437,9 +446,10 @@ tank_measurements.r_hole
 	H ~ Normal(tm.H, σ_ℓ)
 
 	# radius of the hole
+	drill_precision = 0.01
 	r_hole ~ Truncated(
-		Normal(tm.r_hole, 0.01),
-		tm.r_hole - 0.03, tm.r_hole + 0.03
+		Normal(tm.r_hole, drill_precision),
+		tm.r_hole - 3 * drill_precision, tm.r_hole + 3 * drill_precision
 	)
 
 	# discharge coefficient. Wikipedia says 0.65 for water.
@@ -454,7 +464,7 @@ tank_measurements.r_hole
 		tm.h_hole - 3 * σ_ℓ, tm.h_hole + 3 * σ_ℓ
 	)
 	
-	# defines precision of liquid level sensor
+	# defines variance of liquid level sensor
 	#   (Treated as an unknown and inferred)
 	σ ~ Uniform(0.0, 1.0)
 
@@ -491,9 +501,15 @@ tank_measurements.r_hole
 	return nothing
 end
 
+# ╔═╡ f5a02295-5f0d-4ef1-982d-94cb775d66e5
+
+
+# ╔═╡ f89b6d83-63bf-453b-8463-ca520ecda268
+@bind n_sample NumberField(1:nrow(test_data), default=3)
+
 # ╔═╡ 8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 begin
-	inference_data = downsample(train_data, 12)
+	inference_data = downsample(train_data, n_sample)
 	model = infer_params(inference_data, tank_measurements)
 	
 	chain = sample(model, NUTS(0.65), MCMCSerial(), 250, 3; progress=true)
@@ -535,9 +551,9 @@ begin
 							"c" => "discharge coefficient",
 							"h_hole" => "height of orifice from the base of tank",
 							"h₀" => "initial water level",
-							"σ_ℓ" => "precision for measuring length",
+							"σ_ℓ" => "variance for measuring length",
 							"H" => "height of tank", 
-							"σ" => "precision of liquid level sensor"
+							"σ" => "variance of liquid level sensor"
 							)
 end
 
@@ -558,7 +574,11 @@ function viz_posterior(posterior, h₀::Float64)
 
 		# hidedecorations!(ax[i, j], ticks=false)
 		
-		ax[i, j].title = params_to_title[p]
+		ax[i, j].xlabel = params_to_title[p]
+
+		if j==1
+			ax[i, j].ylabel = "density"
+		end
 		
 		if p in keys(posterior_to_true)
 			# plot real value
@@ -591,7 +611,7 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 	ax = Axis(
 		fig[1, 1], 
 		xlabel="time, t [s]", 
-		ylabel="water level, h [cm]"
+		ylabel="liquid level, h [cm]"
 	)
 	
 	ts = range(0, maximum(data[:, "t [s]"]), length=500)
@@ -634,28 +654,33 @@ end
 # ╔═╡ 2a01b228-f281-46c4-9764-fac6cc1b4217
 viz_fit(posterior, inference_data)
 
+# ╔═╡ b0f11814-04db-446a-b458-97436313e428
+std(posterior.r_hole)
+
 # ╔═╡ 193d0e02-988e-4f58-b57d-7a1d125069a4
 @model function infer_test(test_data, posterior, tm::TankMeasurements)
 	
 	#=
 	prior distributions
 	=#
-	# defines precision for measuring length.
+	# defines variance for measuring length.
 	σ_ℓ ~ Truncated(Normal(mean(posterior.σ_ℓ), std(posterior.σ_ℓ)), 0, 1)
 	
 	# bottom, top tank area measurements
 	# std of product of two Guassians
 	#   https://ccrma.stanford.edu/~jos/sasp/Product_Two_Gaussian_PDFs.html
-	A_b ~ Normal(tm.A_b, σ_ℓ ^ 2 / 2)
-	A_t ~ Normal(tm.A_t, σ_ℓ ^ 2 / 2)
+	A_b ~ Normal(mean(posterior.A_b), σ_ℓ ^ 2 / 2)
+	A_t ~ Normal(mean(posterior.A_t), σ_ℓ ^ 2 / 2)
 
 	# height of tank
-	H ~ Normal(tm.H, σ_ℓ)
+	H ~ Normal(mean(posterior.H), σ_ℓ)
 
 	# radius of the hole
+	drill_precision = 0.01
 	r_hole ~ Truncated(
-		Normal(tm.r_hole, 0.01),
-		tm.r_hole - 0.03, tm.r_hole + 0.03
+		Normal(mean(posterior.r_hole), drill_precision),
+		mean(posterior.r_hole) - 3 * drill_precision, 
+		mean(posterior.r_hole) + 3 * drill_precision
 	)
 
 	# discharge coefficient. Wikipedia says 0.65 for water.
@@ -663,52 +688,43 @@ viz_fit(posterior, inference_data)
 
 	# height of the hole
 	h_hole ~ Truncated(
-		Normal(tm.h_hole, σ_ℓ),
-		tm.h_hole - 3 * σ_ℓ, tm.h_hole + 3 * σ_ℓ
+		Normal(mean(posterior.h_hole), σ_ℓ),
+		mean(posterior.h_hole) - 3 * σ_ℓ, 
+		mean(posterior.h_hole) + 3 * σ_ℓ
 	)
 	
-	# defines precision of liquid level sensor
+	# defines variance of liquid level sensor
 	σ ~ Truncated(Normal(mean(posterior.σ), std(posterior.σ)), 0, 1)
 
 	# initial liquid level
 	h₀_obs = test_data[1, "h [cm]"]
 	h₀ ~ Normal(h₀_obs, σ)
-
-	#=
-	set up dynamic model for h(t)
-	=#
-	A_of_h(h) = h / H * A_t + (1 - h / H) * A_b
-	
-	# parameter for ODE solver
-	params = (
-			  r_hole=r_hole,
-			  c=c,
-			  h_hole=h_hole,
-			  A_of_h=A_of_h 
-			)
-	
-	# set up ODE
-	tspan = (0, 500.0)
-	prob = ODEProblem(f, h₀, tspan, params, saveat=1.0)
-	sol = solve(prob)
-	
-	#=
-	code up likelihood
-	=#
-	tᵢ = test_data[1, "t [s]"]
-	h₀_obs ~ Normal(sol(tᵢ, continuity=:right)[1], σ)
 	
 	return nothing
 end
 
 
 
+# ╔═╡ 87de85d4-8827-42e6-97d0-d12dc364be07
+tank_measurements.r_hole
+
+# ╔═╡ f8b62180-147c-4e80-8cdc-934b700a92b7
+3 * std(posterior.r_hole)
+
+# ╔═╡ c7ab31e2-afa7-41d5-8751-fecf0add6d99
+mean(posterior.r_hole) +3 * std(posterior.r_hole)
+
 # ╔═╡ aa31509b-b1e3-4e5e-8c34-54f89b6d6e30
 test_data
 
+# ╔═╡ 324440f5-79a2-465a-b00b-6f632840e148
+n_sample
+
+# ╔═╡ e56bc87a-396a-4c2c-9f69-52f7ded54c41
+test_infer = downsample(test_data, n_sample)
+
 # ╔═╡ 706a0c20-d42c-4fd6-980c-122b9c66de46
 begin
-	test_infer = downsample(test_data, 12)
 	test_model = infer_test(test_infer, posterior, tank_measurements)
 	
 	test_chain = sample(test_model, NUTS(0.65), MCMCSerial(), 250, 3; progress=false)
@@ -717,18 +733,14 @@ end
 # ╔═╡ 4ceeb508-413e-4a3c-9790-bfec1900ef4d
 test_posterior = DataFrame(test_chain)
 
-# ╔═╡ 319ecc01-f2d6-46e8-87dd-9cb7992d544c
-viz_fit(test_posterior, test_infer, savename="test")
-
-# ╔═╡ e95b3140-7658-483d-bfc3-c86399dfd6a0
-viz_posterior(test_posterior, test_data[1, "h [cm]"])
-
 # ╔═╡ 659740d4-20c6-426a-865c-0761f05c2601
 function emptying_tank_time(posterior)
 	stopping_time = Vector{Float64}()
 	
 	for i in 1:nrow(posterior)
+		## Check for first instance when the liquid level is the same as the height of the oriface from the base
 		condition(h, t, integrator) = h[1] - posterior[i, "h_hole"]
+		## Retrive the emptying time [t] when h(t) = h_hole
 		affect!(integrator) = append!(stopping_time, integrator.t)
 		cb = ContinuousCallback(condition, affect!)
 
@@ -743,20 +755,77 @@ function emptying_tank_time(posterior)
 		# set up, solve ODE
 		tspan =  (0, 2000)
 		prob = ODEProblem(f, posterior[i, "h₀"], tspan, params)
-		solve(prob, callback = cb)
+		solve(prob, callback=cb)
 	end
 	
-	return Array(stopping_time)
+	return stopping_time
 end
 
-# ╔═╡ 9b1dd800-728b-407f-b9c4-61c43c1ec008
-function viz_emptying_time(stopping_time::Array)
-	fig = Figure()
-	ax = Axis(fig[1, 1], xlabel="emptying time [s]")
+# ╔═╡ 3c0d3c42-41cc-4877-9026-a2bef54b9005
+function viz_test_fit(posterior::DataFrame, emptying_time::Array, data::DataFrame; 
+				savename::Union{String, Nothing}=nothing)
+	fig = Figure(resolution=(700, 700))
 	
-	density!(ax, stopping_time, color=(:blue, 0.0), strokewidth=3, strokecolor=:blue)
+	ax_stopping = Axis(
+		fig[1, 1], 
+		ylabel="density", 
+		xticks=([],[]),
+		height=100
+	)
+	ax = Axis(
+		fig[2, 1], 
+		xlabel="time, t [s]", 
+		ylabel="liquid level, h [cm]",
+		
+	)
 	
-	ax.title = "Distribution of tank emptying time"
+	ts = range(0, maximum(emptying_time), length=500)
+	tspan = (0.0,  maximum(ts) * 1.05)
+
+	#Plot emptying time
+	
+	
+	density!(ax_stopping, emptying_time, color=(:blue, 0.0), strokewidth=3, 
+			strokecolor=:blue)
+
+	# True emptying time
+	vlines!(ax_stopping, data[end, "t [s]"], linestyle=:dash, color=:black)
+	
+	# sample posterior models
+	ids_post = sample(1:nrow(posterior), 100; replace=false)
+	
+	for i in ids_post
+		params = (
+			  r_hole=posterior[i, "r_hole"],
+			  c=posterior[i, "c"],
+			  h_hole=posterior[i, "h_hole"],
+			  A_of_h=h -> h / posterior[i, "H"] * posterior[i, "A_t"] + 
+			  	    (1 - h / posterior[i, "H"]) * posterior[i, "A_b"]
+			)
+
+		# set up, solve ODE
+		prob = ODEProblem(f, posterior[i, "h₀"], tspan, params)
+		sim_data = DataFrame(solve(prob, saveat=1.0))
+			
+		
+		lines!(ax, sim_data[:, "timestamp"], sim_data[:, "value"], 
+			label="model", color=(colors["model"], 0.1))
+	end	
+	
+	scatter!(
+		ax,
+		data[:, "t [s]"], 
+		data[:, "h [cm]"],
+		label="experiment",
+		color=colors["data"]
+		)
+
+	linkxaxes!(ax, ax_stopping)
+	axislegend(ax, unique=true)
+	
+	if savename!=nothing
+		save( "$savename.pdf", fig)
+	end
 	
 	return fig
 end
@@ -764,11 +833,11 @@ end
 # ╔═╡ ff973d88-5b13-46da-b263-6781e7d7d6dd
 stopping_time = emptying_tank_time(test_posterior)
 
-# ╔═╡ 3dda9476-2b04-4b46-968f-86bee2a0f9b7
-viz_emptying_time(stopping_time)
+# ╔═╡ 319ecc01-f2d6-46e8-87dd-9cb7992d544c
+viz_test_fit(test_posterior, stopping_time, test_infer, savename="test")
 
-# ╔═╡ 5c53d8b4-4929-47d9-ab18-aee0ec8e9efc
-std(posterior.A_b)
+# ╔═╡ e95b3140-7658-483d-bfc3-c86399dfd6a0
+viz_posterior(test_posterior, test_data[1, "h [cm]"])
 
 # ╔═╡ 945276e6-2fb1-4992-a9af-a5e1a2701678
 test_infer
@@ -779,52 +848,20 @@ tank_measurements
 # ╔═╡ bb8d16dd-ec5d-467c-b52a-3a73f6138786
 
 
-# ╔═╡ 9cdd761e-6c22-4eea-90d8-9cf904d7a8e6
-@model function impose_smoothness(data, tm::TankMeasurements)
-	N = nrow(data)
-	# defines precision for measuring length.
-	σ_ℓ ~ Uniform(0.0, 0.2) # cm
-	
-	γ ~ Uniform(0.0, .005)
-	
-	A_of_h ~ filldist(Normal(), N)
-
-	for i in 2:N
-		A_of_h[i] ~ A_of_h[i-1] + 0.1 * Normal(0, 1)
-	end
-	return nothing
-end
-
-# ╔═╡ e30ae499-9855-4441-8511-4a5714fe5e45
-[Normal(10, 0.1) for i in 1:3][1]
-
-# ╔═╡ 74fa3916-a7da-49e7-8bac-47e9d53feefb
-rand(filldist(Normal(10, 0.1), 3))
-
-# ╔═╡ 61dfa1c2-e4c0-4df5-9fa3-7c13468dff0a
-begin
-	As = impose_smoothness(test_infer, tank_measurements)
-	areas = DataFrame(sample(As, NUTS(0.65), MCMCSerial(), 250, 3; 
-										  progress=false))
-end
-
-# ╔═╡ aebbd578-ed3b-4f0b-a87c-ac9cb36c6bc8
-p = [areas[2, "A_of_h[$i]"] - areas[2, "A_of_h[$(i-1)]"] for i in 2:12]
+# ╔═╡ abecc98c-6066-4d59-b2cc-6c8c729a7907
+smoothness_grid = 10
 
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
-@model function infer_area(data, tm::TankMeasurements)
+@model function infer_area(data, tm::TankMeasurements, γ; N=smoothness_grid)
 	#=
 	prior distributions
 	=#
-	N = nrow(data)
 	# defines precision for measuring length.
 	σ_ℓ ~ Uniform(0.0, 0.2) # cm
+
+	#Random distribution of area grid
+	As ~ filldist(Normal(tm.A_b, σ_ℓ), N) # cm²
 	
-	γ ~ Uniform(0.0, 50.0)
-	
-	A_of_h ~ filldist(Normal(tm.A_b, σ_ℓ), N)
-	# W ~ filldist(Normal(0, 1), N)
-	# 
 	# radius of the hole
 	r_hole ~ Truncated(Normal(tm.r_hole, 0.01), tm.r_hole - 0.03, tm.r_hole + 0.03)
 
@@ -846,38 +883,30 @@ p = [areas[2, "A_of_h[$i]"] - areas[2, "A_of_h[$(i-1)]"] for i in 2:12]
 	h₀ ~ Normal(h₀_obs, σ)
 
 	for i in 2:N
-		A_of_h[i] ~ A_of_h[i-1] + γ * Normal(0, 1)
-		# W[i]
-		# 
+		As[i] ~ As[i-1] + γ * Normal(0, 1)
 	end
 
 	#=
 	set up dynamic model for h(t)
 	=#
-	
+	hs = range(data[end, "h [cm]"], data[1, "h [cm]"], length=N)
+	A_of_h = linear_interpolation(hs, As, extrapolation_bc=Line())
 
-	idx = sortperm(data[:, "h [cm]"])
-	# A_of_h ~ arraydist(A_dist[idx])
-	hs = Interpolations.deduplicate_knots!(data[idx, "h [cm]"]; move_knots = false)
-	x = linear_interpolation(hs, A_of_h, 
-							  extrapolation_bc=Line())
-	# print(A_dist)
-	
 	# parameter for ODE solver
 	params = (
 			  r_hole=r_hole,
 			  c=c,
 			  h_hole=h_hole,
-			  A_of_h=x 
+			  A_of_h=A_of_h 
 			)
 	
 	# set up ODE
 	tspan = (0, 500.0)
 	prob = ODEProblem(f, h₀, tspan, params, saveat=1.0)
-	sol = solve(prob)
+	sol = solve(prob, Vern7())
 	
 	# Observations.
-	for i in 2:N
+	for i in 2:nrow(data)
 		tᵢ = data[i, "t [s]"]
 		data[i, "h [cm]"] ~ Normal(sol(tᵢ, continuity=:right)[1], σ)
 	end
@@ -894,49 +923,51 @@ test_infer
 
 # ╔═╡ 02939a87-e811-4ae4-8b6b-173370029889
 begin
-	area_model = infer_area(test_infer, tank_measurements)
+	γ = 10.0
+	area_model = infer_area(test_infer, tank_measurements, γ)
 	area_posterior = DataFrame(sample(area_model, NUTS(0.65), MCMCSerial(), 250, 3; 
 									  progress=true))
 end
 
-# ╔═╡ 106016fb-3073-42e8-90f7-7ef61b06173b
-begin
-	local fig = Figure()
-	local ax = Axis(fig[1, 1], xlabel="γ")
-	density!(area_posterior[:, "γ"], color = (:blue, 0.0), strokewidth = 3, 
-				 strokecolor = :blue)
-	# vlines!(mean(area_posterior[:, "γ"]), linestyle=:dash, color=:black)
-	fig
-end
+# ╔═╡ a6e2e8ad-3628-4ab3-830c-c60c5a208d4d
 
-# ╔═╡ 030563e1-7994-450a-9cb0-1bf48041cf75
-mean(area_posterior[:, "γ"])
+
+# ╔═╡ ad77af3c-0c82-4765-bce0-e7b326941e12
+ # @profile infer_area(test_infer, tank_measurements, γ)
+
+# ╔═╡ 43fad23a-781a-4099-afdb-e474fb5932f9
+@profile (for i = 1:10000;  infer_area(test_infer, tank_measurements, γ); end)
+
+# ╔═╡ 03361e83-6838-44a6-aa8a-bad33edaa4cd
+Profile.print()
 
 # ╔═╡ a127225a-5b79-4074-a16b-cecd11030800
-function viz_area(original_post, posterior, data)
+function viz_area(posterior::DataFrame, data::DataFrame; N=smoothness_grid, 
+				  γ::Float64=γ)
 	fig = Figure()
 	ax = Axis(fig[1, 1], xlabel="height [cm]", ylabel="Area [cm²]")
 	
-	ids_post = sample(1:nrow(posterior), 300; replace=false)
-	
+	ids_post = sample(1:nrow(posterior), 750; replace=false)
 	for j in ids_post
-		
-		_areas = Vector{Float64}()
-		[append!(_areas, posterior[j, "A_of_h[$(i)]"]) for i in 1:nrow(data)]
-		# print(_areas)
-		
-		
-		lines!(data[:, "h [cm]"], reverse(_areas), label="model", color=(:green, 0.1))
+		As = Vector{Float64}()
+		[append!(As, posterior[j, "As[$(i)]"]) for i in 1:N]
+
+		hs = range(data[end, "h [cm]"], data[1, "h [cm]"], length=N) 
+		lines!(hs, As, label="model", color=(:green, 0.1))
 	end
 
 	scatter!(data[:, "h [cm]"], A_of_h.(data[:, "h [cm]"]), label="experimental")
+	ylims!()
 
 	axislegend(unique=true, position=:rb)
+
+	ax.title = "γ = $γ"
+	# save("area_inferred.png", fig)
 	return fig
 end
 
 # ╔═╡ b43f9f58-94fd-4c92-8e91-9a6b86cfc041
-viz_area(posterior, area_posterior, test_infer)
+viz_area(area_posterior, test_infer)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -949,6 +980,7 @@ DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+Profile = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Turing = "fce5fe82-541a-59a6-adf8-730c64b5f9a0"
 
@@ -971,7 +1003,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.2"
 manifest_format = "2.0"
-project_hash = "fe9d2f17a9f6e0d09942d911f71b8d47b86556ed"
+project_hash = "eaa84ff3a2fd5d7e7584dc18af1bcaeac33641b1"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "41c37aa88889c171f1300ceac1313c06e891d245"
@@ -3913,8 +3945,11 @@ version = "3.5.0+0"
 # ╠═444f6d74-273e-486d-905a-1443ec0e98df
 # ╟─a1a10e2f-1b78-4b93-9295-7c0055e32692
 # ╠═f21dc58e-d4e8-4314-b5dd-abbcb29efe86
+# ╠═e454d315-1cc7-4648-8ac2-f1b3d888eb5f
 # ╠═695f31d9-a506-4b2e-968c-706f5168862b
 # ╠═8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
+# ╠═f5a02295-5f0d-4ef1-982d-94cb775d66e5
+# ╠═f89b6d83-63bf-453b-8463-ca520ecda268
 # ╠═8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 # ╠═7ebe4680-c583-4f92-8bae-dd84c3fb5139
 # ╠═5870eab4-2872-40aa-95e2-ecd5deca21f6
@@ -3928,32 +3963,35 @@ version = "3.5.0+0"
 # ╠═7d553f50-dc42-4fe2-8a27-d96155b11dfb
 # ╠═2ab35999-3615-4f5c-8d89-36d77802fe9b
 # ╠═2a01b228-f281-46c4-9764-fac6cc1b4217
+# ╠═b0f11814-04db-446a-b458-97436313e428
 # ╠═193d0e02-988e-4f58-b57d-7a1d125069a4
+# ╠═87de85d4-8827-42e6-97d0-d12dc364be07
+# ╠═f8b62180-147c-4e80-8cdc-934b700a92b7
+# ╠═c7ab31e2-afa7-41d5-8751-fecf0add6d99
 # ╠═aa31509b-b1e3-4e5e-8c34-54f89b6d6e30
+# ╠═324440f5-79a2-465a-b00b-6f632840e148
+# ╠═e56bc87a-396a-4c2c-9f69-52f7ded54c41
 # ╠═706a0c20-d42c-4fd6-980c-122b9c66de46
 # ╠═4ceeb508-413e-4a3c-9790-bfec1900ef4d
+# ╠═659740d4-20c6-426a-865c-0761f05c2601
+# ╠═3c0d3c42-41cc-4877-9026-a2bef54b9005
+# ╠═ff973d88-5b13-46da-b263-6781e7d7d6dd
 # ╠═319ecc01-f2d6-46e8-87dd-9cb7992d544c
 # ╠═e95b3140-7658-483d-bfc3-c86399dfd6a0
-# ╠═659740d4-20c6-426a-865c-0761f05c2601
-# ╠═9b1dd800-728b-407f-b9c4-61c43c1ec008
-# ╠═ff973d88-5b13-46da-b263-6781e7d7d6dd
-# ╠═3dda9476-2b04-4b46-968f-86bee2a0f9b7
-# ╠═5c53d8b4-4929-47d9-ab18-aee0ec8e9efc
 # ╠═945276e6-2fb1-4992-a9af-a5e1a2701678
 # ╠═e03c03ca-ede4-4eab-ad4a-64dbac366898
 # ╠═bb8d16dd-ec5d-467c-b52a-3a73f6138786
-# ╠═9cdd761e-6c22-4eea-90d8-9cf904d7a8e6
-# ╠═e30ae499-9855-4441-8511-4a5714fe5e45
-# ╠═74fa3916-a7da-49e7-8bac-47e9d53feefb
-# ╠═61dfa1c2-e4c0-4df5-9fa3-7c13468dff0a
-# ╠═aebbd578-ed3b-4f0b-a87c-ac9cb36c6bc8
-# ╠═b43f9f58-94fd-4c92-8e91-9a6b86cfc041
+# ╠═abecc98c-6066-4d59-b2cc-6c8c729a7907
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
 # ╠═b4c62168-24e4-4cd3-8358-7599813af45d
 # ╠═daa1e6c7-867b-4cf7-b7b8-dc24f859ec96
 # ╠═02939a87-e811-4ae4-8b6b-173370029889
-# ╠═106016fb-3073-42e8-90f7-7ef61b06173b
-# ╠═030563e1-7994-450a-9cb0-1bf48041cf75
+# ╠═a6e2e8ad-3628-4ab3-830c-c60c5a208d4d
+# ╠═3338df84-bc7b-449d-9bc9-6fd246a3a344
+# ╠═ad77af3c-0c82-4765-bce0-e7b326941e12
+# ╠═43fad23a-781a-4099-afdb-e474fb5932f9
+# ╠═03361e83-6838-44a6-aa8a-bad33edaa4cd
 # ╠═a127225a-5b79-4074-a16b-cecd11030800
+# ╠═b43f9f58-94fd-4c92-8e91-9a6b86cfc041
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
