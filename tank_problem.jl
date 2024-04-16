@@ -254,7 +254,8 @@ end
 
 # ╔═╡ 759852ee-50e7-4deb-ac7e-c4693103c2a7
 begin
-	train_experiment = "experiment 3- 1-12.csv"
+	train_experiment = "no_obs.csv"
+		# "experiment 3- 1-12.csv"
 		# "data_1.csv"
 		# 
 	test_experiment  = "experiment 4- 1-12.csv"
@@ -294,12 +295,12 @@ function viz_obstruction_w_no_obstruction(obstruction_data, no_obstruction_data)
 		color=colors["data"]
 		)
 	fig
-	lines!(
-		obstruction_data[:, "t [s]"], 
-		obstruction_data[:, "h [cm]"],
-		label="obstruction",
-		color=colors["other"]
-		)
+	# lines!(
+	# 	obstruction_data[:, "t [s]"], 
+	# 	obstruction_data[:, "h [cm]"],
+	# 	label="obstruction",
+	# 	color=colors["other"]
+	# 	)
 	axislegend()
 	fig
 
@@ -352,6 +353,9 @@ function f(h, params, t)
 		2 * g * (h .- params.h_hole)) / params.A_of_h(h)
 end
 
+# ╔═╡ 0471c44a-5293-4797-a3bd-825cbaa7be3a
+
+
 # ╔═╡ 31306e0b-9748-48a8-b9d2-892cb501b7ba
 begin
 	# initial condition and time span over which to solve ODE
@@ -360,9 +364,9 @@ begin
 	 
 	params = (
 		# area of the hole
-		r_hole = r_hole,
+		r_hole = 1/16 * 2.54 * 0.5,
 		# fudge factor
-		c = 0.63, 
+		c = 0.4, 
 		# height of the hole
 		h_hole = h_hole,
 		# area as a function of h
@@ -372,7 +376,7 @@ end
 
 # ╔═╡ d3307918-1fdb-4f87-bb92-67330d22e58b
 begin
-	prob = ODEProblem(f, h₀, tspan, params)
+	prob = ODEProblem(f, h₀, 2000, params)
 	sol = solve(prob, saveat=1.0)
 	sim_data = DataFrame(sol)
 end
@@ -508,12 +512,12 @@ end
 @bind n_sample NumberField(1:nrow(test_data), default=3)
 
 # ╔═╡ 8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
-begin
-	inference_data = downsample(train_data, n_sample)
-	model = infer_params(inference_data, tank_measurements)
+# begin
+# 	inference_data = downsample(train_data, n_sample)
+# 	model = infer_params(inference_data, tank_measurements)
 	
-	chain = sample(model, NUTS(0.65), MCMCSerial(), 250, 3; progress=true)
-end
+# 	chain = sample(model, NUTS(0.65), MCMCSerial(), 250, 3; progress=true)
+# end
 
 # ╔═╡ 7ebe4680-c583-4f92-8bae-dd84c3fb5139
 posterior = DataFrame(chain)
@@ -922,12 +926,12 @@ tspan
 test_infer
 
 # ╔═╡ 02939a87-e811-4ae4-8b6b-173370029889
-begin
-	γ = 10.0
-	area_model = infer_area(test_infer, tank_measurements, γ)
-	area_posterior = DataFrame(sample(area_model, NUTS(0.65), MCMCSerial(), 250, 3; 
-									  progress=true))
-end
+# begin
+# 	γ = 10.0
+# 	area_model = infer_area(test_infer, tank_measurements, γ)
+# 	area_posterior = DataFrame(sample(area_model, NUTS(0.65), MCMCSerial(), 250, 3; 
+# 									  progress=true))
+# end
 
 # ╔═╡ a6e2e8ad-3628-4ab3-830c-c60c5a208d4d
 
@@ -3936,6 +3940,7 @@ version = "3.5.0+0"
 # ╟─e379461f-8896-4e2a-a71b-1871a8a37eb5
 # ╠═7b7baa41-0185-4ed6-8fae-3a44e9912016
 # ╠═c6a263eb-cb45-4ee7-9c02-549c89298652
+# ╠═0471c44a-5293-4797-a3bd-825cbaa7be3a
 # ╠═31306e0b-9748-48a8-b9d2-892cb501b7ba
 # ╠═d3307918-1fdb-4f87-bb92-67330d22e58b
 # ╠═1d5aac18-4e9c-4d86-8bcf-b036b246b8fb
