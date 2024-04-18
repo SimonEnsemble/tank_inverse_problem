@@ -254,11 +254,18 @@ end
 
 # ╔═╡ 759852ee-50e7-4deb-ac7e-c4693103c2a7
 begin
-	train_experiment = "no_obs.csv"
+	train_experiment = "no_obs_4_17_5.csv"
 		# "experiment 3- 1-12.csv"
 		# "data_1.csv"
 		# 
 	test_experiment  = "experiment 4- 1-12.csv"
+end
+
+# ╔═╡ b06a1c07-6250-4324-8802-010e5d847edb
+begin
+	obstruction_data = ["obs_4_17.csv", "obs_2.csv", "new_obstruction_1.csv", "new_obstruction_2.csv", 
+						"new_obstruction_3.csv"]
+	@bind obstruction Select(obstruction_data)
 end
 
 # ╔═╡ 661feb84-339c-4bbe-a8a5-65de74ed58c8
@@ -266,13 +273,6 @@ train_data = read_h_time_series(train_experiment)
 
 # ╔═╡ 1e8a535e-25ea-490b-b545-e532c4fbc0f3
 test_data = read_h_time_series(test_experiment)
-
-# ╔═╡ b06a1c07-6250-4324-8802-010e5d847edb
-begin
-	obstruction_data = ["obs_1.csv", "obs_2.csv", "new_obstruction_1.csv", "new_obstruction_2.csv", 
-						"new_obstruction_3.csv"]
-	@bind obstruction Select(obstruction_data)
-end
 
 # ╔═╡ 8b6d766a-8f7b-4b9a-9a15-0f7375087120
 block_data = read_h_time_series(obstruction)
@@ -295,12 +295,12 @@ function viz_obstruction_w_no_obstruction(obstruction_data, no_obstruction_data)
 		color=colors["data"]
 		)
 	fig
-	# lines!(
-	# 	obstruction_data[:, "t [s]"], 
-	# 	obstruction_data[:, "h [cm]"],
-	# 	label="obstruction",
-	# 	color=colors["other"]
-	# 	)
+	lines!(
+		obstruction_data[:, "t [s]"], 
+		obstruction_data[:, "h [cm]"],
+		label="obstruction",
+		color=colors["other"]
+		)
 	axislegend()
 	fig
 
@@ -353,9 +353,6 @@ function f(h, params, t)
 		2 * g * (h .- params.h_hole)) / params.A_of_h(h)
 end
 
-# ╔═╡ 0471c44a-5293-4797-a3bd-825cbaa7be3a
-
-
 # ╔═╡ 31306e0b-9748-48a8-b9d2-892cb501b7ba
 begin
 	# initial condition and time span over which to solve ODE
@@ -364,9 +361,9 @@ begin
 	 
 	params = (
 		# area of the hole
-		r_hole = 1/16 * 2.54 * 0.5,
+		r_hole = 5/64 * 2.54 * 0.5,
 		# fudge factor
-		c = 0.4, 
+		c = 0.66, 
 		# height of the hole
 		h_hole = h_hole,
 		# area as a function of h
@@ -3927,9 +3924,9 @@ version = "3.5.0+0"
 # ╟─078c01f7-e47e-4af0-be1c-ac4527b735fd
 # ╠═8b00d2b3-9182-42ab-8393-91707b813f60
 # ╠═759852ee-50e7-4deb-ac7e-c4693103c2a7
+# ╠═b06a1c07-6250-4324-8802-010e5d847edb
 # ╠═661feb84-339c-4bbe-a8a5-65de74ed58c8
 # ╠═1e8a535e-25ea-490b-b545-e532c4fbc0f3
-# ╠═b06a1c07-6250-4324-8802-010e5d847edb
 # ╠═8b6d766a-8f7b-4b9a-9a15-0f7375087120
 # ╠═8d4d88da-a48a-4018-b6c6-3a2f041fcfb4
 # ╠═16158266-36ed-44c3-a418-0c454955ce78
@@ -3940,7 +3937,6 @@ version = "3.5.0+0"
 # ╟─e379461f-8896-4e2a-a71b-1871a8a37eb5
 # ╠═7b7baa41-0185-4ed6-8fae-3a44e9912016
 # ╠═c6a263eb-cb45-4ee7-9c02-549c89298652
-# ╠═0471c44a-5293-4797-a3bd-825cbaa7be3a
 # ╠═31306e0b-9748-48a8-b9d2-892cb501b7ba
 # ╠═d3307918-1fdb-4f87-bb92-67330d22e58b
 # ╠═1d5aac18-4e9c-4d86-8bcf-b036b246b8fb
