@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.36
+# v0.19.40
 
 using Markdown
 using InteractiveUtils
@@ -126,11 +126,11 @@ end
 """
 cross-sectional area of water from helicopter view, as a function of liquid level, h.
 """
-function A_of_h(h)
-	if h < 0 || h > H
+function A_of_h(h::Float64, tm::TankMeasurements)
+	if h < 0 || h > tm.H
 		error("tank over/under-flow!")
 	end
-	return h / H * A_t + (1 - h / H) * A_b
+	return h / tm.H * tm.A_t + (1 - h / tm.H) * tm.A_b
 end
 
 # ╔═╡ 9a7e5903-69be-4e0a-8514-3e05feedfed5
@@ -139,9 +139,11 @@ begin
 	local ax = Axis(
 		fig[1, 1], 
 		xlabel="water level, h [cm]", 
-		ylabel="area of water\nfrom top-view, A(h) [cm²]"
+		ylabel="area of tank\nfrom top-view, A(h) [cm²]"
 	)
-	lines!(range(0, H), A_of_h.(range(0, H)))
+	lines!(range(0, H), 
+		[A_of_h(hᵢ, tank_measurements) for hᵢ in range(0, tank_measurements.H)]
+	)
 	ylims!(0, nothing)
 	fig
 end
@@ -184,12 +186,12 @@ end
 
 # ╔═╡ 9dabad13-cfa4-4e06-950d-f7c7d96c1147
 begin
-	"""
-	map liquid level sensor reading to liquid level h.
-	"""
-	
-	level_sensor_to_h = Spline1D(calibration_data[:, "level sensor reading"], calibration_data[:, "h [cm]"]; w=ones(length(calibration_data[:, "h [cm]"])), k=1, s=2)
-	
+	# map liquid level sensor reading to liquid level h.
+	level_sensor_to_h = Spline1D(
+		calibration_data[:, "level sensor reading"],
+		calibration_data[:, "h [cm]"];
+		k=1, s=2, bc="error"
+	)
 end
 
 # ╔═╡ e040094c-7511-4831-b94a-1c1185868202
@@ -212,6 +214,8 @@ begin
 		maximum(calibration_data[:, "level sensor reading"]),
 		length=100
 	)
+	# xlims!(700, 800)
+	# ylims!(20, 30)
 	lines!(lsr, level_sensor_to_h.(lsr))
 	fig
 end
@@ -255,6 +259,9 @@ md"""
 ## Load in data
 """
 
+# ╔═╡ 96f26378-846c-4964-935c-0372e2e86e91
+md"time series data for two experiments without any object in the tank"
+
 # ╔═╡ 759852ee-50e7-4deb-ac7e-c4693103c2a7
 begin
 	train_experiment = "no_obs_4_18_2.csv"
@@ -295,20 +302,20 @@ function viz_obstruction_w_no_obstruction(obstruction_data, no_obstruction_data)
 	lines!(
 		no_obstruction_data[:, "t [s]"], 
 		no_obstruction_data[:, "h [cm]"],
-		label="no_obstruction",
+		label="no object",
 		color=colors["data"]
-		)
-	fig
+	)
 	lines!(
 		obstruction_data[:, "t [s]"], 
 		obstruction_data[:, "h [cm]"],
-		label="obstruction",
+		label="with object",
 		color=colors["other"]
-		)
+	)
 	axislegend()
-	save("flow.pdf", fig)
+	ylims!(0, nothing)
+	xlims!(0, nothing)
+	save("h_of_t_with_without_object.pdf", fig)
 	fig
-
 end
 
 # ╔═╡ 1e351b83-b35d-4640-b0f8-4fe3b4de768e
@@ -327,7 +334,9 @@ function viz_data(data::DataFrame)
 		data[:, "h [cm]"],
 		label="experiment",
 		color=colors["data"]
-		)
+	)
+	xlims!(0, nothing)
+	ylims!(0, nothing)
 	fig
 end
 
@@ -365,7 +374,11 @@ end
 
 # ╔═╡ f21dc58e-d4e8-4314-b5dd-abbcb29efe86
 function downsample(data::DataFrame, n::Int)
-	data = filter("h [cm]" => (x -> x >= level_sensor_to_h(508)), train_data)
+	# filter out sensor data that is below 508
+	# this is the liquid level where the jet shooting outside the tank
+	# dies, and it just runs down the tank (Toricelli's law invalid)
+	data = filter("h [cm]" => (x -> x >= level_sensor_to_h(508)), data)
+	
 	ids = trunc.(Int, collect(range(1, nrow(data), length=n)))
 	return data[ids, :]
 end
@@ -375,32 +388,40 @@ md"""
 ## minimize dynamic model loss
 """
 
+# ╔═╡ 46084a31-e591-42f2-b8e6-02183ddfc6ac
+@bind n_data_sample Select([20, 50, 100], default=20)
+
 # ╔═╡ 66815e8e-09d9-4b43-9f45-9379b3d34f78
-function loss(data::DataFrame, c::Array, A_of_h)	
+function loss(data::DataFrame, c::Float64, tm::TankMeasurements)	
 	params = (
 		# area of the hole
-		r_hole = r_hole,
+		r_hole = tm.r_hole,
 		# fudge factor
-		c = c[1], 
+		c = c, 
 		# height of the hole
-		h_hole = h_hole,
+		h_hole = tm.h_hole,
 		# area as a function of h
-		A_of_h = A_of_h
+		A_of_h = h -> A_of_h(h, tm)
 	)
 
+	data = downsample(data, n_data_sample)
 	h₀ = data[1, "h [cm]"]
 	tspan = data[end, "t [s]"]
+	
 	prob = ODEProblem(f, h₀, tspan, params)
-	sol = solve(prob)
-	data = downsample(data, 20)
+	h_of_t = solve(prob)
 	
 	cost = 0.0
 	for i in 1:nrow(data)
 		tᵢ = data[i, "t [s]"]
-		cost += (data[i, "h [cm]"] - sol(tᵢ)) ^ 2
+		cost += (data[i, "h [cm]"] - h_of_t(tᵢ)) ^ 2
 	end
+	
 	return cost
 end
+
+# ╔═╡ 0b75c073-f167-4553-b746-539a14cfcf25
+loss(train_data, 0.4, tank_measurements)
 
 # ╔═╡ b0657fe7-29d8-4887-bb4c-cf72cfd434d4
 md"""
@@ -408,37 +429,33 @@ md"""
 """
 
 # ╔═╡ 4ed31219-9ce0-4f1b-8152-0002e64649ad
-function compute_mle(data::DataFrame, A_of_h)
-	c_guess = [0.6] 
-	res = optimize(c -> loss(data, c, A_of_h) , 0.0, 1.0, c_guess)
+function compute_mle(data::DataFrame, tm::TankMeasurements)
+	res = optimize(c -> loss(data, c, tm), 0.2, 0.9)
 	return Optim.minimizer(res)
 end
 
 # ╔═╡ 0763f1f3-dfee-4d1f-a934-bf387f9c80ff
-c_opt = compute_mle(train_data, A_of_h)
+c_opt = compute_mle(train_data, tank_measurements)
 
 # ╔═╡ c57c808a-297c-4887-bf20-5ad0207d055e
 params = (
-		# area of the hole
-		r_hole = r_hole,
-		# fudge factor
-		c = c_opt[1],
-		# height of the hole
-		h_hole = h_hole,
-		# area as a function of h
-		A_of_h = A_of_h
-	)
+	# area of the hole
+	r_hole = tank_measurements.r_hole,
+	# fudge factor
+	c = c_opt,
+	# height of the hole
+	h_hole = tank_measurements.h_hole,
+	# area as a function of h
+	A_of_h = h -> A_of_h(h, tank_measurements)
+)
 
 # ╔═╡ d3307918-1fdb-4f87-bb92-67330d22e58b
 begin
 	train_h₀ = train_data[1, "h [cm]"]
-	prob = ODEProblem(f, train_h₀, train_data[end, "t [s]"], params)
+	prob = ODEProblem(f, train_h₀, 1.1 * train_data[end, "t [s]"], params)
 	sol = solve(prob, saveat=1.0)
 	sim_data = DataFrame(sol)
 end
-
-# ╔═╡ 6d65aa19-a1d2-443c-a8cf-190e4231cd27
-train_h₀
 
 # ╔═╡ d25cda2f-6ec6-4c93-8860-f5ce9c3ee629
 md"""
@@ -446,7 +463,8 @@ md"""
 """
 
 # ╔═╡ 444f6d74-273e-486d-905a-1443ec0e98df
-function viz_mle(data, sim_data; savename::Union{Nothing, String}=nothing)
+function viz_mle(data::DataFrame, sim_data::DataFrame; 
+		         savename::Union{Nothing, String}=nothing)
 	 fig = Figure()
 	 ax = Axis(
 		fig[1, 1], 
@@ -454,30 +472,22 @@ function viz_mle(data, sim_data; savename::Union{Nothing, String}=nothing)
 		ylabel="liquid level, h[cm]"
 	)
 	
-	data_for_fit = filter("h [cm]" => (x -> x > level_sensor_to_h(508)), data)
-	unfit_data = filter("h [cm]" => (x -> x <= level_sensor_to_h(508)), data)
+	ds_data = downsample(data, n_data_sample)
 	
 	scatter!(
-		data_for_fit[:, "t [s]"], 
-		data_for_fit[:, "h [cm]"], 
+		ds_data[:, "t [s]"], 
+		ds_data[:, "h [cm]"], 
 		label="experiment"
 	)
-
-	scatter!(
-		unfit_data[:, "t [s]"], 
-		unfit_data[:, "h [cm]"],
-		strokewidth=1,
-		strokecolor=:black,
-		color=(:white, 0.0),
-	)
-	
 	
 	lines!(sim_data[:, "timestamp"], sim_data[:, "value"], 
 		label="model", color=Cycled(2)
 	)
-	
+
 	axislegend()
-	save("$savename.pdf", fig)
+	if ! isnothing(savename)
+		save("$savename.pdf", fig)
+	end
 	fig
 end
 
@@ -489,13 +499,13 @@ md"""
 # Bayesian inference approach for measurement estimation  
 """
 
-# ╔═╡ 124f6431-e5b8-4b99-9171-ea0bd19af74e
-r_hole
-
 # ╔═╡ 8a21fa0f-d3c3-4aa2-8b8b-74001d921c4a
 md"""
 ## infer parameters
 """
+
+# ╔═╡ 58eff13c-44b5-4f19-8a42-cf9907ac9515
+@bind n_MC_sample Select([10, 50, 100, 250], default=10)
 
 # ╔═╡ 8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
 @model function infer_params(data, tm::TankMeasurements)
@@ -575,18 +585,12 @@ md"""
 	return nothing
 end
 
-# ╔═╡ f5a02295-5f0d-4ef1-982d-94cb775d66e5
-
-
-# ╔═╡ f89b6d83-63bf-453b-8463-ca520ecda268
-@bind n_sample NumberField(1:nrow(test_data), default=5)
-
 # ╔═╡ 8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 begin
-	inference_data = downsample(train_data, n_sample)
+	inference_data = downsample(train_data, n_data_sample)
 	model = infer_params(inference_data, tank_measurements)
 	
-	chain = sample(model, NUTS(0.65), MCMCSerial(), 250, 3; progress=true)
+	chain = sample(model, NUTS(0.65), MCMCSerial(), n_MC_sample, 3; progress=true)
 end
 
 # ╔═╡ 7ebe4680-c583-4f92-8bae-dd84c3fb5139
@@ -771,8 +775,8 @@ function viz_test(posterior, test_data; savename::Union{String, Nothing}=nothing
 	end
 
 	#Plot emptying time
-	# density!(ax_stopping, emptying_time, color=(:blue, 0.0), strokewidth=3, 
-	# 		strokecolor=:blue)
+	density!(ax_stopping, emptying_time, color=(:blue, 0.0), strokewidth=3, 
+			strokecolor=:blue)
 
 	# True emptying time
 	vlines!(ax_stopping, test_data[end, "t [s]"], linestyle=:dash, color=:black)
@@ -784,7 +788,7 @@ function viz_test(posterior, test_data; savename::Union{String, Nothing}=nothing
 		label="experiment",
 		color=colors["data"]
 		)
-	# xlims!(nothing, maximum(emptying_time))
+	xlims!(nothing, maximum(emptying_time))
 
 	linkxaxes!(ax, ax_stopping)
 	axislegend(ax, unique=true)
@@ -793,7 +797,7 @@ function viz_test(posterior, test_data; savename::Union{String, Nothing}=nothing
 		save( "$savename.pdf", fig)
 	end
 	
-	return fig, emptying_time 
+	return fig 
 end	
 
 # ╔═╡ dd5ee69d-fb0a-484b-b1bd-32a589a9ed11
@@ -975,15 +979,22 @@ end
 # ╔═╡ daa1e6c7-867b-4cf7-b7b8-dc24f859ec96
 block_infer = downsample(block_data, 10)
 
+# ╔═╡ 6b1733bb-999b-4aec-956c-d1e36cbe5834
+n_sample
+
 # ╔═╡ 02939a87-e811-4ae4-8b6b-173370029889
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 	γ = 6.5
 	area_model = infer_area(block_infer, posterior, γ)
 	area_posterior = DataFrame(sample(area_model, NUTS(0.65), MCMCSerial(), 250, 3; 
 									  progress=true))
 end
+  ╠═╡ =#
 
 # ╔═╡ a127225a-5b79-4074-a16b-cecd11030800
+#=╠═╡
 function viz_area(posterior::DataFrame, data::DataFrame; N=10, 
 				  γ::Float64=γ)
 	fig = Figure()
@@ -1006,9 +1017,12 @@ function viz_area(posterior::DataFrame, data::DataFrame; N=10,
 	save("area_inferred_3.png", fig)
 	return fig
 end
+  ╠═╡ =#
 
 # ╔═╡ b43f9f58-94fd-4c92-8e91-9a6b86cfc041
+#=╠═╡
 viz_area(area_posterior, test_infer)
+  ╠═╡ =#
 
 # ╔═╡ 327ba163-4c4f-4702-ab5e-dcce96904fc5
 h_of_t = Spline1D(block_data[:, "t [s]"], block_data[:, "h [cm]"]; 
@@ -1104,6 +1118,7 @@ minimum(A_obs)
 # ╟─078c01f7-e47e-4af0-be1c-ac4527b735fd
 # ╠═8b00d2b3-9182-42ab-8393-91707b813f60
 # ╟─7899f488-9c48-466f-857d-f5a31b5820ab
+# ╟─96f26378-846c-4964-935c-0372e2e86e91
 # ╠═759852ee-50e7-4deb-ac7e-c4693103c2a7
 # ╠═b06a1c07-6250-4324-8802-010e5d847edb
 # ╠═661feb84-339c-4bbe-a8a5-65de74ed58c8
@@ -1122,22 +1137,21 @@ minimum(A_obs)
 # ╠═c6a263eb-cb45-4ee7-9c02-549c89298652
 # ╠═f21dc58e-d4e8-4314-b5dd-abbcb29efe86
 # ╟─6f7d4335-d9a6-4896-9d69-bfc1c2c1c3d0
+# ╠═46084a31-e591-42f2-b8e6-02183ddfc6ac
 # ╠═66815e8e-09d9-4b43-9f45-9379b3d34f78
+# ╠═0b75c073-f167-4553-b746-539a14cfcf25
 # ╟─b0657fe7-29d8-4887-bb4c-cf72cfd434d4
 # ╠═4ed31219-9ce0-4f1b-8152-0002e64649ad
 # ╠═0763f1f3-dfee-4d1f-a934-bf387f9c80ff
 # ╠═c57c808a-297c-4887-bf20-5ad0207d055e
 # ╠═d3307918-1fdb-4f87-bb92-67330d22e58b
-# ╠═6d65aa19-a1d2-443c-a8cf-190e4231cd27
 # ╟─d25cda2f-6ec6-4c93-8860-f5ce9c3ee629
 # ╠═444f6d74-273e-486d-905a-1443ec0e98df
 # ╠═8cfdc784-4060-48b8-8d1a-3b8d11f7a9a7
 # ╟─a1a10e2f-1b78-4b93-9295-7c0055e32692
-# ╠═124f6431-e5b8-4b99-9171-ea0bd19af74e
 # ╟─8a21fa0f-d3c3-4aa2-8b8b-74001d921c4a
+# ╠═58eff13c-44b5-4f19-8a42-cf9907ac9515
 # ╠═8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
-# ╠═f5a02295-5f0d-4ef1-982d-94cb775d66e5
-# ╠═f89b6d83-63bf-453b-8463-ca520ecda268
 # ╠═8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 # ╠═7ebe4680-c583-4f92-8bae-dd84c3fb5139
 # ╟─c239deed-8291-45aa-95cf-94df26e0136d
@@ -1163,6 +1177,7 @@ minimum(A_obs)
 # ╠═cfbe753d-85a8-445f-9eda-14a376d7e0c6
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
 # ╠═daa1e6c7-867b-4cf7-b7b8-dc24f859ec96
+# ╠═6b1733bb-999b-4aec-956c-d1e36cbe5834
 # ╠═02939a87-e811-4ae4-8b6b-173370029889
 # ╠═a127225a-5b79-4074-a16b-cecd11030800
 # ╠═b43f9f58-94fd-4c92-8e91-9a6b86cfc041
