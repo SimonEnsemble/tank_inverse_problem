@@ -268,20 +268,11 @@ begin
 	test_experiment  = "no_obs_4_18_3.csv"
 end
 
-# ╔═╡ b06a1c07-6250-4324-8802-010e5d847edb
-begin
-	obstruction_data = ["obs_4_18_2.csv", "obs_4_18_1.csv"]
-	@bind obstruction Select(obstruction_data)
-end
-
 # ╔═╡ 661feb84-339c-4bbe-a8a5-65de74ed58c8
 train_data = read_h_time_series(train_experiment)
 
 # ╔═╡ 1e8a535e-25ea-490b-b545-e532c4fbc0f3
 test_data = read_h_time_series(test_experiment)
-
-# ╔═╡ 8b6d766a-8f7b-4b9a-9a15-0f7375087120
-block_data = read_h_time_series(obstruction)
 
 # ╔═╡ 8d4d88da-a48a-4018-b6c6-3a2f041fcfb4
 colors
@@ -290,36 +281,6 @@ colors
 md"""
 ## visualize experimental data
 """
-
-# ╔═╡ 16158266-36ed-44c3-a418-0c454955ce78
-function viz_obstruction_w_no_obstruction(obstruction_data, no_obstruction_data)
-	fig = Figure()
-	ax = Axis(
-		fig[1, 1], 
-		xlabel="time, t [s]", 
-		ylabel="water level, h [cm]"
-	)
-	lines!(
-		no_obstruction_data[:, "t [s]"], 
-		no_obstruction_data[:, "h [cm]"],
-		label="no object",
-		color=colors["data"]
-	)
-	lines!(
-		obstruction_data[:, "t [s]"], 
-		obstruction_data[:, "h [cm]"],
-		label="with object",
-		color=colors["other"]
-	)
-	axislegend()
-	ylims!(0, nothing)
-	xlims!(0, nothing)
-	save("h_of_t_with_without_object.pdf", fig)
-	fig
-end
-
-# ╔═╡ 1e351b83-b35d-4640-b0f8-4fe3b4de768e
-viz_obstruction_w_no_obstruction(block_data, train_data)
 
 # ╔═╡ 33f889d7-e875-40d8-9d6d-cc87b0fbaf22
 function viz_data(data::DataFrame)
@@ -463,7 +424,7 @@ md"""
 """
 
 # ╔═╡ 444f6d74-273e-486d-905a-1443ec0e98df
-function viz_mle(data::DataFrame, sim_data::DataFrame; 
+function viz_sim_fit(data::DataFrame, sim_data::DataFrame; 
 		         savename::Union{Nothing, String}=nothing)
 	 fig = Figure()
 	 ax = Axis(
@@ -492,23 +453,23 @@ function viz_mle(data::DataFrame, sim_data::DataFrame;
 end
 
 # ╔═╡ 8cfdc784-4060-48b8-8d1a-3b8d11f7a9a7
-viz_mle(train_data, sim_data)
+viz_sim_fit(train_data, sim_data)
 
 # ╔═╡ a1a10e2f-1b78-4b93-9295-7c0055e32692
 md"""
-# Bayesian inference approach for measurement estimation  
-"""
-
-# ╔═╡ 8a21fa0f-d3c3-4aa2-8b8b-74001d921c4a
-md"""
-## infer parameters
+# Bayesian inference for model parameters
 """
 
 # ╔═╡ 58eff13c-44b5-4f19-8a42-cf9907ac9515
 @bind n_MC_sample Select([10, 50, 100, 250], default=10)
 
+# ╔═╡ 8a21fa0f-d3c3-4aa2-8b8b-74001d921c4a
+md"""
+## infer model parameters for object-free experiment (training)
+"""
+
 # ╔═╡ 8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
-@model function infer_params(data, tm::TankMeasurements)
+@model function infer_params(data::DataFrame, tm::TankMeasurements)
 	#=
 	prior distributions
 	=#
@@ -518,68 +479,79 @@ md"""
 	# bottom, top tank area measurements
 	# std of product of two Guassians
 	#   https://ccrma.stanford.edu/~jos/sasp/Product_Two_Gaussian_PDFs.html
-	A_b ~ Normal(tm.A_b, σ_ℓ ^ 2 / 2)
-	A_t ~ Normal(tm.A_t, σ_ℓ ^ 2 / 2)
+	A_b ~ Normal(tm.A_b, σ_ℓ ^ 2 / 2) # cm²
+	A_t ~ Normal(tm.A_t, σ_ℓ ^ 2 / 2) # cm²
 
 	# height of tank
-	H ~ Normal(tm.H, σ_ℓ)
+	H ~ Truncated(
+		Normal(tm.H, σ_ℓ),
+		tm.H - 0.25, tm.H + 0.25
+	) # cm
 
-	
-	dp ~ Uniform(0.0, 0.02) # drill precision
+	# drill precision
+	dp ~ Uniform(0.0, 0.02) # cm
 	# radius of the hole
 	r_hole ~ Truncated(
 		Normal(tm.r_hole, dp),
 		tm.r_hole - 2 * dp, 
 		tm.r_hole + 2 * dp
-	)
+	) # cm
 
 	# discharge coefficient. Wikipedia says 0.65 for water.
 	dcv ~ Uniform(0.0, 0.15) # discharge coeff variance
 	c ~ Truncated(
-		Normal(0.65, dcv),
-		0.65 - 2 * dcv, 
-		0.65 + 2 * dcv
-	) 
+		Normal(0.65, dcv), 
+		0.3, 1.0
+	) # unitless
 
 	# height of the hole
 	h_hole ~ Truncated(
 		Normal(tm.h_hole, σ_ℓ),
 		tm.h_hole - σ_ℓ, 
 		tm.h_hole + σ_ℓ
-	)
+	) # cm
+	# TODO: think if this makes sense. hard truncations?
 	
 	# defines variance of liquid level sensor
 	#   (Treated as an unknown and inferred)
-	σ ~ Uniform(0.0, 1.0)
+	σ ~ Uniform(0.0, 1.0) # cm
 
 	# initial liquid level
-	h₀_obs = data[1, "h [cm]"]
+	h₀_obs = data[1, "h [cm]"] # cm
 	h₀ ~ Normal(h₀_obs, σ)
 
 	#=
 	set up dynamic model for h(t)
 	=#
-	A_of_h(h) = h / H * A_t + (1 - h / H) * A_b
+	function my_A_of_h(h)
+		if h < 0.0
+			error("h < 0")
+		elseif h > H
+			error("h > H")
+		end
+		return h / H * A_t + (1 - h / H) * A_b
+	end
 	
 	# parameter for ODE solver
 	params = (
 			  r_hole=r_hole,
 			  c=c,
 			  h_hole=h_hole,
-			  A_of_h=A_of_h 
+			  A_of_h=my_A_of_h 
 			)
 	
-	# set up ODE
-	tspan = (0.0, 4000.0)
+	# set up and solve ODE
+	tspan = (0.0, 1.1 * data[end, "t [s]"])
 	prob = ODEProblem(f, h₀, tspan, params, saveat=1.0)
-	sol = solve(prob)
+	h_of_t = solve(prob)
 	
 	#=
 	code up likelihood
 	=#
-	for i in 2:nrow(data)
+	for i in 2:nrow(data) # start at 2 b/c IC handled with informative prior
 		tᵢ = data[i, "t [s]"]
-		data[i, "h [cm]"] ~ Normal(sol(tᵢ, continuity=:right)[1], σ)
+		# continuity=:right
+		data[i, "h [cm]"] ~ Normal(h_of_t(tᵢ, continuity=:right)[1], σ)
 	end
 
 	return nothing
@@ -587,81 +559,74 @@ end
 
 # ╔═╡ 8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 begin
-	inference_data = downsample(train_data, n_data_sample)
-	model = infer_params(inference_data, tank_measurements)
+	ds_train_data = downsample(train_data, n_data_sample)
+	train_model = infer_params(ds_train_data, tank_measurements)
 	
-	chain = sample(model, NUTS(0.65), MCMCSerial(), n_MC_sample, 3; progress=true)
+	train_chain = sample(
+		train_model, 
+		NUTS(0.65), MCMCSerial(), n_MC_sample, 3; progress=true
+	)
 end
 
 # ╔═╡ 7ebe4680-c583-4f92-8bae-dd84c3fb5139
-posterior = DataFrame(chain)
+train_posterior = DataFrame(train_chain)
 
 # ╔═╡ c239deed-8291-45aa-95cf-94df26e0136d
 md"""
-## visualize inferred model parameter distribution
+## visualize posterior distribution of model parameters
 """
 
 # ╔═╡ ccb1f005-567d-47f8-bec1-8db268d878ec
 inferred_params = ["σ_ℓ", "A_b", "A_t", "H", "r_hole", "c", "h_hole", "σ", "h₀", 
 					"dp"]
 
-# ╔═╡ a2048a65-7b7c-41fc-b7ee-f9199f3e96b5
-begin
-	posterior_to_true = Dict(
-							"A_b" => tank_measurements.A_b, 
-							"A_t" => tank_measurements.A_t,
-							"r_hole" => tank_measurements.r_hole,
-							"c" => 0.65,
-							"h_hole" => tank_measurements.h_hole,
-							"H" => tank_measurements.H
-							)
-	
-	params_to_title = Dict(
-							"A_b" => "Area of the bottom tank", 
-							"A_t" => "Area of the top tank",
-							"r_hole" => "radius of the oriface",
-							"c" => "discharge coefficient",
-							"h_hole" => "height of orifice from the base of tank",
-							"h₀" => "initial water level",
-							"σ_ℓ" => "variance for measuring length",
-							"H" => "height of tank", 
-							"σ" => "variance of liquid level sensor", 
-							"dcv" => "variance of discharge coefficient",
-							"dp" => "drill precision"
-							)
-end
-
 # ╔═╡ 5bb0b72a-8c77-4fcb-bbde-d144986d9c1e
-function viz_posterior(posterior, h₀::Float64)
-	fig = Figure(resolution=(1350,600))
+function viz_posterior(posterior::DataFrame, params::Vector{String},
+			           tm::TankMeasurements, h₀_obs::Float64
+)
+	params_to_title = Dict(
+						"A_b" => "area of the tank bottom", 
+						"A_t" => "area of the tank top",
+						"r_hole" => "radius of the oriface",
+						"c" => "discharge coefficient",
+						"h_hole" => "height of orifice from the base of tank",
+						"h₀" => "initial water level",
+						"σ_ℓ" => "variance for measuring length",
+						"H" => "height of tank", 
+						"σ" => "variance of liquid level sensor", 
+						"dcv" => "variance of discharge coefficient",
+						"dp" => "drill precision"
+	)
+	
+	fig = Figure(resolution=(1350, 600))
 	j, i = 1, 1
 	 
-	for p in inferred_params
+	for p in params
 		# vizualize the distribution
 		ax = Axis(fig[i, j])
-		density!(ax, posterior[:, p], color = (:blue, 0.0), strokewidth = 3, 
-				 strokecolor = :blue)
+		hist!(ax, posterior[:, p], color=Cycled(1))
 
-		# plot 95% interval
-		lo, hi = quantile(posterior[:, p], [0.025, 0.975])
-		lines!(ax, [lo, hi], [0, 0], linewidth=5, color=:black)
+		# plot equal-tailed 80% interval
+		lo, hi = quantile(posterior[:, p], [0.1, 0.9])
+		lines!(ax, [lo, hi], [0, 0], linewidth=5, color=Cycled(2))
 		
 		ax.xlabel = params_to_title[p]
 
-		if j==1
+		if j == 1
 			ax.ylabel = "density"
 		end
 		
-		if p in keys(posterior_to_true)
-			# plot real value
-			vlines!(ax, posterior_to_true[p], linestyle=:dash, color=:black, 
-					label="true value")
+		if ! (p in ["h₀", "c", "σ_ℓ", "σ", "dp"])
+			p_obs = getfield(tm, Symbol(p))
+			# plot measured value
+			vlines!(ax, p_obs, linestyle=:dash, color=Cycled(3), 
+					label="measurement")
 		elseif p == "h₀"
-			vlines!(ax, h₀, linestyle=:dash, color=:black, label="true value")
+			vlines!(ax, h₀_obs, linestyle=:dash, color=Cycled(3), label="true value")
 		end
 		
 		i += 1
-		if i > 3
+		if i > 2
 			j += 1
 			i = 1
 		end
@@ -671,7 +636,10 @@ function viz_posterior(posterior, h₀::Float64)
 end
 
 # ╔═╡ ded5b462-06dd-43a4-93b0-c52ad87174eb
-viz_posterior(posterior, train_h₀)
+viz_posterior(train_posterior, inferred_params, tank_measurements, train_h₀)
+
+# ╔═╡ 86b56683-c80e-4c0f-8b03-a4869860d04f
+md"## posterior predictive check"
 
 # ╔═╡ 2ab35999-3615-4f5c-8d89-36d77802fe9b
 function viz_fit(posterior::DataFrame, data::DataFrame; 
@@ -712,6 +680,8 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 		color=colors["data"]
 		)
 	axislegend(unique=true)
+	ylims!(0, nothing)
+	xlims!(0, nothing)
 	if savename!=nothing
 		save( "$savename.pdf", fig)
 	end
@@ -719,38 +689,42 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 end
 
 # ╔═╡ 2a01b228-f281-46c4-9764-fac6cc1b4217
-viz_fit(posterior, inference_data)
+viz_fit(train_posterior, ds_train_data)
 
 # ╔═╡ a5ae695b-bfc0-4425-9b64-bbeeba7da015
 md"""
-## sample parameters for test and visualize fit
+## validate posterior with test data set
 """
 
 # ╔═╡ eaf470e9-2898-41d5-a6d5-4cd846e9c0de
-function viz_test(posterior, test_data; savename::Union{String, Nothing}=nothing)
+function viz_test(posterior::DataFrame, test_data::DataFrame;
+				savename::Union{String, Nothing}=nothing
+)
 	fig = Figure(resolution=(700, 700))
 	
 	ax_stopping = Axis(
 					fig[1, 1], 
-					ylabel="density", 
+					ylabel="# samples", 
 					xticks=([],[]),
 					height=100
-					)
+	)
 	ax = Axis(
 		fig[2, 1], 
 		xlabel="time, t [s]", 
 		ylabel="liquid level, h [cm]",
-		
-		)
-	
-	emptying_time = Vector{Float64}()
+	)
+
+	# sample from the train posterior
+	emptying_time = zeros(nrow(posterior))
 	for i in 1:nrow(posterior)
 		## Check for first instance when the liquid level is the same as the height of the oriface from the base
 		condition(h, t, integrator) = h[1] - posterior[i, "h_hole"]
 		# condition(h, t, integrator) = h[1] - posterior[i, "h_hole"]
 		
 		## Retrive the emptying time [t] when h(t) = h_hole
-		affect!(integrator) = append!(emptying_time, integrator.t)
+		function affect!(integrator)
+			emptying_time[i] = integrator.t
+		end
 		# 
 		cb = ContinuousCallback(condition, affect!)
 
@@ -760,14 +734,14 @@ function viz_test(posterior, test_data; savename::Union{String, Nothing}=nothing
 			  h_hole=posterior[i, "h_hole"],
 			  A_of_h=h -> h / posterior[i, "H"] * posterior[i, "A_t"] + 
 			  	    (1 - h / posterior[i, "H"]) * posterior[i, "A_b"]
-				)
+		)
 
-		# set up, solve ODE
+		# sample an initial condtion
 		h₀ = test_data[1, "h [cm]"] + posterior[i, "σ"] * rand()
-		tspan =  (0.0, 4000.0)
+		tspan =  (0.0, 3.0 * test_data[end, "t [s]"])
 		
 		prob = ODEProblem(f, h₀, tspan, params)
-		sim_data = DataFrame(solve(prob, callback=cb))
+		sim_data = DataFrame(solve(prob, callback=cb, saveat=1.0))
 			
 		# plot trajectories
 		lines!(ax, sim_data[:, "timestamp"], sim_data[:, "value"], 
@@ -775,9 +749,7 @@ function viz_test(posterior, test_data; savename::Union{String, Nothing}=nothing
 	end
 
 	#Plot emptying time
-	density!(ax_stopping, emptying_time, color=(:blue, 0.0), strokewidth=3, 
-			strokecolor=:blue)
-
+	hist!(ax_stopping, emptying_time, color=Cycled(3))
 	# True emptying time
 	vlines!(ax_stopping, test_data[end, "t [s]"], linestyle=:dash, color=:black)
 
@@ -788,40 +760,85 @@ function viz_test(posterior, test_data; savename::Union{String, Nothing}=nothing
 		label="experiment",
 		color=colors["data"]
 		)
-	xlims!(nothing, maximum(emptying_time))
+	xlims!(0, maximum(emptying_time))
+	ylims!(ax, 0, nothing)
 
 	linkxaxes!(ax, ax_stopping)
 	axislegend(ax, unique=true)
 	
-	if savename!=nothing
-		save( "$savename.pdf", fig)
+	if isnothing(savename)
+		save("$savename.pdf", fig)
 	end
 	
 	return fig 
 end	
 
 # ╔═╡ dd5ee69d-fb0a-484b-b1bd-32a589a9ed11
-test_infer = downsample(test_data, n_sample)
+ds_test_data = downsample(test_data, n_data_sample)
 
 # ╔═╡ a3ba0c9d-5f81-4023-9ce0-ff29536aa968
-viz_test(posterior, test_infer, savename="test")
+viz_test(train_posterior, ds_test_data, savename="test")
 
 # ╔═╡ 9533c662-80af-4dd4-bf25-02e894867360
 md"""
-# Bayesian inference appoach for obstacle area predictions
+# Bayesian inference of object shape
+
+## read experimental data
 """
+
+# ╔═╡ b06a1c07-6250-4324-8802-010e5d847edb
+begin
+	obstruction_data = ["obs_4_18_2.csv", "obs_4_18_1.csv"]
+	@bind obstruction Select(obstruction_data)
+end
+
+# ╔═╡ 8b6d766a-8f7b-4b9a-9a15-0f7375087120
+block_data = read_h_time_series(obstruction)
+
+# ╔═╡ 16158266-36ed-44c3-a418-0c454955ce78
+begin
+	function viz_obstruction_w_no_obstruction(obstruction_data, no_obstruction_data)
+		fig = Figure()
+		ax = Axis(
+			fig[1, 1], 
+			xlabel="time, t [s]", 
+			ylabel="water level, h [cm]"
+		)
+		lines!(
+			no_obstruction_data[:, "t [s]"], 
+			no_obstruction_data[:, "h [cm]"],
+			label="no object",
+			color=colors["data"]
+		)
+		lines!(
+			obstruction_data[:, "t [s]"], 
+			obstruction_data[:, "h [cm]"],
+			label="with object",
+			color=colors["other"]
+		)
+		axislegend()
+		ylims!(0, nothing)
+		xlims!(0, nothing)
+		save("h_of_t_with_without_object.pdf", fig)
+		fig
+	end
+	
+	viz_obstruction_w_no_obstruction(block_data, train_data)
+end
+
+# ╔═╡ 580de17a-625d-420e-974c-86766197025e
+md"## measured area"
 
 # ╔═╡ cb59f55b-c748-4a94-b344-e50a8fa7c690
 begin
-	obstacle_true_area = CSV.read("obstacle_area.csv", DataFrame)
-	rename!(obstacle_true_area, "area " => "area [cm²]")
-	select!(obstacle_true_area, ["h [cm]", "area [cm²]"])
+	object_true_area = CSV.read("obstacle_area.csv", DataFrame)
+	rename!(object_true_area, "area " => "area [cm²]")
+	select!(object_true_area, ["h [cm]", "area [cm²]"])
 end
 
 # ╔═╡ 89cced40-f24e-499e-8bfd-19c3964f689b
-A_of_obstacle = Spline1D(obstacle_true_area[:, "h [cm]"], 
-						obstacle_true_area[:, "area [cm²]"]; w=ones(nrow(obstacle_true_area)), k=1, s=2)
-	
+A_of_object = Spline1D(object_true_area[:, "h [cm]"], 
+					  object_true_area[:, "area [cm²]"]; k=3, s=5, bc="zero")
 
 # ╔═╡ b9515b3a-b254-49ae-8c2c-b8ce7ced4d3a
 begin
@@ -829,11 +846,13 @@ begin
 	local ax = Axis(
 		fig[1, 1], 
 		xlabel="water level, h [cm]", 
-		ylabel="area of obstacle\nfrom top-view, A(h) [cm²]"
+		ylabel="area of object\nfrom top-view, A(h) [cm²]"
 	)
-	local H = obstacle_true_area[end, "h [cm]"]
 	
-	lines!(range(0, H), A_of_obstacle.(range(0, H)))
+	h_range = range(0.0, object_true_area[end, "h [cm]"])
+	
+	lines!(h_range, A_of_object.(h_range))
+	scatter!(object_true_area[:, "h [cm]"], object_true_area[:, "area [cm²]"])
 	ylims!(0, nothing)
 	fig
 end
@@ -841,20 +860,20 @@ end
 # ╔═╡ c56a1461-d359-4aec-9564-b1abfcee8b6b
 block_data
 
-# ╔═╡ 9c2eb6c9-fcd6-49d4-bcc6-dd0c774261b5
-A(h) = A_of_h(h) - A_of_obstacle(h)
+# ╔═╡ a8861082-2214-45f1-bc49-733efe74c949
+md"## simulate model with knowledge of true area"
 
-# ╔═╡ 039f3ba2-6e50-488f-9623-67aaba1bd6bb
-c_opt_obstacle = compute_mle(block_data, A)
+# ╔═╡ 9c2eb6c9-fcd6-49d4-bcc6-dd0c774261b5
+A(h) = A_of_h(h, tank_measurements) - A_of_object(h)
 
 # ╔═╡ b59fa654-6946-4687-b14b-c2ef1f766f5c
-obs_params = (
+object_params = (
 		# area of the hole
-		r_hole = r_hole,
+		r_hole = tank_measurements.r_hole,
 		# fudge factor
-		c = 0.62,
+		c = c_opt,
 		# height of the hole
-		h_hole = h_hole,
+		h_hole = tank_measurements.h_hole,
 		# area as a function of h"
 		A_of_h = A
 	)
@@ -862,61 +881,40 @@ obs_params = (
 # ╔═╡ b12963ae-bf7d-4ef7-b1a8-e2d1e24f9b4b
 begin
 	local h₀ = block_data[1, "h [cm]"]
-	local prob = ODEProblem(f, h₀, block_data[end, "t [s]"], obs_params)
+	local prob = ODEProblem(f, h₀, block_data[end, "t [s]"], object_params)
 	local sol = solve(prob, saveat=1.0)
 	obs_sim_data = DataFrame(sol)
 end
 
 # ╔═╡ cfbe753d-85a8-445f-9eda-14a376d7e0c6
-viz_mle(block_data, obs_sim_data)
+viz_sim_fit(block_data, obs_sim_data)
 
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
-@model function infer_area(data::DataFrame,posterior::DataFrame, γ::Float64; 
-							N=10)
+@model function infer_object_area(
+	data::DataFrame, train_posterior::DataFrame, γ::Float64; N=10
+)
+	#=
+	yesterday's posterior is today's prior
+	=#
+	# variance for measuring length.
+	σ_ℓ = mean(train_posterior.σ_ℓ)
+	σ = mean(train_posterior.σ)
+	
 	#=
 	prior distributions
 	=#
 	# defines variance for measuring length.
-	σ_ℓ ~ Truncated(Normal(mean(posterior.σ_ℓ), std(posterior.σ_ℓ)), 
-							mean(posterior.σ_ℓ) - 2 * std(posterior.σ_ℓ),
-							mean(posterior.σ_ℓ) + 2 * std(posterior.σ_ℓ))
-
 	# height of tank
-	H ~ Normal(mean(posterior.H), σ_ℓ)
+	H ~ Normal(mean(train_posterior.H), std(train_posterior.H))
 
 	# radius of the hole
-	dp ~ Truncated(Normal(mean(posterior.dp), std(posterior.dp)),
-							mean(posterior.dp) - std(posterior.dp),
-							mean(posterior.dp) + std(posterior.dp))
-	r_hole ~ Truncated(
-		Normal(mean(posterior.r_hole), dp),
-		mean(posterior.r_hole) - 2 * dp, 
-		mean(posterior.r_hole) + 2 * dp)
+	r_hole ~ Normal(mean(train_posterior.r_hole), std(train_posterior.r_hole))
 
-	# discharge coefficient. Wikipedia says 0.65 for water.
-	dcv ~ Truncated(
-				Normal(mean(posterior.dcv), std(posterior.dcv)),
-				mean(posterior.dcv) - std(posterior.dcv),
-				mean(posterior.dcv) + std(posterior.dcv)) # discharge coeff variance
-					
-	c ~ Truncated(
-				Normal(mean(posterior.c), dcv), 
-				mean(posterior.c) - 2 * dcv, 
-				mean(posterior.c) + 2 * dcv) 
+	# discharge coefficient. 
+	c ~ Normal(mean(train_posterior.c), std(train_posterior.c))
 
 	# height of the hole
-	h_hole ~ Truncated(
-		Normal(mean(posterior.h_hole), σ_ℓ),
-		mean(posterior.h_hole) - σ_ℓ, 
-		mean(posterior.h_hole) + σ_ℓ
-	)
-	
-	# defines variance of liquid level sensor
-	σ ~ Truncated(
-			Normal(mean(posterior.σ), std(posterior.σ)), 
-					mean(posterior.σ) - 2 * std(posterior.σ), 
-					mean(posterior.σ) + 2 * std(posterior.σ)
-				)
+	h_hole ~ Normal(mean(train_posterior.h_hole), std(train_posterior.h_hole))
 
 	# initial liquid level
 	h₀_obs = data[1, "h [cm]"]
@@ -925,51 +923,55 @@ viz_mle(block_data, obs_sim_data)
 	# bottom, top tank area measurements
 	# std of product of two Guassians
 	#   https://ccrma.stanford.edu/~jos/sasp/Product_Two_Gaussian_PDFs.html
-	A_b ~ Normal(mean(posterior.A_b), σ_ℓ ^ 2 / 2)
-	A_t ~ Normal(mean(posterior.A_t), σ_ℓ ^ 2 / 2)
+	A_b ~ Normal(mean(train_posterior.A_b), σ_ℓ ^ 2 / 2)
+	A_t ~ Normal(mean(train_posterior.A_t), σ_ℓ ^ 2 / 2)
 
 	# Random distribution of obstacle area grid at points N 
 	As ~ filldist(Normal(), N) # cm²
 
-	A_of_tank(h) = h / H * A_t + (1 - h / H) * A_b
+	function A_of_tank(h)
+		if h < 0
+			h = 0
+		elseif h > H
+			h = H
+		end
+		return h / H * A_t + (1 - h / H) * A_b
+	end
 
-	hs = range(h_hole, data[1, "h [cm]"], length=N)
-	As[1] ~ Uniform(40, 50)
-		# Uniform(0.0, A_of_tank(hs[1]))
-	
-	
+	# corresponding h's for the unknown A's
+	hs = range(h_hole - 1.0, h₀_obs + 1.0, length=N)
+	# prior: object could be ANY size
+	As[1] ~ Uniform(0.1, 0.9 * A_of_tank(hs[1]))
 	for i in 2:N
 		As[i] ~ Truncated(
 						  As[i-1] + γ * Normal(0.0, 1.0), 
 						  0.0, 
-						  A_of_tank(hs[i])
+						  0.99 * A_of_tank(hs[i])
 						 )
 	end
 
 	#=
 	set up dynamic model for h(t)
 	=#
-	A_of_obstacle = linear_interpolation(hs, As, extrapolation_bc=Linear())
-
-	A_of_h(h) = A_of_tank(h) - A_of_obstacle(h)
+	A_of_object = linear_interpolation(hs, As, extrapolation_bc=Throw())
 
 	# parameter for ODE solver
 	params = (
 			  r_hole=r_hole,
 			  c=c,
 			  h_hole=h_hole,
-			  A_of_h=A_of_h 
+			  A_of_h=h ->  A_of_tank(h) - A_of_object(h)
 			)
 	
 	# set up ODE
 	tspan = (0.0, 4000)
 	prob = ODEProblem(f, h₀, tspan, params, saveat=1.0)
-	sol = solve(prob)
+	h_of_t = solve(prob)
 	
 	# Observations.
 	for i in 2:nrow(data)
 		tᵢ = data[i, "t [s]"]
-		data[i, "h [cm]"] ~ Normal(sol(tᵢ, continuity=:right)[1], σ)
+		data[i, "h [cm]"] ~ Normal(h_of_t(tᵢ, continuity=:right)[1], σ)
 	end
 	return nothing
 end
@@ -977,24 +979,19 @@ end
 
 
 # ╔═╡ daa1e6c7-867b-4cf7-b7b8-dc24f859ec96
-block_infer = downsample(block_data, 10)
-
-# ╔═╡ 6b1733bb-999b-4aec-956c-d1e36cbe5834
-n_sample
+ds_block_data = downsample(block_data, 10)
 
 # ╔═╡ 02939a87-e811-4ae4-8b6b-173370029889
-# ╠═╡ disabled = true
-#=╠═╡
 begin
 	γ = 6.5
-	area_model = infer_area(block_infer, posterior, γ)
-	area_posterior = DataFrame(sample(area_model, NUTS(0.65), MCMCSerial(), 250, 3; 
-									  progress=true))
+	object_tank_model = infer_object_area(ds_block_data, train_posterior, γ)
+	object_posterior = DataFrame(
+		sample(object_tank_model, NUTS(0.65), MCMCSerial(), n_MC_sample, 3; 
+									  progress=true)
+	)
 end
-  ╠═╡ =#
 
 # ╔═╡ a127225a-5b79-4074-a16b-cecd11030800
-#=╠═╡
 function viz_area(posterior::DataFrame, data::DataFrame; N=10, 
 				  γ::Float64=γ)
 	fig = Figure()
@@ -1017,12 +1014,9 @@ function viz_area(posterior::DataFrame, data::DataFrame; N=10,
 	save("area_inferred_3.png", fig)
 	return fig
 end
-  ╠═╡ =#
 
 # ╔═╡ b43f9f58-94fd-4c92-8e91-9a6b86cfc041
-#=╠═╡
 viz_area(area_posterior, test_infer)
-  ╠═╡ =#
 
 # ╔═╡ 327ba163-4c4f-4702-ab5e-dcce96904fc5
 h_of_t = Spline1D(block_data[:, "t [s]"], block_data[:, "h [cm]"]; 
@@ -1120,14 +1114,10 @@ minimum(A_obs)
 # ╟─7899f488-9c48-466f-857d-f5a31b5820ab
 # ╟─96f26378-846c-4964-935c-0372e2e86e91
 # ╠═759852ee-50e7-4deb-ac7e-c4693103c2a7
-# ╠═b06a1c07-6250-4324-8802-010e5d847edb
 # ╠═661feb84-339c-4bbe-a8a5-65de74ed58c8
 # ╠═1e8a535e-25ea-490b-b545-e532c4fbc0f3
-# ╠═8b6d766a-8f7b-4b9a-9a15-0f7375087120
 # ╠═8d4d88da-a48a-4018-b6c6-3a2f041fcfb4
 # ╟─a0849611-23b3-4a91-a054-f390bc6c9f0a
-# ╠═16158266-36ed-44c3-a418-0c454955ce78
-# ╠═1e351b83-b35d-4640-b0f8-4fe3b4de768e
 # ╠═33f889d7-e875-40d8-9d6d-cc87b0fbaf22
 # ╠═0e4b3c36-2f09-405e-912b-22c893cd1715
 # ╠═ddd8f749-3126-4563-8177-4941b6b0447b
@@ -1149,16 +1139,16 @@ minimum(A_obs)
 # ╠═444f6d74-273e-486d-905a-1443ec0e98df
 # ╠═8cfdc784-4060-48b8-8d1a-3b8d11f7a9a7
 # ╟─a1a10e2f-1b78-4b93-9295-7c0055e32692
-# ╟─8a21fa0f-d3c3-4aa2-8b8b-74001d921c4a
 # ╠═58eff13c-44b5-4f19-8a42-cf9907ac9515
+# ╟─8a21fa0f-d3c3-4aa2-8b8b-74001d921c4a
 # ╠═8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
 # ╠═8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 # ╠═7ebe4680-c583-4f92-8bae-dd84c3fb5139
 # ╟─c239deed-8291-45aa-95cf-94df26e0136d
 # ╠═ccb1f005-567d-47f8-bec1-8db268d878ec
-# ╠═a2048a65-7b7c-41fc-b7ee-f9199f3e96b5
 # ╠═5bb0b72a-8c77-4fcb-bbde-d144986d9c1e
 # ╠═ded5b462-06dd-43a4-93b0-c52ad87174eb
+# ╟─86b56683-c80e-4c0f-8b03-a4869860d04f
 # ╠═2ab35999-3615-4f5c-8d89-36d77802fe9b
 # ╠═2a01b228-f281-46c4-9764-fac6cc1b4217
 # ╟─a5ae695b-bfc0-4425-9b64-bbeeba7da015
@@ -1166,18 +1156,21 @@ minimum(A_obs)
 # ╠═dd5ee69d-fb0a-484b-b1bd-32a589a9ed11
 # ╠═a3ba0c9d-5f81-4023-9ce0-ff29536aa968
 # ╟─9533c662-80af-4dd4-bf25-02e894867360
+# ╠═b06a1c07-6250-4324-8802-010e5d847edb
+# ╠═8b6d766a-8f7b-4b9a-9a15-0f7375087120
+# ╠═16158266-36ed-44c3-a418-0c454955ce78
+# ╟─580de17a-625d-420e-974c-86766197025e
 # ╠═cb59f55b-c748-4a94-b344-e50a8fa7c690
 # ╠═89cced40-f24e-499e-8bfd-19c3964f689b
 # ╠═b9515b3a-b254-49ae-8c2c-b8ce7ced4d3a
 # ╠═c56a1461-d359-4aec-9564-b1abfcee8b6b
+# ╟─a8861082-2214-45f1-bc49-733efe74c949
 # ╠═9c2eb6c9-fcd6-49d4-bcc6-dd0c774261b5
-# ╠═039f3ba2-6e50-488f-9623-67aaba1bd6bb
 # ╠═b59fa654-6946-4687-b14b-c2ef1f766f5c
 # ╠═b12963ae-bf7d-4ef7-b1a8-e2d1e24f9b4b
 # ╠═cfbe753d-85a8-445f-9eda-14a376d7e0c6
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
 # ╠═daa1e6c7-867b-4cf7-b7b8-dc24f859ec96
-# ╠═6b1733bb-999b-4aec-956c-d1e36cbe5834
 # ╠═02939a87-e811-4ae4-8b6b-173370029889
 # ╠═a127225a-5b79-4074-a16b-cecd11030800
 # ╠═b43f9f58-94fd-4c92-8e91-9a6b86cfc041
