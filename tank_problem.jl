@@ -583,20 +583,19 @@ function viz_posterior(posterior::DataFrame, params::Vector{String},
 			           tm::TankMeasurements, h₀_obs::Float64
 )
 	params_to_title = Dict(
-						"A_b" => "area of the tank bottom", 
-						"A_t" => "area of the tank top",
-						"r_hole" => "radius of the oriface",
+						"A_b" => "A, tank bottom", 
+						"A_t" => "A, tank top",
+						"r_hole" => "hole radius",
 						"c" => "discharge coefficient",
-						"h_hole" => "height of orifice from the base of tank",
-						"h₀" => "initial water level",
-						"σ_ℓ" => "variance for measuring length",
-						"H" => "height of tank", 
-						"σ" => "variance of liquid level sensor", 
-						"dcv" => "variance of discharge coefficient"
+						"h_hole" => "hole height",
+						"h₀" => "h₀",
+						"σ_ℓ" => "std length measurement",
+						"H" => "tank height", 
+						"σ" => "std level sensor"
 	)
 	
-	fig = Figure(resolution=(1350, 600))
-	j, i = 1, 1
+	fig = Figure(size=(600, 600))
+	i, j = 1, 1 # row, col
 	 
 	for p in params
 		# vizualize the distribution
@@ -622,10 +621,11 @@ function viz_posterior(posterior::DataFrame, params::Vector{String},
 			vlines!(ax, h₀_obs, linestyle=:dash, color=Cycled(3), label="true value")
 		end
 		
-		i += 1
-		if i > 2
+		if j == 3
+			i += 1
+			j = 1
+		else
 			j += 1
-			i = 1
 		end
 	end
 	
@@ -701,7 +701,7 @@ md"""
 function viz_test(posterior::DataFrame, test_data::DataFrame;
 				savename::Union{String, Nothing}=nothing
 )
-	fig = Figure(resolution=(700, 700))
+	fig = Figure(size=(600, 600))
 	
 	ax_stopping = Axis(
 					fig[1, 1], 
@@ -743,7 +743,7 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		
 		prob = ODEProblem(f, h₀, tspan, params)
 		sim_data = DataFrame(
-			solve(prob, callback=cb, Tsit5(), saveat=0.5, reltol=1e-8, abstol=1e-8)
+			solve(prob, callback=cb, Tsit5(), saveat=0.5, reltol=1e-6, abstol=1e-6)
 		)
 			
 		# plot trajectories
