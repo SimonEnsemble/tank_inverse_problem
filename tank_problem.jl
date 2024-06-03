@@ -190,7 +190,7 @@ begin
 	level_sensor_to_h = Spline1D(
 		calibration_data[:, "level sensor reading"],
 		calibration_data[:, "h [cm]"];
-		k=2, s=5.0, bc="error"
+		k=1, s=1.0, bc="error"
 	)
 end
 
@@ -370,7 +370,7 @@ function loss(data::DataFrame, c::Float64, tm::TankMeasurements)
 	tspan = data[end, "t [s]"]
 	
 	prob = ODEProblem(f, h₀, tspan, params)
-	h_of_t = solve(prob, Tsit5(), saveat=0.5, reltol=1e-8, abstol=1e-8)
+	h_of_t = solve(prob, Tsit5(), saveat=0.5, reltol=1e-6, abstol=1e-6)
 	
 	cost = 0.0
 	for i in 1:nrow(data)
@@ -525,7 +525,6 @@ md"""
 			error("h < 0")
 		elseif h > H
 			# can't possibly overflow...
-			h = H
 			error("h > H")
 		end
 		return h / H * A_t + (1 - h / H) * A_b
@@ -536,7 +535,7 @@ md"""
 			  r_hole=r_hole,
 			  c=c,
 			  h_hole=h_hole,
-			  A_of_h=my_A_of_h 
+			  A_of_h=my_A_of_h
 			)
 	
 	# set up and solve ODE
@@ -640,7 +639,8 @@ md"## posterior predictive check"
 
 # ╔═╡ 2ab35999-3615-4f5c-8d89-36d77802fe9b
 function viz_fit(posterior::DataFrame, data::DataFrame; 
-				savename::Union{String, Nothing}=nothing)
+				savename::Union{String, Nothing}=nothing, n_sample::Int=50
+)
 	fig = Figure(resolution=(700, 500))
 	ax = Axis(
 		fig[1, 1], 
@@ -653,7 +653,7 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 	
 
 	# sample posterior models
-	for i in 1:nrow(posterior)
+	for i in sample(1:nrow(posterior), n_sample)
 		params = (
 			  r_hole=posterior[i, "r_hole"],
 			  c=posterior[i, "c"],
@@ -665,7 +665,7 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 		# set up, solve ODE
 		prob = ODEProblem(f, posterior[i, "h₀"], tspan, params)
 		sim_data = DataFrame(
-			solve(prob, Tsit5(), saveat=0.5, reltol=1e-8, abstol=1e-8)
+			solve(prob, Tsit5(), saveat=0.5, reltol=1e-6, abstol=1e-6)
 		)
 			
 		
@@ -699,15 +699,15 @@ md"""
 
 # ╔═╡ eaf470e9-2898-41d5-a6d5-4cd846e9c0de
 function viz_test(posterior::DataFrame, test_data::DataFrame;
-				savename::Union{String, Nothing}=nothing
+				savename::Union{String, Nothing}=nothing, n_sample::Int=100
 )
 	fig = Figure(size=(600, 600))
 	
 	ax_stopping = Axis(
-					fig[1, 1], 
-					ylabel="# samples", 
-					xticks=([],[]),
-					height=100
+		fig[1, 1], 
+		ylabel="# samples", 
+		xticks=([],[]),
+		height=100
 	)
 	ax = Axis(
 		fig[2, 1], 
@@ -717,44 +717,46 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 
 	# sample from the train posterior
 	emptying_time = zeros(nrow(posterior))
-	for i in 1:nrow(posterior)
-		## Check for first instance when the liquid level is the same as the height of the oriface from the base
+	# fill!(emptying_time, NaN)
+	for i in sample(1:nrow(posterior), n_sample)
+		# check for first instance when the liquid level
+		#  is the same as the height of the hole in the base
 		condition(h, t, integrator) = h[1] - posterior[i, "h_hole"]
-		# condition(h, t, integrator) = h[1] - posterior[i, "h_hole"]
 		
 		## Retrive the emptying time [t] when h(t) = h_hole
 		function affect!(integrator)
 			emptying_time[i] = integrator.t
 		end
-		# 
 		cb = ContinuousCallback(condition, affect!)
 
 		params = (
 			  r_hole=posterior[i, "r_hole"],
 			  c=posterior[i, "c"],
 			  h_hole=posterior[i, "h_hole"],
-			  A_of_h=h -> h / posterior[i, "H"] * posterior[i, "A_t"] + 
+			  A_of_h=h -> h > posterior[i, "H"] ? 
+			  	error("h > H") : 
+			   	h / posterior[i, "H"] * posterior[i, "A_t"] + 
 			  	    (1 - h / posterior[i, "H"]) * posterior[i, "A_b"]
 		)
 
 		# sample an initial condtion
-		h₀ = test_data[1, "h [cm]"] + posterior[i, "σ"] * rand()
-		tspan =  (0.0, 3.0 * test_data[end, "t [s]"])
+		h₀ = test_data[1, "h [cm]"] + posterior[i, "σ"] * randn()
+		tspan =  (0.0, 1.2 * test_data[end, "t [s]"])
 		
 		prob = ODEProblem(f, h₀, tspan, params)
 		sim_data = DataFrame(
-			solve(prob, callback=cb, Tsit5(), saveat=0.5, reltol=1e-6, abstol=1e-6)
+			solve(prob, callback=cb, Tsit5(), saveat=0.5)#, reltol=1e-8, abstol=1e-8)
 		)
 			
 		# plot trajectories
 		lines!(ax, sim_data[:, "timestamp"], sim_data[:, "value"], 
 			label="model", color=(colors["model"], 0.1))
+		hlines!(ax, posterior[i, "h_hole"], color=("gray", 0.1), linestyle=:dash)
 	end
 
+	@show emptying_time
 	#Plot emptying time
 	hist!(ax_stopping, emptying_time, color=Cycled(3))
-	# True emptying time
-	vlines!(ax_stopping, test_data[end, "t [s]"], linestyle=:dash, color=:black)
 
 	scatter!(
 		ax,
@@ -885,7 +887,7 @@ object_params = (
 begin
 	local h₀ = block_data[1, "h [cm]"]
 	local prob = ODEProblem(f, h₀, block_data[end, "t [s]"], object_params)
-	local sol = solve(prob, saveat=1.0, Tsit5(), saveat=0.5, reltol=1e-8, abstol=1e-8)
+	local sol = solve(prob, Tsit5(), saveat=0.5, reltol=1e-8, abstol=1e-8)
 	obs_sim_data = DataFrame(sol)
 end
 
@@ -1058,7 +1060,7 @@ function viz_area(posterior::DataFrame, data::DataFrame; N=10,
 end
 
 # ╔═╡ b43f9f58-94fd-4c92-8e91-9a6b86cfc041
-viz_area(area_posterior, test_infer)
+viz_area(object_posterior, test_infer)
 
 # ╔═╡ b4470c0e-191d-484c-be64-884b00b36580
 ds_block_data
