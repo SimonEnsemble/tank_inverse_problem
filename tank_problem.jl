@@ -885,37 +885,24 @@ object_params = (
 	)
 
 # ╔═╡ b12963ae-bf7d-4ef7-b1a8-e2d1e24f9b4b
-begin
-	local h₀ = block_data[1, "h [cm]"]
-	local prob = ODEProblem(f, h₀, block_data[end, "t [s]"], object_params)
-	local sol = solve(prob, Tsit5(), saveat=0.5, reltol=1e-8, abstol=1e-8)
-	obs_sim_data = DataFrame(sol)
-end
+sim_object_data = DataFrame(
+	simulate(
+		all_data_w_object[1, "h [cm]"], object_params, all_data_w_object[end, "t [s]"]
+	)
+)
 
 # ╔═╡ cfbe753d-85a8-445f-9eda-14a376d7e0c6
-viz_sim_fit(block_data, obs_sim_data)
+viz_sim_fit(all_data_w_object, sim_object_data)
 
-# ╔═╡ 23689238-63c7-4e70-9e90-226d28706180
-mean(train_posterior.r_hole) - 4 * std(train_posterior.r_hole)
+# ╔═╡ c53edeef-324a-418f-907d-aaf557cb8d24
+md"## classical method"
 
-# ╔═╡ 0243f380-a4c2-4038-875d-1a558f4e3f7e
-mean(train_posterior.h_hole) - 4 * std(train_posterior.h_hole)
-
-# ╔═╡ 2d5df916-54fd-420e-9ca7-c488570b55b0
-mean(train_posterior.H) - 4 * std(train_posterior.H)
-
-# ╔═╡ ac5f5088-11b6-42b8-b97b-2dca8fa6cde0
-mean(train_posterior.c) - 2 * std(train_posterior.c)
-
-# ╔═╡ 70751745-ada3-4af6-96df-874926267f8e
-mean(train_posterior.A_b) - 4*std(train_posterior.A_b)
-
-# ╔═╡ 0f13cf3c-795e-4935-880e-da29eab3dc05
-mean(train_posterior.A_t) - 4*std(train_posterior.A_t)
+# ╔═╡ b23dc763-d91f-4d66-94d2-dcf96cb07f54
+md"## Bayesian inference"
 
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
 @model function infer_object_area(
-	data::DataFrame, train_posterior::DataFrame, γ::Float64; N=10
+	data_w_object::DataFrame, train_posterior::DataFrame, γ::Float64; N=10
 )
 	#=
 	yesterday's posterior is today's prior
@@ -952,7 +939,7 @@ mean(train_posterior.A_t) - 4*std(train_posterior.A_t)
 					  mean(train_posterior.h_hole) + 4 * std(train_posterior.h_hole))
 
 	# initial liquid level
-	h₀_obs = data[1, "h [cm]"]
+	h₀_obs = data_w_object[1, "h [cm]"]
 	h₀ ~ Truncated(Normal(h₀_obs, σ), h₀_obs - 4 * σ, h₀_obs + 4 * σ) # this should be removed but just trying to get the code to work first
 		
 
@@ -1016,16 +1003,15 @@ mean(train_posterior.A_t) - 4*std(train_posterior.A_t)
 	
 	# Observations.
 	for i in 2:nrow(data)
-		tᵢ = data[i, "t [s]"]
-		data[i, "h [cm]"] ~ Normal(h_of_t(tᵢ, continuity=:right)[1], σ)
+		tᵢ = data_w_object[i, "t [s]"]
+		ĥᵢ = h_of_t(tᵢ, continuity=:right)[1]
+		data_w_object[i, "h [cm]"] ~ Normal(ĥᵢ, σ)
 	end
 	return nothing
 end
 
-
-
 # ╔═╡ daa1e6c7-867b-4cf7-b7b8-dc24f859ec96
-ds_block_data = downsample(block_data, 10)
+data_w_object = downsample(all_data_w_object, 10)
 
 # ╔═╡ 02939a87-e811-4ae4-8b6b-173370029889
 begin
@@ -1238,12 +1224,8 @@ end
 # ╠═b59fa654-6946-4687-b14b-c2ef1f766f5c
 # ╠═b12963ae-bf7d-4ef7-b1a8-e2d1e24f9b4b
 # ╠═cfbe753d-85a8-445f-9eda-14a376d7e0c6
-# ╠═23689238-63c7-4e70-9e90-226d28706180
-# ╠═0243f380-a4c2-4038-875d-1a558f4e3f7e
-# ╠═2d5df916-54fd-420e-9ca7-c488570b55b0
-# ╠═ac5f5088-11b6-42b8-b97b-2dca8fa6cde0
-# ╠═70751745-ada3-4af6-96df-874926267f8e
-# ╠═0f13cf3c-795e-4935-880e-da29eab3dc05
+# ╟─c53edeef-324a-418f-907d-aaf557cb8d24
+# ╟─b23dc763-d91f-4d66-94d2-dcf96cb07f54
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
 # ╠═daa1e6c7-867b-4cf7-b7b8-dc24f859ec96
 # ╠═02939a87-e811-4ae4-8b6b-173370029889
