@@ -351,6 +351,17 @@ function f(h, params, t)
 		sqrt(2 * g * (h .- params.h_hole)) / params.A_of_h(h)
 end
 
+# ╔═╡ 05ed4187-a01a-4a16-a0e7-b3867d252578
+function simulate(h₀, params::NamedTuple, tf::Float64, callback=nothing)
+	prob = ODEProblem(f, h₀, (0.0, tf), params)
+	h_of_t = solve(
+		prob, Tsit5(), saveat=0.5, 
+		reltol=1e-6, abstol=1e-6, 
+		callback=callback
+	)
+	return h_of_t
+end
+
 # ╔═╡ 6f7d4335-d9a6-4896-9d69-bfc1c2c1c3d0
 md"""
 ## minimize loss (classical approach) to identify $c$
@@ -369,11 +380,11 @@ function loss(data::DataFrame, c::Float64, tm::TankMeasurements)
 		A_of_h = h -> A_of_h(h, tm)
 	)
 
-	h₀ = data[1, "h [cm]"]
-	tspan = data[end, "t [s]"]
-	
-	prob = ODEProblem(f, h₀, tspan, params)
-	h_of_t = solve(prob, Tsit5(), saveat=0.5, reltol=1e-6, abstol=1e-6)
+	h_of_t = simulate(
+		data[1, "h [cm]"], # h₀
+		params,
+		data[end, "t [s]"] # end of time
+	)
 	
 	cost = 0.0
 	for i in 1:nrow(data)
@@ -412,12 +423,13 @@ params = (
 )
 
 # ╔═╡ d3307918-1fdb-4f87-bb92-67330d22e58b
-begin
-	train_h₀ = train_data[1, "h [cm]"]
-	prob = ODEProblem(f, train_h₀, 1.1 * train_data[end, "t [s]"], params)
-	sol = solve(prob, Tsit5(), saveat=0.5, reltol=1e-8, abstol=1e-8)
-	sim_data = DataFrame(sol)
-end
+sim_train_data = DataFrame(
+	simulate(
+		train_data[1, "h [cm]"], # h₀
+		params,
+		1.1 * train_data[end, "t [s]"] # end of time
+	)
+)
 
 # ╔═╡ d25cda2f-6ec6-4c93-8860-f5ce9c3ee629
 md"""
@@ -426,7 +438,7 @@ md"""
 
 # ╔═╡ 444f6d74-273e-486d-905a-1443ec0e98df
 function viz_sim_fit(data::DataFrame, sim_data::DataFrame; 
-		         savename::Union{Nothing, String}=nothing)
+		             savename::Union{Nothing, String}=nothing)
 	 fig = Figure()
 	 ax = Axis(
 		fig[1, 1], 
@@ -452,7 +464,7 @@ function viz_sim_fit(data::DataFrame, sim_data::DataFrame;
 end
 
 # ╔═╡ 8cfdc784-4060-48b8-8d1a-3b8d11f7a9a7
-viz_sim_fit(train_data, sim_data)
+viz_sim_fit(train_data, sim_train_data)
 
 # ╔═╡ a1a10e2f-1b78-4b93-9295-7c0055e32692
 md"""
@@ -531,9 +543,7 @@ md"""
 			)
 	
 	# set up and solve ODE
-	tspan = (0.0, 1.1 * data[end, "t [s]"])
-	prob = ODEProblem(f, h₀, tspan, params, saveat=1.0)
-	h_of_t = solve(prob, Tsit5(), saveat=0.5, reltol=1e-6, abstol=1e-6)
+	h_of_t = simulate(h₀, params, 1.1 * data[end, "t [s]"])
 	
 	#=
 	code up likelihood
@@ -628,7 +638,7 @@ function viz_posterior(posterior::DataFrame, params::Vector{String},
 end
 
 # ╔═╡ ded5b462-06dd-43a4-93b0-c52ad87174eb
-viz_posterior(train_posterior, inferred_params, tank_measurements, train_h₀)
+viz_posterior(train_posterior, inferred_params, tank_measurements, train_data[1, "h [cm]"])
 
 # ╔═╡ 86b56683-c80e-4c0f-8b03-a4869860d04f
 md"## posterior predictive check"
@@ -659,9 +669,8 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 			)
 
 		# set up, solve ODE
-		prob = ODEProblem(f, posterior[i, "h₀"], tspan, params)
 		sim_data = DataFrame(
-			solve(prob, Tsit5(), saveat=0.5, reltol=1e-6, abstol=1e-6)
+			simulate(posterior[i, "h₀"], params, 1.05 * maximum(ts))
 		)
 			
 		
@@ -695,7 +704,7 @@ md"""
 
 # ╔═╡ eaf470e9-2898-41d5-a6d5-4cd846e9c0de
 function viz_test(posterior::DataFrame, test_data::DataFrame;
-				savename::Union{String, Nothing}=nothing, n_sample::Int=100
+				 savename::Union{String, Nothing}=nothing, n_sample::Int=100
 )
 	fig = Figure(size=(600, 600))
 	
@@ -712,8 +721,7 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 	)
 
 	# sample from the train posterior
-	emptying_time = zeros(nrow(posterior))
-	fill!(emptying_time, NaN)
+	emptying_time = Float64[]
 	for i in sample(1:nrow(posterior), n_sample)
 		# check for first instance when the liquid level
 		#  is the same as the height of the hole in the base
@@ -721,7 +729,7 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		
 		# retrive the emptying time [t] when h(t) = h_hole
 		function affect!(integrator)
-			emptying_time[i] = integrator.t
+			push!(emptying_time, integrator.t)
 		end
 		cb = ContinuousCallback(condition, affect!)
 
@@ -743,10 +751,9 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		)
 		h₀ = rand(h₀_distn)
 
-		tspan = (0.0, 1.25 * test_data[end, "t [s]"])
-		prob = ODEProblem(f, h₀, tspan, params)
+		# simulate trajectory
 		sim_data = DataFrame(
-			solve(prob, callback=cb, Tsit5(), saveat=0.5, reltol=1e-6, abstol=1e-6)
+			simulate(h₀, params, 1.25 * test_data[end, "t [s]"], cb)
 		)
 			
 		# plot trajectories
@@ -755,8 +762,7 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		hlines!(ax, posterior[i, "h_hole"], color=("gray", 0.1), linestyle=:dash)
 	end
 
-	@show emptying_time
-	#Plot emptying time
+	# plot dist'n of emptying times
 	hist!(ax_stopping, emptying_time, color=Cycled(3))
 
 	scatter!(
@@ -791,31 +797,31 @@ md"""
 
 # ╔═╡ b06a1c07-6250-4324-8802-010e5d847edb
 begin
-	obstruction_data = ["obs_4_18_2.csv", "obs_4_18_1.csv"]
-	@bind obstruction Select(obstruction_data)
+	data_w_object_filenames = ["obs_4_18_2.csv", "obs_4_18_1.csv"]
+	@bind data_w_object_filename Select(data_w_object_filenames)
 end
 
 # ╔═╡ 8b6d766a-8f7b-4b9a-9a15-0f7375087120
-block_data = read_h_time_series(obstruction)
+all_data_w_object = read_h_time_series(data_w_object_filename)
 
 # ╔═╡ 16158266-36ed-44c3-a418-0c454955ce78
 begin
-	function viz_obstruction_w_no_obstruction(obstruction_data, no_obstruction_data)
+	function viz_free_vs_occupied(data_w_object::DataFrame, data::DataFrame)
 		fig = Figure()
 		ax = Axis(
 			fig[1, 1], 
 			xlabel="time, t [s]", 
 			ylabel="water level, h [cm]"
 		)
-		lines!(
-			no_obstruction_data[:, "t [s]"], 
-			no_obstruction_data[:, "h [cm]"],
+		scatter!(
+			data[:, "t [s]"], 
+			data[:, "h [cm]"],
 			label="no object",
 			color=colors["data"]
 		)
-		lines!(
-			obstruction_data[:, "t [s]"], 
-			obstruction_data[:, "h [cm]"],
+		scatter!(
+			data_w_object[:, "t [s]"], 
+			data_w_object[:, "h [cm]"],
 			label="with object",
 			color=colors["other"]
 		)
@@ -826,11 +832,13 @@ begin
 		fig
 	end
 	
-	viz_obstruction_w_no_obstruction(block_data, train_data)
+	viz_free_vs_occupied(all_data_w_object, train_data)
 end
 
 # ╔═╡ 580de17a-625d-420e-974c-86766197025e
-md"## measured area"
+md"## measured area of object
+
+a ground truth"
 
 # ╔═╡ cb59f55b-c748-4a94-b344-e50a8fa7c690
 begin
@@ -841,7 +849,7 @@ end
 
 # ╔═╡ 89cced40-f24e-499e-8bfd-19c3964f689b
 A_of_object = Spline1D(object_true_area[:, "h [cm]"], 
-					  object_true_area[:, "area [cm²]"]; k=3, s=5, bc="zero")
+					  object_true_area[:, "area [cm²]"]; k=3, s=10.0, bc="zero")
 
 # ╔═╡ b9515b3a-b254-49ae-8c2c-b8ce7ced4d3a
 begin
@@ -849,25 +857,20 @@ begin
 	local ax = Axis(
 		fig[1, 1], 
 		xlabel="water level, h [cm]", 
-		ylabel="area of object\nfrom top-view, A(h) [cm²]"
+		ylabel="cross-sectional area, Aₒ(h) [cm²]"
 	)
 	
-	h_range = range(0.0, object_true_area[end, "h [cm]"])
+	h_range = range(0.0, object_true_area[end, "h [cm]"], length=100)
 	
 	lines!(h_range, A_of_object.(h_range))
 	scatter!(object_true_area[:, "h [cm]"], object_true_area[:, "area [cm²]"])
 	ylims!(0, nothing)
+	xlims!(0, nothing)
 	fig
 end
 
-# ╔═╡ c56a1461-d359-4aec-9564-b1abfcee8b6b
-block_data
-
 # ╔═╡ a8861082-2214-45f1-bc49-733efe74c949
 md"## simulate model with knowledge of true area"
-
-# ╔═╡ 9c2eb6c9-fcd6-49d4-bcc6-dd0c774261b5
-A(h) = A_of_h(h, tank_measurements) - A_of_object(h)
 
 # ╔═╡ b59fa654-6946-4687-b14b-c2ef1f766f5c
 object_params = (
@@ -878,7 +881,7 @@ object_params = (
 		# height of the hole
 		h_hole = tank_measurements.h_hole,
 		# area as a function of h"
-		A_of_h = A
+		A_of_h = h -> A_of_h(h, tank_measurements) - A_of_object(h)
 	)
 
 # ╔═╡ b12963ae-bf7d-4ef7-b1a8-e2d1e24f9b4b
@@ -1194,6 +1197,7 @@ end
 # ╠═7b7baa41-0185-4ed6-8fae-3a44e9912016
 # ╟─f2f236f4-59f3-4c05-811d-078cd04ddd79
 # ╠═c6a263eb-cb45-4ee7-9c02-549c89298652
+# ╠═05ed4187-a01a-4a16-a0e7-b3867d252578
 # ╟─6f7d4335-d9a6-4896-9d69-bfc1c2c1c3d0
 # ╠═66815e8e-09d9-4b43-9f45-9379b3d34f78
 # ╟─5e79d8e1-429c-414f-b3a6-8cf4b93d1336
@@ -1230,9 +1234,7 @@ end
 # ╠═cb59f55b-c748-4a94-b344-e50a8fa7c690
 # ╠═89cced40-f24e-499e-8bfd-19c3964f689b
 # ╠═b9515b3a-b254-49ae-8c2c-b8ce7ced4d3a
-# ╠═c56a1461-d359-4aec-9564-b1abfcee8b6b
 # ╟─a8861082-2214-45f1-bc49-733efe74c949
-# ╠═9c2eb6c9-fcd6-49d4-bcc6-dd0c774261b5
 # ╠═b59fa654-6946-4687-b14b-c2ef1f766f5c
 # ╠═b12963ae-bf7d-4ef7-b1a8-e2d1e24f9b4b
 # ╠═cfbe753d-85a8-445f-9eda-14a376d7e0c6
