@@ -53,19 +53,14 @@ TableOfContents()
 
 # ╔═╡ 7752316d-9dd0-4403-aa08-22c977ff3727
 md"""
-# Tank Geometry and Hole Measurements
+# tank geometry and measurements
 
-we approximate the area from a helicopter view as a rounded rectangle.
-
-see [here](https://mathworld.wolfram.com/RoundedRectangle.html).
-
-see notes in `tank_geometry/cory_measurements.txt`.
-
+we characterize the area of the liquid holding tank, as a function of height $h$, from a helicopter view. the cross-sectional area we model as a [rounded rectangle](https://mathworld.wolfram.com/RoundedRectangle.html). see notes in `tank_geometry/cory_measurements.txt`.
 """
 
 # ╔═╡ c976bc08-97b2-45c0-b1ff-1819e7290a68
 struct TankMeasurements
-	# top, bottom areas
+	# top, bottom areas (cm²)
 	A_t::Float64
 	A_b::Float64
 	
@@ -81,17 +76,17 @@ end
 
 # ╔═╡ 20fa4266-be80-4d8e-b1d0-155a40a1241f
 begin
-	# height of tank along slant [cm]
+	# height of tank (along slant) [cm]
 	H★ = 28.6
 
 	# measurements of top cross-section
 	L_t = 14.6 #cm
-	W_t = 9.0 # cm
+	W_t = 9.0  # cm
 	p_t = 44.3 # perimeter, cm
 	
 	# measurements of bottom cross-section
 	L_b = 13.4 # cm
-	W_b = 7.8 # cm
+	W_b = 7.8  # cm
 	p_b = 40.1 # perimeter, cm
 	
 	# height of tank (from perpendicular) [cm]
@@ -106,15 +101,14 @@ begin
 	@show r_b, r_t
 
 	# finally, calculate areas.
-	local A(L, W, r) = (L - 2 * r) * (W - 2 * r) + 2 * r * (L + W - 4 * r) + π * r ^ 2
-	A_b = A(L_b, W_b, r_b)
-	A_t = A(L_t, W_t, r_t)
+	my_A(L, W, r) = (L - 2 * r) * (W - 2 * r) + 2 * r * (L + W - 4 * r) + π * r ^ 2
+	A_b = my_A(L_b, W_b, r_b)
+	A_t = my_A(L_t, W_t, r_t)
 	@show A_b, A_t
 
-	# hole in tank
+	# hole in tank (radius, area, height)
 	r_hole = 5 / 64 * 2.54 / 2 # cm
-    a_hole = π * r_hole ^ 2 # cm²
-
+    a_hole = π * r_hole ^ 2    # cm²
     h_hole = 0.9 # cm
 
 	tank_measurements = TankMeasurements(
@@ -127,9 +121,10 @@ end
 cross-sectional area of water from helicopter view, as a function of liquid level, h.
 """
 function A_of_h(h::Float64, tm::TankMeasurements)
-	if h < 0 || h > tm.H
-		error("tank over/under-flow!")
-	end
+	# check for over/underflow
+	h < 0.0  ? error("tank underflow!") : nothing
+	h > tm.H ? error("tank overflow!")  : nothing
+	# linearly interpolate top and bottom areas
 	return h / tm.H * tm.A_t + (1 - h / tm.H) * tm.A_b
 end
 
@@ -139,21 +134,22 @@ begin
 	local ax = Axis(
 		fig[1, 1], 
 		xlabel="water level, h [cm]", 
-		ylabel="area of tank\nfrom top-view, A(h) [cm²]"
+		ylabel="cross-sectional area, A(h) [cm²]"
 	)
 	lines!(range(0, H), 
 		[A_of_h(hᵢ, tank_measurements) for hᵢ in range(0, tank_measurements.H)]
 	)
+	vlines!(tank_measurements.H, linestyle=:dash, color="gray")
+	xlims!(0, nothing)
 	ylims!(0, nothing)
 	fig
 end
 
 # ╔═╡ 418525b7-c358-41da-b865-5df3feb15855
 md"
-# Calibration of Liquid Level Sensor
+# calibration of liquid level sensor
 
 read in data characterizing the calibration curve of the liquid level sensor.
-note liquid level here is actually slanted h★.
 "
 
 # ╔═╡ a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
@@ -164,16 +160,11 @@ begin
 end
 
 # ╔═╡ 6d48d04b-0786-4d15-a07b-8941805a5b09
-md"we correct for the slant, though slight.
-
-this function maps the slanted h★ to the height h perpendicular to the ground.
+md"we correct for the slant, though slight, in the tank, which makes the level strip slanted. this function maps the slanted h★ to the height h perpendicular to the ground.
 "
 
 # ╔═╡ 9af216b7-4bf2-42fb-bd95-5b2040d019a7
 h★_to_h(h★) = H * h★ / H★
-
-# ╔═╡ d3eeccff-39b3-429d-aec6-e7f1a500b729
-h★_to_h(1.0) # note, this correction is TINY!
 
 # ╔═╡ 6ebe0cb0-ba35-411c-9a7a-a8b6eecf326f
 md"compute the true liquid level."
@@ -184,13 +175,16 @@ begin
 	calibration_data
 end
 
+# ╔═╡ ef43e50a-5af8-4733-88a4-cd159d173034
+md"fit spline to calibration data to construct calibration curve."
+
 # ╔═╡ 9dabad13-cfa4-4e06-950d-f7c7d96c1147
 begin
 	# map liquid level sensor reading to liquid level h.
 	level_sensor_to_h = Spline1D(
 		calibration_data[:, "level sensor reading"],
 		calibration_data[:, "h [cm]"];
-		k=1, s=1.0, bc="error"
+		k=2, s=4.0, bc="error"
 	)
 end
 
@@ -214,16 +208,14 @@ begin
 		maximum(calibration_data[:, "level sensor reading"]),
 		length=100
 	)
-	# xlims!(700, 800)
-	# ylims!(20, 30)
 	lines!(lsr, level_sensor_to_h.(lsr), color=Cycled(2))
 	fig
 end
 
 # ╔═╡ 078c01f7-e47e-4af0-be1c-ac4527b735fd
-md"""
-# Data Preprocessing
-"""
+md"
+# time series data processing
+"
 
 # ╔═╡ 8b00d2b3-9182-42ab-8393-91707b813f60
 function read_h_time_series(file::String)
@@ -256,26 +248,23 @@ end
 
 # ╔═╡ 7899f488-9c48-466f-857d-f5a31b5820ab
 md"""
-## Load in data
+## read in train/test time series data
 """
 
 # ╔═╡ 96f26378-846c-4964-935c-0372e2e86e91
 md"time series data for two experiments without any object in the tank"
 
-# ╔═╡ 759852ee-50e7-4deb-ac7e-c4693103c2a7
-begin
-	train_experiment = "no_obs_4_18_2.csv"
-	test_experiment  = "no_obs_4_18_3.csv"
-end
+# ╔═╡ 2ddf387c-5a61-4490-9746-96e1589c7a74
+train_experiment = "no_obs_4_18_2.csv"
+
+# ╔═╡ b2228d5c-16b4-4fee-b9b6-1112d7cf391c
+test_experiment  = "no_obs_4_18_3.csv"
 
 # ╔═╡ 661feb84-339c-4bbe-a8a5-65de74ed58c8
-train_data = read_h_time_series(train_experiment)
+all_train_data = read_h_time_series(train_experiment)
 
 # ╔═╡ 1e8a535e-25ea-490b-b545-e532c4fbc0f3
-test_data = read_h_time_series(test_experiment)
-
-# ╔═╡ 8d4d88da-a48a-4018-b6c6-3a2f041fcfb4
-colors
+all_test_data = read_h_time_series(test_experiment)
 
 # ╔═╡ a0849611-23b3-4a91-a054-f390bc6c9f0a
 md"""
@@ -290,7 +279,7 @@ function viz_data(data::DataFrame)
 		xlabel="time, t [s]", 
 		ylabel="water level, h [cm]"
 	)
-	lines!(
+	scatter!(
 		data[:, "t [s]"], 
 		data[:, "h [cm]"],
 		label="experiment",
@@ -302,14 +291,43 @@ function viz_data(data::DataFrame)
 end
 
 # ╔═╡ 0e4b3c36-2f09-405e-912b-22c893cd1715
-viz_data(train_data)
+viz_data(all_train_data)
 
 # ╔═╡ ddd8f749-3126-4563-8177-4941b6b0447b
+viz_data(all_test_data)
+
+# ╔═╡ 710ddf42-2397-4d96-9a61-ff5c600ccd43
+md"## downsampling"
+
+# ╔═╡ 46084a31-e591-42f2-b8e6-02183ddfc6ac
+@bind n_data_sample Select([20, 50, 100], default=20)
+
+# ╔═╡ f21dc58e-d4e8-4314-b5dd-abbcb29efe86
+function downsample(data::DataFrame, n::Int)
+	# filter out sensor data that is below 508
+	# this is the liquid level where the jet shooting outside the tank
+	# dies, and it just runs down the tank (Toricelli's law invalid)
+	data = filter("h [cm]" => (x -> x >= level_sensor_to_h(508)), data)
+	
+	ids = trunc.(Int, collect(range(1, nrow(data), length=n)))
+	return data[ids, :]
+end
+
+# ╔═╡ 14b713b9-70c6-4506-a7b3-c67d021f8fce
+train_data = downsample(all_train_data, n_data_sample)
+
+# ╔═╡ 86b34265-6f2d-48d7-95ea-d10c8ae29ea9
+viz_data(train_data)
+
+# ╔═╡ 6bbb7a2c-464f-4e92-ab15-66745bac03ef
+test_data = downsample(all_test_data, n_data_sample)
+
+# ╔═╡ bcf21d4b-cc76-4b9e-8cdb-7a17eb2af605
 viz_data(test_data)
 
 # ╔═╡ e379461f-8896-4e2a-a71b-1871a8a37eb5
 md"""
-# Dynamic model of the tank
+# dynamic model of the liquid level
 
 ```math
 A(h)\frac{dh}{dt} = - c\pi r_{\rm hole}^2 \sqrt{2g [h(t)-h_{\rm hole}]}
@@ -333,24 +351,10 @@ function f(h, params, t)
 		sqrt(2 * g * (h .- params.h_hole)) / params.A_of_h(h)
 end
 
-# ╔═╡ f21dc58e-d4e8-4314-b5dd-abbcb29efe86
-function downsample(data::DataFrame, n::Int)
-	# filter out sensor data that is below 508
-	# this is the liquid level where the jet shooting outside the tank
-	# dies, and it just runs down the tank (Toricelli's law invalid)
-	data = filter("h [cm]" => (x -> x >= level_sensor_to_h(508)), data)
-	
-	ids = trunc.(Int, collect(range(1, nrow(data), length=n)))
-	return data[ids, :]
-end
-
 # ╔═╡ 6f7d4335-d9a6-4896-9d69-bfc1c2c1c3d0
 md"""
-## minimize dynamic model loss
+## minimize loss (classical approach) to identify $c$
 """
-
-# ╔═╡ 46084a31-e591-42f2-b8e6-02183ddfc6ac
-@bind n_data_sample Select([20, 50, 100], default=20)
 
 # ╔═╡ 66815e8e-09d9-4b43-9f45-9379b3d34f78
 function loss(data::DataFrame, c::Float64, tm::TankMeasurements)	
@@ -365,7 +369,6 @@ function loss(data::DataFrame, c::Float64, tm::TankMeasurements)
 		A_of_h = h -> A_of_h(h, tm)
 	)
 
-	data = downsample(data, n_data_sample)
 	h₀ = data[1, "h [cm]"]
 	tspan = data[end, "t [s]"]
 	
@@ -381,13 +384,11 @@ function loss(data::DataFrame, c::Float64, tm::TankMeasurements)
 	return cost
 end
 
+# ╔═╡ 5e79d8e1-429c-414f-b3a6-8cf4b93d1336
+md"maximum likelihood estimate of $c$"
+
 # ╔═╡ 0b75c073-f167-4553-b746-539a14cfcf25
 loss(train_data, 0.4, tank_measurements)
-
-# ╔═╡ b0657fe7-29d8-4887-bb4c-cf72cfd434d4
-md"""
-## compute mle
-"""
 
 # ╔═╡ 4ed31219-9ce0-4f1b-8152-0002e64649ad
 function compute_mle(data::DataFrame, tm::TankMeasurements)
@@ -420,7 +421,7 @@ end
 
 # ╔═╡ d25cda2f-6ec6-4c93-8860-f5ce9c3ee629
 md"""
-## visualize dynamic model
+## visualize dynamic model (classically fit)
 """
 
 # ╔═╡ 444f6d74-273e-486d-905a-1443ec0e98df
@@ -433,11 +434,9 @@ function viz_sim_fit(data::DataFrame, sim_data::DataFrame;
 		ylabel="liquid level, h[cm]"
 	)
 	
-	ds_data = downsample(data, n_data_sample)
-	
 	scatter!(
-		ds_data[:, "t [s]"], 
-		ds_data[:, "h [cm]"], 
+		data[:, "t [s]"], 
+		data[:, "h [cm]"], 
 		label="experiment"
 	)
 	
@@ -469,7 +468,7 @@ md"""
 """
 
 # ╔═╡ 8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
-@model function infer_params(data::DataFrame, tm::TankMeasurements)
+@model function forward_model(data::DataFrame, tm::TankMeasurements)
 	#=
 	prior distributions
 	=#
@@ -491,8 +490,7 @@ md"""
 	# radius of the hole. std 2%
 	r_hole ~ Truncated(
 		Normal(tm.r_hole, 0.02 * tank_measurements.r_hole),
-		0.9 * tm.r_hole,
-		1.1 * tm.r_hole
+		0.9 * tm.r_hole, 1.1 * tm.r_hole
 	) # cm
 
 	# discharge coefficient. Wikipedia says 0.65 for water.
@@ -501,8 +499,7 @@ md"""
 	# height of the hole
 	h_hole ~ Truncated(
 		Normal(tm.h_hole, σ_ℓ),
-		tm.h_hole - σ_ℓ, 
-		tm.h_hole + σ_ℓ
+		tm.h_hole - σ_ℓ, tm.h_hole + σ_ℓ
 	) # cm
 	
 	# defines variance of liquid level sensor
@@ -513,24 +510,19 @@ md"""
 	h₀_obs = data[1, "h [cm]"] # cm
 	h₀ ~ Truncated(
 		Normal(h₀_obs, σ),
-		0.0,
-		H
+		0.0, H
 	)
 
 	#=
 	set up dynamic model for h(t)
 	=#
 	function my_A_of_h(h)
-		if h < 0.0
-			error("h < 0")
-		elseif h > H
-			# can't possibly overflow...
-			error("h > H")
-		end
+		if h < 0.0 error("h < 0") end
+		if h > H error("h > H") end
 		return h / H * A_t + (1 - h / H) * A_b
 	end
 	
-	# parameter for ODE solver
+	# parameters for ODE solver
 	params = (
 			  r_hole=r_hole,
 			  c=c,
@@ -548,8 +540,8 @@ md"""
 	=#
 	for i in 2:nrow(data) # start at 2 b/c IC handled with informative prior
 		tᵢ = data[i, "t [s]"]
-		# continuity=:right
-		data[i, "h [cm]"] ~ Normal(h_of_t(tᵢ, continuity=:right)[1], σ)
+		ĥᵢ = h_of_t(tᵢ, continuity=:right)[1]
+		data[i, "h [cm]"] ~ Normal(ĥᵢ, σ)
 	end
 
 	return nothing
@@ -557,17 +549,21 @@ end
 
 # ╔═╡ 8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 begin
-	ds_train_data = downsample(train_data, n_data_sample)
-	train_model = infer_params(ds_train_data, tank_measurements)
+	train_model = forward_model(train_data, tank_measurements)
 	
-	train_chain = sample(
-		train_model, 
-		NUTS(0.65), MCMCSerial(), n_MC_sample, 3; progress=true
+	train_posterior = DataFrame(
+		sample(
+			train_model, 
+			NUTS(0.65), MCMCSerial(), n_MC_sample, 3; progress=true
+		)
 	)
 end
 
-# ╔═╡ 7ebe4680-c583-4f92-8bae-dd84c3fb5139
-train_posterior = DataFrame(train_chain)
+# ╔═╡ 2ee1ca40-141f-40ad-b4c1-a2e025f69f95
+md"make sure never $h_0>H$."
+
+# ╔═╡ c2d877b5-d309-4868-925d-dab8d7d23403
+@assert all(train_posterior[:, "H"] .> train_posterior[:, "h₀"])
 
 # ╔═╡ c239deed-8291-45aa-95cf-94df26e0136d
 md"""
@@ -690,7 +686,7 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 end
 
 # ╔═╡ 2a01b228-f281-46c4-9764-fac6cc1b4217
-viz_fit(train_posterior, ds_train_data)
+viz_fit(train_posterior, train_data)
 
 # ╔═╡ a5ae695b-bfc0-4425-9b64-bbeeba7da015
 md"""
@@ -717,13 +713,13 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 
 	# sample from the train posterior
 	emptying_time = zeros(nrow(posterior))
-	# fill!(emptying_time, NaN)
+	fill!(emptying_time, NaN)
 	for i in sample(1:nrow(posterior), n_sample)
 		# check for first instance when the liquid level
 		#  is the same as the height of the hole in the base
 		condition(h, t, integrator) = h[1] - posterior[i, "h_hole"]
 		
-		## Retrive the emptying time [t] when h(t) = h_hole
+		# retrive the emptying time [t] when h(t) = h_hole
 		function affect!(integrator)
 			emptying_time[i] = integrator.t
 		end
@@ -740,12 +736,17 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		)
 
 		# sample an initial condtion
-		h₀ = test_data[1, "h [cm]"] + posterior[i, "σ"] * randn()
-		tspan =  (0.0, 1.2 * test_data[end, "t [s]"])
-		
+		h₀_obs = test_data[1, "h [cm]"]
+		h₀_distn = Truncated(
+			Normal(h₀_obs, posterior[i, "σ"]),
+			0.0, posterior[i, "H"]
+		)
+		h₀ = rand(h₀_distn)
+
+		tspan = (0.0, 1.25 * test_data[end, "t [s]"])
 		prob = ODEProblem(f, h₀, tspan, params)
 		sim_data = DataFrame(
-			solve(prob, callback=cb, Tsit5(), saveat=0.5)#, reltol=1e-8, abstol=1e-8)
+			solve(prob, callback=cb, Tsit5(), saveat=0.5, reltol=1e-6, abstol=1e-6)
 		)
 			
 		# plot trajectories
@@ -778,11 +779,8 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 	return fig 
 end	
 
-# ╔═╡ dd5ee69d-fb0a-484b-b1bd-32a589a9ed11
-ds_test_data = downsample(test_data, n_data_sample)
-
 # ╔═╡ a3ba0c9d-5f81-4023-9ce0-ff29536aa968
-viz_test(train_posterior, ds_test_data, savename="test")
+viz_test(train_posterior, test_data, savename="test")
 
 # ╔═╡ 9533c662-80af-4dd4-bf25-02e894867360
 md"""
@@ -1167,9 +1165,9 @@ end
 # ╠═a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
 # ╟─6d48d04b-0786-4d15-a07b-8941805a5b09
 # ╠═9af216b7-4bf2-42fb-bd95-5b2040d019a7
-# ╠═d3eeccff-39b3-429d-aec6-e7f1a500b729
 # ╟─6ebe0cb0-ba35-411c-9a7a-a8b6eecf326f
 # ╠═385442da-f101-4ddf-8293-46d71d6a48fc
+# ╟─ef43e50a-5af8-4733-88a4-cd159d173034
 # ╠═9dabad13-cfa4-4e06-950d-f7c7d96c1147
 # ╟─e040094c-7511-4831-b94a-1c1185868202
 # ╠═23ee0e85-a84b-4b63-b432-5526559efcee
@@ -1177,24 +1175,29 @@ end
 # ╠═8b00d2b3-9182-42ab-8393-91707b813f60
 # ╟─7899f488-9c48-466f-857d-f5a31b5820ab
 # ╟─96f26378-846c-4964-935c-0372e2e86e91
-# ╠═759852ee-50e7-4deb-ac7e-c4693103c2a7
+# ╠═2ddf387c-5a61-4490-9746-96e1589c7a74
+# ╠═b2228d5c-16b4-4fee-b9b6-1112d7cf391c
 # ╠═661feb84-339c-4bbe-a8a5-65de74ed58c8
 # ╠═1e8a535e-25ea-490b-b545-e532c4fbc0f3
-# ╠═8d4d88da-a48a-4018-b6c6-3a2f041fcfb4
 # ╟─a0849611-23b3-4a91-a054-f390bc6c9f0a
 # ╠═33f889d7-e875-40d8-9d6d-cc87b0fbaf22
 # ╠═0e4b3c36-2f09-405e-912b-22c893cd1715
 # ╠═ddd8f749-3126-4563-8177-4941b6b0447b
+# ╟─710ddf42-2397-4d96-9a61-ff5c600ccd43
+# ╠═46084a31-e591-42f2-b8e6-02183ddfc6ac
+# ╠═f21dc58e-d4e8-4314-b5dd-abbcb29efe86
+# ╠═14b713b9-70c6-4506-a7b3-c67d021f8fce
+# ╠═86b34265-6f2d-48d7-95ea-d10c8ae29ea9
+# ╠═6bbb7a2c-464f-4e92-ab15-66745bac03ef
+# ╠═bcf21d4b-cc76-4b9e-8cdb-7a17eb2af605
 # ╟─e379461f-8896-4e2a-a71b-1871a8a37eb5
 # ╠═7b7baa41-0185-4ed6-8fae-3a44e9912016
 # ╟─f2f236f4-59f3-4c05-811d-078cd04ddd79
 # ╠═c6a263eb-cb45-4ee7-9c02-549c89298652
-# ╠═f21dc58e-d4e8-4314-b5dd-abbcb29efe86
 # ╟─6f7d4335-d9a6-4896-9d69-bfc1c2c1c3d0
-# ╠═46084a31-e591-42f2-b8e6-02183ddfc6ac
 # ╠═66815e8e-09d9-4b43-9f45-9379b3d34f78
+# ╟─5e79d8e1-429c-414f-b3a6-8cf4b93d1336
 # ╠═0b75c073-f167-4553-b746-539a14cfcf25
-# ╟─b0657fe7-29d8-4887-bb4c-cf72cfd434d4
 # ╠═4ed31219-9ce0-4f1b-8152-0002e64649ad
 # ╠═0763f1f3-dfee-4d1f-a934-bf387f9c80ff
 # ╠═c57c808a-297c-4887-bf20-5ad0207d055e
@@ -1207,7 +1210,8 @@ end
 # ╟─8a21fa0f-d3c3-4aa2-8b8b-74001d921c4a
 # ╠═8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
 # ╠═8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
-# ╠═7ebe4680-c583-4f92-8bae-dd84c3fb5139
+# ╟─2ee1ca40-141f-40ad-b4c1-a2e025f69f95
+# ╠═c2d877b5-d309-4868-925d-dab8d7d23403
 # ╟─c239deed-8291-45aa-95cf-94df26e0136d
 # ╠═ccb1f005-567d-47f8-bec1-8db268d878ec
 # ╠═5bb0b72a-8c77-4fcb-bbde-d144986d9c1e
@@ -1217,7 +1221,6 @@ end
 # ╠═2a01b228-f281-46c4-9764-fac6cc1b4217
 # ╟─a5ae695b-bfc0-4425-9b64-bbeeba7da015
 # ╠═eaf470e9-2898-41d5-a6d5-4cd846e9c0de
-# ╠═dd5ee69d-fb0a-484b-b1bd-32a589a9ed11
 # ╠═a3ba0c9d-5f81-4023-9ce0-ff29536aa968
 # ╟─9533c662-80af-4dd4-bf25-02e894867360
 # ╠═b06a1c07-6250-4324-8802-010e5d847edb
