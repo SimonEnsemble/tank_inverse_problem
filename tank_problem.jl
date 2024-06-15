@@ -1031,7 +1031,7 @@ md"## Bayesian inference"
 
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
 @model function infer_object_area(
-	data_w_object::DataFrame, train_posterior::DataFrame, γ::Float64; N=10
+	data_w_object::DataFrame, train_posterior::DataFrame, γ::Float64, N::Int
 )
 	#=
 	yesterday's posterior is today's prior
@@ -1045,67 +1045,71 @@ md"## Bayesian inference"
 	=#
 	# defines variance for measuring length.
 	# height of tank
-	H ~ Truncated(Normal(mean(train_posterior.H), std(train_posterior.H)), 
-				mean(train_posterior.H) - 4 * std(train_posterior.H),
-				mean(train_posterior.H) + 4 * std(train_posterior.H))
+	H ~ Truncated(
+		Normal(mean(train_posterior.H), std(train_posterior.H)), 
+		mean(train_posterior.H) - 4 * std(train_posterior.H),
+		mean(train_posterior.H) + 4 * std(train_posterior.H)
+	)
 
 	# radius of the hole
-	r_hole ~ Truncated(Normal(mean(train_posterior.r_hole), 	
-					  std(train_posterior.r_hole)),
-					  mean(train_posterior.r_hole) - 4 * std(train_posterior.r_hole),
-					  mean(train_posterior.r_hole) + 4 * std(train_posterior.r_hole))
+	r_hole ~ Truncated(
+		Normal(mean(train_posterior.r_hole), std(train_posterior.r_hole)),
+		mean(train_posterior.r_hole) - 4 * std(train_posterior.r_hole),
+		mean(train_posterior.r_hole) + 4 * std(train_posterior.r_hole)
+	)
 		
 
 	# discharge coefficient. 
-	c ~ Truncated(Normal(mean(train_posterior.c), std(train_posterior.c)),
-				mean(train_posterior.c) - 2 * std(train_posterior.c),
-				mean(train_posterior.c) + 2 * std(train_posterior.c))
+	c ~ Truncated(
+		Normal(mean(train_posterior.c), std(train_posterior.c)),
+		mean(train_posterior.c) - 2 * std(train_posterior.c),
+		mean(train_posterior.c) + 2 * std(train_posterior.c)
+	)
 
 	# height of the hole
-	h_hole ~ Truncated(Normal(mean(train_posterior.h_hole), 
-					  std(train_posterior.h_hole)),
-					  mean(train_posterior.h_hole) - 4 * std(train_posterior.h_hole),
-					  mean(train_posterior.h_hole) + 4 * std(train_posterior.h_hole))
+	h_hole ~ Truncated(
+		Normal(mean(train_posterior.h_hole), std(train_posterior.h_hole)),
+		mean(train_posterior.h_hole) - 4 * std(train_posterior.h_hole),
+		mean(train_posterior.h_hole) + 4 * std(train_posterior.h_hole)
+	)
 
 	# initial liquid level
 	h₀_obs = data_w_object[1, "h [cm]"]
-	h₀ ~ Truncated(Normal(h₀_obs, σ), h₀_obs - 4 * σ, h₀_obs + 4 * σ) # this should be removed but just trying to get the code to work first
+	h₀ ~ Truncated(
+		Normal(h₀_obs, σ), 
+		h₀_obs - 4 * σ, 
+		0.999 * H
+	)
 		
-
 	# bottom, top tank area measurements
-	# std of product of two Guassians
-	#   https://ccrma.stanford.edu/~jos/sasp/Product_Two_Gaussian_PDFs.html
-	A_b ~ Truncated(Normal(mean(train_posterior.A_b), σ_ℓ),
-					mean(train_posterior.A_b) - 4 * std(train_posterior.A_b),
-					mean(train_posterior.A_b) + 4 * std(train_posterior.A_b))
+	A_b ~ Truncated(
+		Normal(mean(train_posterior.A_b), std(train_posterior.A_b)),
+		mean(train_posterior.A_b) - 4 * std(train_posterior.A_b),
+		mean(train_posterior.A_b) + 4 * std(train_posterior.A_b)
+	)
 	
-	A_t ~ Truncated(Normal(mean(train_posterior.A_t), σ_ℓ),
-					mean(train_posterior.A_t) - 4 * std(train_posterior.A_t),
-					mean(train_posterior.A_t) + 4 * std(train_posterior.A_t))
+	A_t ~ Truncated(
+		Normal(mean(train_posterior.A_t), std(train_posterior.A_t)),
+		mean(train_posterior.A_t) - 4 * std(train_posterior.A_t),
+		mean(train_posterior.A_t) + 4 * std(train_posterior.A_t)
+	)
 
 	# Random distribution of obstacle area grid at points N 
 	As ~ filldist(Normal(), N) # cm²
 
 	function A_of_tank(h)
-		if h < 0
-			# print(h)
-			h = 0
-			
-		elseif h > H
-			# print(h)
-			h = H
-			
-		end
+		h < 0 ? error("h < 0") : nothing
+		h > H ? error("h > H") : nothing
 		return h / H * A_t + (1 - h / H) * A_b
 	end
 
 	# corresponding h's for the unknown A's
-	hs = range(h_hole, h₀_obs, length=N)
+	hs = range(h_hole, h₀, length=N)
 	# prior: object could be ANY size
-	As[1] ~ Uniform(0.1, 0.9 * A_of_tank(hs[1]))
+	As[1] ~ Uniform(0.0, 0.99 * A_of_tank(hs[1]))
 	for i in 2:N
 		As[i] ~ Truncated(
-						  As[i-1] + γ * Normal(0.0, 1.0), 
+						  As[i - 1] + γ * Normal(0.0, 1.0), 
 						  0.0, 
 						  0.99 * A_of_tank(hs[i])
 						 )
@@ -1114,8 +1118,7 @@ md"## Bayesian inference"
 	#=
 	set up dynamic model for h(t)
 	=#
-	A_of_object = linear_interpolation(hs, As, 
-					extrapolation_bc=Interpolations.Flat()) # Flat returns 0 outside the interpolation grid.
+	A_of_object = linear_interpolation(hs, As)
 
 	# parameter for ODE solver
 	params = (
@@ -1125,13 +1128,11 @@ md"## Bayesian inference"
 			  A_of_h=h ->  A_of_tank(h) - A_of_object(h)
 			)
 	
-	# set up ODE
-	tspan = (0.0, 4000)
-	prob = ODEProblem(f, h₀, tspan, params, saveat=1.0)
-	h_of_t = solve(prob)
-	
+	# set up, solve ODE
+	h_of_t = simulate(h₀, params, 1000.0)
+
 	# Observations.
-	for i in 2:nrow(data)
+	for i in 2:nrow(data_w_object)
 		tᵢ = data_w_object[i, "t [s]"]
 		ĥᵢ = h_of_t(tᵢ, continuity=:right)[1]
 		data_w_object[i, "h [cm]"] ~ Normal(ĥᵢ, σ)
@@ -1139,121 +1140,54 @@ md"## Bayesian inference"
 	return nothing
 end
 
-# ╔═╡ daa1e6c7-867b-4cf7-b7b8-dc24f859ec96
-# ╠═╡ disabled = true
-#=╠═╡
-data_w_object = downsample(all_data_w_object, 10)
-  ╠═╡ =#
-
 # ╔═╡ 02939a87-e811-4ae4-8b6b-173370029889
 begin
-	γ = 5.0
-	object_tank_model = infer_object_area(ds_block_data, train_posterior, γ)
-	object_posterior = sample(object_tank_model, NUTS(0.65), MCMCSerial(), n_MC_sample, 3; progress=true) 
-				
-	# )
+	γ = 5.0 # smoothness param
+	N = 10  # number of points to infer area on
+	object_tank_model = infer_object_area(data_w_object, train_posterior, γ, N)
+	object_posterior = DataFrame(
+		sample(object_tank_model, NUTS(0.65), MCMCSerial(), 
+			n_MC_sample, 3; progress=true
+		)
+	)
 end
 
-# ╔═╡ a127225a-5b79-4074-a16b-cecd11030800
-function viz_area(posterior::DataFrame, data::DataFrame; N=10, 
-				  γ::Float64=γ)
-	fig = Figure()
-	ax = Axis(fig[1, 1], xlabel="height [cm]", ylabel="Area [cm²]")
-	
-	for j in 1:nrow(posterior)
-		As = Vector{Float64}()
-		[append!(As, posterior[j, "As[$(i)]"]) for i in 1:N]
+# ╔═╡ 3c9a219f-74ef-45fb-83e7-c497e0bee362
+object_posterior
 
-		hs = range(posterior[j, "h_hole"], data[1, "h [cm]"], length=N) 
-		lines!(hs, As, label="model", color=(:green, 0.1))
+# ╔═╡ a127225a-5b79-4074-a16b-cecd11030800
+function viz_inferred_area(
+	object_posterior::DataFrame, 
+	object_true_area::DataFrame, 
+	γ::Float64, 
+	N::Int
+)
+	fig = Figure()
+	ax = Axis(
+		fig[1, 1], 
+		xlabel="water level, h [cm]", 
+		ylabel="cross-sectional area of object, Aₒ [cm²]"
+	)
+	
+	for i in 1:nrow(object_posterior)
+		Aₒs = [object_posterior[i, "As[$n]"] for n in 1:N]
+		hs = range(
+			object_posterior[i, "h_hole"], object_posterior[1, "h₀"], length=N
+		)
+		lines!(hs, Aₒs, label="model", color=(:green, 0.1))
 	end
 
-	scatter!(obstacle_true_area[:, "h [cm]"], obstacle_true_area[:, "area [cm²]"], 
-			label="true_obstacle_area") 
+	scatter!(object_true_area[:, "h [cm]"], object_true_area[:, "area [cm²]"], 
+			label="measured") 
 
 	axislegend(unique=true, position=:rb)
 
-	ax.title = "γ=$γ; smooth_grid=$N"
-	save("area_inferred_3.png", fig)
+	ax.title = "γ=$γ; N=$N"
 	return fig
 end
 
 # ╔═╡ b43f9f58-94fd-4c92-8e91-9a6b86cfc041
-viz_area(object_posterior, test_infer)
-
-# ╔═╡ b4470c0e-191d-484c-be64-884b00b36580
-ds_block_data
-
-# ╔═╡ 58f6b039-fec4-4ffd-b3e4-6b8145e05a8d
-begin
-
-end
-
-# ╔═╡ f98be3b6-bba8-4e85-8ebc-e1b568a44311
-
-
-# ╔═╡ aaa8f514-bf02-48ba-b384-353c9b58c794
-begin
-	local fig = Figure()
-	local ax = Axis(
-		fig[1, 1], 
-		xlabel="water level, h [cm]", 
-		ylabel="dh/dt [cm/s]"
-	)
-	
-	lines!(ds_block_data[:, "h [cm]"], derivative(h_of_t, ds_block_data[:, "t [s]"]))
-	fig
-end
-
-# ╔═╡ afbf0413-406e-45a9-aead-a0cac98bec7a
-derivative(h_of_t, ds_block_data[:, "t [s]"])
-
-# ╔═╡ 5fc47f1f-f04d-41b7-8126-d3ff619ceb01
-ds_block_data
-
-# ╔═╡ b1e15e54-1f7b-4cea-b31f-9698aec480a4
-block_data[:, "t [s]"]
-
-# ╔═╡ 6ee72380-9bcb-4c21-b979-f49d7fc98d1d
-params
-
-# ╔═╡ b6dec8c5-0d06-4054-b985-6fd1789c7149
-derivative(h_of_t, ds_block_data[:, "t [s]"])
-
-# ╔═╡ 7374ac4b-c2ac-4d6c-9bca-737f71dfb4f0
-begin
-	local fig = Figure()
-	local ax = Axis(
-		fig[1, 1], 
-		xlabel="water level, h [cm]", 
-		ylabel="Area of obstruction [cm²]"
-	)
-	local ts = range(0.0, ds_block_data[end, "t [s]"], length=100)
-	local hs = h_of_t.(ts)
-	
-	_A = π * params.r_hole ^ 2 * params.c * 
-			sqrt.(2 * g * (hs .- params.h_hole)) ./ derivative(h_of_t, ts)
-	
-	lines!(hs, [A_of_h(h, tank_measurements) for h in hs] + _A)
-	scatter!(object_true_area[:, "h [cm]"], object_true_area[:, "area [cm²]"])
-	
-	xlims!(0, nothing)
-	ylims!(0, 100)
-	save("zoom_in.png", fig)
-	
-	fig
-end
-
-# ╔═╡ 1a5770f2-4fcc-4023-b4cc-dfae5c0316dc
-maximum(_A)
-
-# ╔═╡ f9e32388-d40e-48bc-ac91-c91bc914dbd7
-begin
-	local ts = range(0.0, ds_block_data[end, "t [s]"], length=100)
-	local hs = h_of_t.(ts)
-	maximum(π * params.r_hole ^ 2 * params.c * sqrt.(2 * g * (hs .- params.h_hole)))
-	maximum(derivative(h_of_t, ts))
-end
+viz_inferred_area(object_posterior, object_true_area, γ, N)
 
 # ╔═╡ Cell order:
 # ╠═faf59350-8d67-11ee-0bdd-2510e986118b
@@ -1350,19 +1284,7 @@ end
 # ╠═5feb46c0-3888-4586-8b12-f990d4d38912
 # ╟─b23dc763-d91f-4d66-94d2-dcf96cb07f54
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
-# ╠═daa1e6c7-867b-4cf7-b7b8-dc24f859ec96
 # ╠═02939a87-e811-4ae4-8b6b-173370029889
+# ╠═3c9a219f-74ef-45fb-83e7-c497e0bee362
 # ╠═a127225a-5b79-4074-a16b-cecd11030800
 # ╠═b43f9f58-94fd-4c92-8e91-9a6b86cfc041
-# ╠═b4470c0e-191d-484c-be64-884b00b36580
-# ╠═58f6b039-fec4-4ffd-b3e4-6b8145e05a8d
-# ╠═f98be3b6-bba8-4e85-8ebc-e1b568a44311
-# ╠═aaa8f514-bf02-48ba-b384-353c9b58c794
-# ╠═afbf0413-406e-45a9-aead-a0cac98bec7a
-# ╠═5fc47f1f-f04d-41b7-8126-d3ff619ceb01
-# ╠═b1e15e54-1f7b-4cea-b31f-9698aec480a4
-# ╠═6ee72380-9bcb-4c21-b979-f49d7fc98d1d
-# ╠═b6dec8c5-0d06-4054-b985-6fd1789c7149
-# ╠═7374ac4b-c2ac-4d6c-9bca-737f71dfb4f0
-# ╠═1a5770f2-4fcc-4023-b4cc-dfae5c0316dc
-# ╠═f9e32388-d40e-48bc-ac91-c91bc914dbd7
