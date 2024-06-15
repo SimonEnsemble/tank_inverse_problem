@@ -797,12 +797,15 @@ md"""
 
 # ╔═╡ b06a1c07-6250-4324-8802-010e5d847edb
 begin
-	data_w_object_filenames = ["obs_4_18_2.csv", "obs_4_18_1.csv"]
+	data_w_object_filenames = ["obs_4_18_1.csv", "obs_4_18_2.csv"]
 	@bind data_w_object_filename Select(data_w_object_filenames)
 end
 
 # ╔═╡ 8b6d766a-8f7b-4b9a-9a15-0f7375087120
 all_data_w_object = read_h_time_series(data_w_object_filename)
+
+# ╔═╡ 807222ba-5ff8-4f33-a9a0-7c69b1dccf52
+data_w_object = downsample(all_data_w_object, n_data_sample)
 
 # ╔═╡ 16158266-36ed-44c3-a418-0c454955ce78
 begin
@@ -832,7 +835,7 @@ begin
 		fig
 	end
 	
-	viz_free_vs_occupied(all_data_w_object, train_data)
+	viz_free_vs_occupied(data_w_object, train_data)
 end
 
 # ╔═╡ 580de17a-625d-420e-974c-86766197025e
@@ -862,7 +865,7 @@ begin
 	
 	h_range = range(0.0, object_true_area[end, "h [cm]"], length=100)
 	
-	lines!(h_range, A_of_object.(h_range))
+	lines!(h_range, A_of_object.(h_range), color=Cycled(2))
 	scatter!(object_true_area[:, "h [cm]"], object_true_area[:, "area [cm²]"])
 	ylims!(0, nothing)
 	xlims!(0, nothing)
@@ -870,7 +873,10 @@ begin
 end
 
 # ╔═╡ a8861082-2214-45f1-bc49-733efe74c949
-md"## simulate model with knowledge of true area"
+md"## simulate model with knowledge of true area
+
+in practice, couldn't do this. just a check to see if this has any hope...
+"
 
 # ╔═╡ b59fa654-6946-4687-b14b-c2ef1f766f5c
 object_params = (
@@ -887,15 +893,138 @@ object_params = (
 # ╔═╡ b12963ae-bf7d-4ef7-b1a8-e2d1e24f9b4b
 sim_object_data = DataFrame(
 	simulate(
-		all_data_w_object[1, "h [cm]"], object_params, all_data_w_object[end, "t [s]"]
+		data_w_object[1, "h [cm]"], object_params, data_w_object[end, "t [s]"]
 	)
 )
 
 # ╔═╡ cfbe753d-85a8-445f-9eda-14a376d7e0c6
-viz_sim_fit(all_data_w_object, sim_object_data)
+viz_sim_fit(data_w_object, sim_object_data)
 
 # ╔═╡ c53edeef-324a-418f-907d-aaf557cb8d24
-md"## classical method"
+md"## classical method
+
+
+```math
+[A(h)-A_o(h)]\frac{dh}{dt} = - c\pi r_{\rm hole}^2 \sqrt{2g [h(t)-h_{\rm hole}]}
+```
+
+thus
+```math
+A_o(h) = A(h) + \dfrac{c\pi r_{\rm hole}^2 \sqrt{2g [h(t)-h_{\rm hole}]}}{dh/dt}
+```
+(don't be alarmed at the sign, dh/dt < 0)
+
+💡 fit splines to data, differentiate splines to get dh/dt.
+"
+
+# ╔═╡ 4831a3be-35d3-420c-8463-bb14a597cc6a
+begin
+	# fitting to data past drainage introduces spurious curvature
+	data_w_object_spline_fit = filter(
+		row -> row["h [cm]"] >= tank_measurements.h_hole + 1.0, data_w_object
+	)
+	
+	h_of_t_object = Spline1D(
+		data_w_object_spline_fit[:, "t [s]"], data_w_object_spline_fit[:, "h [cm]"]; k=4, s=20.0, bc="nearest"
+	)
+end
+
+# ╔═╡ f3f886d6-3010-4dd9-b42a-d5309463beb6
+h_of_t_object(30.0)
+
+# ╔═╡ 5003d6c6-fa30-423e-80c1-a0f82e4085b9
+derivative(h_of_t_object, 30.0) # WARNING: doesn't extrapolate.
+
+# ╔═╡ 36b1822e-fe08-494b-a57d-5888163a7b54
+function viz_spline_fit(data_w_object::DataFrame, h_of_t_object::Spline1D, h_hole::Float64)
+	fig = Figure(size=(500, 600))
+	axs = [Axis(fig[i, 1]) for i = 1:2]
+	linkxaxes!(axs...)
+	axs[2].xlabel = "t [s]"
+	axs[1].ylabel = "h(t) [cm]"
+	axs[2].ylabel = "dh/dt [cm/s]"
+	
+	ts = range(0.0, data_w_object[end, "t [s]"], length=150)
+
+	# top
+	scatter!(axs[1], data_w_object[:, "t [s]"], data_w_object[:, "h [cm]"])
+	hs = h_of_t_object.(ts)
+	lines!(axs[1], ts, hs, color=Cycled(3))
+	ylims!(axs[1], 0, nothing)
+
+	# bottom
+	h′ = [derivative(h_of_t_object, tᵢ) for tᵢ in ts]
+	# flatten derivative since it doesn't handle extrapolation
+	h′[h′ .> 0.0] .= 0.0
+	# shut off derivative
+	lines!(axs[2], ts, h′)
+	
+	for ax in axs
+		xlims!(ax, 0, nothing)
+	end
+	# save("block_data_spline_fit.png", fig)
+	fig
+end
+
+# ╔═╡ 29ccc89b-f76a-44fa-8a89-e3ca10742ba1
+viz_spline_fit(data_w_object, h_of_t_object, tank_measurements.h_hole)
+
+# ╔═╡ 29d3cc8f-780b-449a-87ba-8d543ad2473b
+function classical_soln_A_object(
+	h_of_t_object::Spline1D,
+	c_opt::Float64,
+	tank_measurements::TankMeasurements
+)
+	ts = range(0.0, 1000.0, length=150)
+
+	# dh/dt
+	h′ = [derivative(h_of_t_object, tᵢ) for tᵢ in ts]
+	h′[h′ .> 0.0] .= 0.0 # flatten to handle BC
+
+	# h
+	hs = h_of_t_object.(ts)
+
+	# inferred area in tank
+	A_tank = hs / tank_measurements.H * tank_measurements.A_t .+ 
+		(1 .- hs / tank_measurements.H) * tank_measurements.A_b
+	Aₒ = A_tank .+ π * tank_measurements.r_hole ^ 2 * c_opt * 
+			sqrt.(2 * g * (hs .- tank_measurements.h_hole)) ./ h′
+	
+	inferred_object_data = DataFrame("h [cm]" => hs, "Aₒ [cm²]" => Aₒ)
+	
+	# filter data where (i) dh/dt
+	filter!(row -> ! isinf(row["Aₒ [cm²]"]), inferred_object_data)
+	
+	return inferred_object_data
+end
+
+# ╔═╡ 0a48e016-2fba-47cc-a212-47b4a3324b20
+classical_Aₒ = classical_soln_A_object(h_of_t_object, c_opt, tank_measurements)
+
+# ╔═╡ 5feb46c0-3888-4586-8b12-f990d4d38912
+begin
+	local fig = Figure()
+	local ax = Axis(
+		fig[1, 1], 
+		xlabel="water level, h [cm]", 
+		ylabel="cross-sectional area\nof object\nAₒ [cm²]"
+	)
+	
+	lines!(
+		classical_Aₒ[:, "h [cm]"], classical_Aₒ[:, "Aₒ [cm²]"], 
+		label="predicted", color=Cycled(4)
+	)
+	scatter!(
+		object_true_area[:, "h [cm]"], object_true_area[:, "area [cm²]"], 
+		label="measured"
+	)
+	
+	xlims!(0, nothing)
+	ylims!(-10, 100)
+	hlines!(0.0, color="lightgray")
+	axislegend()
+	fig
+end
 
 # ╔═╡ b23dc763-d91f-4d66-94d2-dcf96cb07f54
 md"## Bayesian inference"
@@ -1011,7 +1140,10 @@ md"## Bayesian inference"
 end
 
 # ╔═╡ daa1e6c7-867b-4cf7-b7b8-dc24f859ec96
+# ╠═╡ disabled = true
+#=╠═╡
 data_w_object = downsample(all_data_w_object, 10)
+  ╠═╡ =#
 
 # ╔═╡ 02939a87-e811-4ae4-8b6b-173370029889
 begin
@@ -1052,27 +1184,9 @@ viz_area(object_posterior, test_infer)
 # ╔═╡ b4470c0e-191d-484c-be64-884b00b36580
 ds_block_data
 
-# ╔═╡ 327ba163-4c4f-4702-ab5e-dcce96904fc5
-begin
-	block_fit = downsample(block_data, 300)
-	h_of_t = Spline1D(block_fit[:, "t [s]"], block_fit[:, "h [cm]"]; k=5, s=15.2)
-end
-
 # ╔═╡ 58f6b039-fec4-4ffd-b3e4-6b8145e05a8d
 begin
-	local fig = Figure()
-	local ax = Axis(
-		fig[1, 1], 
-		xlabel="time, t [s]", 
-		ylabel="water level, h [cm]"
-	)
-	local ts = block_fit[:, "t [s]"]
-	scatter!(block_fit[:, "t [s]"], block_fit[:, "h [cm]"])
-	lines!(ts, h_of_t.(ts), color=:red, linewidth=1)
-	ylims!(0, nothing)
-	xlims!(0, nothing)
-	save("block_data_spline_fit.png", fig)
-	fig
+
 end
 
 # ╔═╡ f98be3b6-bba8-4e85-8ebc-e1b568a44311
@@ -1215,6 +1329,7 @@ end
 # ╟─9533c662-80af-4dd4-bf25-02e894867360
 # ╠═b06a1c07-6250-4324-8802-010e5d847edb
 # ╠═8b6d766a-8f7b-4b9a-9a15-0f7375087120
+# ╠═807222ba-5ff8-4f33-a9a0-7c69b1dccf52
 # ╠═16158266-36ed-44c3-a418-0c454955ce78
 # ╟─580de17a-625d-420e-974c-86766197025e
 # ╠═cb59f55b-c748-4a94-b344-e50a8fa7c690
@@ -1225,6 +1340,14 @@ end
 # ╠═b12963ae-bf7d-4ef7-b1a8-e2d1e24f9b4b
 # ╠═cfbe753d-85a8-445f-9eda-14a376d7e0c6
 # ╟─c53edeef-324a-418f-907d-aaf557cb8d24
+# ╠═4831a3be-35d3-420c-8463-bb14a597cc6a
+# ╠═f3f886d6-3010-4dd9-b42a-d5309463beb6
+# ╠═5003d6c6-fa30-423e-80c1-a0f82e4085b9
+# ╠═36b1822e-fe08-494b-a57d-5888163a7b54
+# ╠═29ccc89b-f76a-44fa-8a89-e3ca10742ba1
+# ╠═29d3cc8f-780b-449a-87ba-8d543ad2473b
+# ╠═0a48e016-2fba-47cc-a212-47b4a3324b20
+# ╠═5feb46c0-3888-4586-8b12-f990d4d38912
 # ╟─b23dc763-d91f-4d66-94d2-dcf96cb07f54
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
 # ╠═daa1e6c7-867b-4cf7-b7b8-dc24f859ec96
@@ -1232,7 +1355,6 @@ end
 # ╠═a127225a-5b79-4074-a16b-cecd11030800
 # ╠═b43f9f58-94fd-4c92-8e91-9a6b86cfc041
 # ╠═b4470c0e-191d-484c-be64-884b00b36580
-# ╠═327ba163-4c4f-4702-ab5e-dcce96904fc5
 # ╠═58f6b039-fec4-4ffd-b3e4-6b8145e05a8d
 # ╠═f98be3b6-bba8-4e85-8ebc-e1b568a44311
 # ╠═aaa8f514-bf02-48ba-b384-353c9b58c794
