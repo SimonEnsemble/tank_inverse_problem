@@ -32,14 +32,14 @@ begin
 		]
 	)
 	
-	resolution = (0.9 * 500, 0.9 * 380)
+	figsize = (0.9 * 500, 0.9 * 380)
 	
 	update_theme!(
 		fontsize=20, 
 		linewidth=4,
 		markersize=14,
 		titlefont=AlgebraOfGraphics.firasans("Light"),
-		size=resolution
+		size=figsize
 	)
 
 	colors = Dict(zip(
@@ -480,7 +480,11 @@ md"""
 """
 
 # ╔═╡ 8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
-@model function forward_model(data::DataFrame, tm::TankMeasurements)
+@model function forward_model(
+	data::DataFrame, 
+	tm::TankMeasurements; 
+	prior_only::Bool=false
+)
 	#=
 	prior distributions
 	=#
@@ -506,7 +510,7 @@ md"""
 	) # cm
 
 	# discharge coefficient. Wikipedia says 0.65 for water.
-	c ~ Truncated(Normal(0.65, 0.1), 0.1, 1.0) # unitless
+	c ~ Truncated(Normal(0.65, 0.25), 0.1, 1.0) # unitless
 
 	# height of the hole
 	h_hole ~ Truncated(
@@ -524,6 +528,11 @@ md"""
 		Normal(h₀_obs, σ),
 		0.0, H
 	)
+
+	# do not use the rest of the data if doing prior only.
+	if prior_only
+		return
+	end
 
 	#=
 	set up dynamic model for h(t)
@@ -573,7 +582,7 @@ end
 md"make sure never $h_0>H$."
 
 # ╔═╡ c2d877b5-d309-4868-925d-dab8d7d23403
-@assert all(train_posterior[:, "H"] .> train_posterior[:, "h₀"])
+@assert all(train_posterior[:, "H"] .>= train_posterior[:, "h₀"])
 
 # ╔═╡ c239deed-8291-45aa-95cf-94df26e0136d
 md"""
@@ -647,7 +656,7 @@ md"## posterior predictive check"
 function viz_fit(posterior::DataFrame, data::DataFrame; 
 				savename::Union{String, Nothing}=nothing, n_sample::Int=50
 )
-	fig = Figure(resolution=(700, 500))
+	fig = Figure()
 	ax = Axis(
 		fig[1, 1], 
 		xlabel="time, t [s]", 
@@ -706,7 +715,7 @@ md"""
 function viz_test(posterior::DataFrame, test_data::DataFrame;
 				 savename::Union{String, Nothing}=nothing, n_sample::Int=100
 )
-	fig = Figure(size=(600, 600))
+	fig = Figure(size=(figsize[1], figsize[2] * 1.25))
 	
 	ax_stopping = Axis(
 		fig[1, 1], 
@@ -772,7 +781,8 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		label="experiment",
 		color=colors["data"]
 		)
-	xlims!(0, maximum(emptying_time))
+	@assert 1.25 * test_data[end, "t [s]"] > maximum(emptying_time)
+	xlims!(0, 1.25 * test_data[end, "t [s]"])
 	ylims!(ax, 0, nothing)
 
 	linkxaxes!(ax, ax_stopping)
@@ -787,6 +797,24 @@ end
 
 # ╔═╡ a3ba0c9d-5f81-4023-9ce0-ff29536aa968
 viz_test(train_posterior, test_data, savename="test")
+
+# ╔═╡ 67c46219-2183-47fd-bd3c-82facff98d53
+md"## visualize prior too"
+
+# ╔═╡ 38a03e22-d596-4227-a9de-3ef54dc7256e
+begin
+	train_model_prior = forward_model(train_data, tank_measurements, prior_only=true)
+	
+	train_prior = DataFrame(
+		sample(
+			train_model_prior, 
+			NUTS(0.65), MCMCSerial(), n_MC_sample, 3; progress=true
+		)
+	)
+end
+
+# ╔═╡ 2148cbb2-b41f-4df3-ab5c-55a89eff7bf1
+viz_fit(train_prior, train_data)
 
 # ╔═╡ 9533c662-80af-4dd4-bf25-02e894867360
 md"""
@@ -1027,11 +1055,15 @@ begin
 end
 
 # ╔═╡ b23dc763-d91f-4d66-94d2-dcf96cb07f54
-md"## Bayesian inference"
+md"## Bayesian inference
+
+### forward model
+"
 
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
-@model function infer_object_area(
-	data_w_object::DataFrame, train_posterior::DataFrame, γ::Float64, N::Int
+@model function forward_model_object(
+	data_w_object::DataFrame, train_posterior::DataFrame, γ::Float64, N::Int;
+	prior_only::Bool=false
 )
 	#=
 	yesterday's posterior is today's prior
@@ -1109,10 +1141,15 @@ md"## Bayesian inference"
 	As[1] ~ Uniform(0.0, 0.99 * A_of_tank(hs[1]))
 	for i in 2:N
 		As[i] ~ Truncated(
-						  As[i - 1] + γ * Normal(0.0, 1.0), 
+						  As[i - 1] + Normal(0.0, γ), 
 						  0.0, 
 						  0.99 * A_of_tank(hs[i])
 						 )
+	end
+
+	# for prior, do not show the algo the data :)
+	if prior_only
+		return
 	end
 
 	#=
@@ -1131,20 +1168,28 @@ md"## Bayesian inference"
 	# set up, solve ODE
 	h_of_t = simulate(h₀, params, 1000.0)
 
-	# Observations.
+	# observations.
 	for i in 2:nrow(data_w_object)
 		tᵢ = data_w_object[i, "t [s]"]
 		ĥᵢ = h_of_t(tᵢ, continuity=:right)[1]
 		data_w_object[i, "h [cm]"] ~ Normal(ĥᵢ, σ)
 	end
+	
 	return nothing
+end
+
+# ╔═╡ da44647a-36e4-4116-9698-df1cb059c2b7
+md"### posterior"
+
+# ╔═╡ fb3ece76-f85c-41e1-a332-12c71d9d3cc0
+begin
+	γ = 2.0 # smoothness param
+	N = 15  # number of points to infer area on
 end
 
 # ╔═╡ 02939a87-e811-4ae4-8b6b-173370029889
 begin
-	γ = 5.0 # smoothness param
-	N = 10  # number of points to infer area on
-	object_tank_model = infer_object_area(data_w_object, train_posterior, γ, N)
+	object_tank_model = forward_model_object(data_w_object, train_posterior, γ, N)
 	object_posterior = DataFrame(
 		sample(object_tank_model, NUTS(0.65), MCMCSerial(), 
 			n_MC_sample, 3; progress=true
@@ -1188,6 +1233,22 @@ end
 
 # ╔═╡ b43f9f58-94fd-4c92-8e91-9a6b86cfc041
 viz_inferred_area(object_posterior, object_true_area, γ, N)
+
+# ╔═╡ bd95428d-1077-4417-bfca-0c5da7378af2
+md"### prior"
+
+# ╔═╡ 65d81268-9ff2-4a18-b0ce-4b105740dc8b
+begin
+	object_tank_model_prior = forward_model_object(data_w_object, train_posterior, γ, N, prior_only=true)
+	object_prior = DataFrame(
+		sample(object_tank_model_prior, NUTS(0.65), MCMCSerial(), 
+			n_MC_sample, 3; progress=true
+		)
+	)
+end
+
+# ╔═╡ 8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
+viz_inferred_area(object_prior, object_true_area, γ, N)
 
 # ╔═╡ Cell order:
 # ╠═faf59350-8d67-11ee-0bdd-2510e986118b
@@ -1260,6 +1321,9 @@ viz_inferred_area(object_posterior, object_true_area, γ, N)
 # ╟─a5ae695b-bfc0-4425-9b64-bbeeba7da015
 # ╠═eaf470e9-2898-41d5-a6d5-4cd846e9c0de
 # ╠═a3ba0c9d-5f81-4023-9ce0-ff29536aa968
+# ╟─67c46219-2183-47fd-bd3c-82facff98d53
+# ╠═38a03e22-d596-4227-a9de-3ef54dc7256e
+# ╠═2148cbb2-b41f-4df3-ab5c-55a89eff7bf1
 # ╟─9533c662-80af-4dd4-bf25-02e894867360
 # ╠═b06a1c07-6250-4324-8802-010e5d847edb
 # ╠═8b6d766a-8f7b-4b9a-9a15-0f7375087120
@@ -1284,7 +1348,12 @@ viz_inferred_area(object_posterior, object_true_area, γ, N)
 # ╠═5feb46c0-3888-4586-8b12-f990d4d38912
 # ╟─b23dc763-d91f-4d66-94d2-dcf96cb07f54
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
+# ╟─da44647a-36e4-4116-9698-df1cb059c2b7
+# ╠═fb3ece76-f85c-41e1-a332-12c71d9d3cc0
 # ╠═02939a87-e811-4ae4-8b6b-173370029889
 # ╠═3c9a219f-74ef-45fb-83e7-c497e0bee362
 # ╠═a127225a-5b79-4074-a16b-cecd11030800
 # ╠═b43f9f58-94fd-4c92-8e91-9a6b86cfc041
+# ╟─bd95428d-1077-4417-bfca-0c5da7378af2
+# ╠═65d81268-9ff2-4a18-b0ce-4b105740dc8b
+# ╠═8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
