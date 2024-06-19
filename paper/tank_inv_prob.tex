@@ -21,7 +21,7 @@
 \begin{document}
 
 %%%% Article title to be placed here
-\title{Inferring the shape of an object inside of a tank draining of liquid}
+\title{Inferring the shape of an object inside of a tank draining of liquid through a small orifice}
 
 \author{%%%% Author details
 Gbenga Fabusola$^{1}$, 
@@ -55,45 +55,29 @@ Cory M. Simon$^{1}$
 %%%%%%%%%% Insert the texts which can accomdate on firstpage in the tag "fmtext" %%%%%
 
 \section{Introduction}
-Throughout many branches of engineering and the applied sciences, we encounter a tank draining of liquid (driven by gravity/hydrostatic pressure) through a small orifice. 
-Mathematical models of the dynamics of the liquid level in such a tank are important for designing the tank and orifice geometry, predicting the emptying time, forecasting the outlet flow (e.g., into a process downstream), controlling the liquid level in the tank, and inferring the liquid level in the tank.
+Throughout many branches of engineering and the applied sciences, we encounter a tank draining of liquid through a small orifice, with the flow driven by gravity/hydrostatic pressure.
+Mathematical models of the dynamics of the liquid level in such a tank are important for designing the geometry of the tank and orifice, predicting the emptying time, forecasting the outlet flow that may affect a process downstream, controlling the liquid level to prevent overflow or depletion, and inferring the liquid level from the outlet flow rate.
 
-Humans have studied the dynamics of the liquid level in a tank emptying of water through an orifice since ancient times, as evidenced by \emph{water clocks} constructed in ancient Egypt, Greece, India, and China. A water clock, or clepsydra (Greek for ''water thief''), of the outflow design, consists of an open-top container, initially filled with water, having a small hole for outflow near its bottom. As the water drains, the elapsed time is visually indicated by the liquid level with respect to graduated markings on the inside of the container, placed to denote equal time intervals. 
-\cite{bedini1962compartmented,hwang2021historical,ritner2016oriental,hejun1987research,schomberg2018karnak,mills1982newton}
-Notably, the geometry of the preserved Karnak clepsydra from $\sim$1300 BC \cite{schomberg2018karnak}, an \emph{inverted} truncated cone, did not give a constant rate of change in the liquid level; but, it is wider at the top in an attempt to compensate for faster outflow when the liquid level is higher.
+Water clocks constructed in ancient Egypt, Greece, India, and China exploited the predictable dynamics of the water level in a draining container to measure and display the passage of time. 
+Specifically, the water clock (or clepsydra, Greek for ''water thief'') of the outflow design consisted of an open-top container, filled with water at some reference time, having a small aperature for outflow near its bottom. As the water drained, the elapsed time was visually indicated by the liquid level with respect to graduated markings on the inside of the container. \cite{bedini1962compartmented,hwang2021historical,ritner2016oriental,hejun1987research,schomberg2018karnak,mills1982newton}
+Notably, the geometry of e.g. the preserved Karnak clepsydra from $\sim$1300 BC \cite{schomberg2018karnak}, an inverted truncated cone, does not give a constant rate of decrease in the liquid level; but, its wider top compensates for the faster outflow when the liquid level is higher.
 
-A fundamental discovery for modeling the liquid level in a draining tank was made by Italian physicist and mathematician Evangelista Torricelli (1608-1647), who observed that the velocity at which a liquid stream flows out of a small opening in a tank is proportional to the square root of the height of the liquid above the opening \cite{mills1982newton}. (Later, Torricelli's law was found to be a special case of Daniel Bernoulli (1700–1782)'s equation that applies conservation of energy to steady flow of an incompressible, inviscid fluid.) Some time before 1684, French physicist Edme Mariotte showed that the geometry of a water clock that gives a constant rate of change in liquid level as it drains has an area  
+Italian physicist and mathematician Evangelista Torricelli (1608-1647) made a fundamental observation for mathematical modeling of the liquid level in a draining tank: the velocity $v$ at which a liquid stream flows out of a small opening in a tank is proportional to the square root of the height of the liquid above the opening, $\Delta h$, i.e. $v\propto \sqrt{\Delta h}$ \cite{mills1982newton}. Today, we derive Torricelli's law from the equation of Daniel Bernoulli (1700–1782), a steady-state energy balance on the plug flow of an incompressible, inviscid fluid without frictional losses. This gives what we today refer to as \emph{Torricelli's law}: $v=\sqrt{2 g \Delta h}$, with $g$ the acceleration due to gravity. \cite{d2021torricelli} 
 
-Coupled with Newton's law of motion, this gives a model for the geometry of the liquid jet out of the side of a tank. 
-Applying first order ODE, gives model for liuquid level. 
+Combining Torricelli's law with a volume balance (assuming the liquid is incompressible) gives a first-order, [generally] nonlinear differential equation governing the dynamics of the liquid level in the tank \cite{groetsch1993inverse,seborg2016process}. The geometry of the tank comes into play through its cross-sectional area (parallel to the ground) as a function of height.
+(Revisiting the outflow water clock, a container whose liquid level decreases at a constant rate as it drains may be obtained via a solid of revolution about the vertical axis with the radius scaling with the quartic root of the height. \cite{mills1982newton,d2021torricelli}) 
+For quantitative agreement with the experimentally measured liquid level in a draining tank over time \cite{de2000pin,blasone2015discharge,wadhwa2021study,liu2008drainage}, we introduce a discharge coefficient $c\in (0, 1)$ and specify the outlet flow rate as $c a_o \sqrt{2 g \Delta h}$ with $a_o$ the area of the orifice. 
+The discharge coefficient (i) accounts for frictional losses across the orifice, a non-uniform velocity profile, and a smaller cross-sectional area of the liquid jet than the orifice (vena contracta) and (ii) depends on the rheology of the fluid and the geometry of the orifice. \cite{teoman2022discharge,hicks2014determining,blasone2015discharge}
+Finally, Torricelli's law combined with Newton's laws of motion give the trajectory of the liquid jet out of the side of the tank \cite{groetsch1999inverse}.
 
-Modeling the liquid level in a tank draining of liquid through a small orifice and the geometry of the liquid jet is an accessible, popular problem for an undergraduate physics or process dynamics course; comparison of model predictions with experimental measurements demonstrates the ``the Unreasonable Effectiveness of Mathematics in the Natural Sciences'' (E. Wigner\cite{wigner1990unreasonable}) 
-\cite{farmer1992physical,driver1998torricelli,brady2009siphons,rother2024modelling,paldy1963apparatus,ivanov2014testing,williams2021vessel}. Simple inverse problems as well \cite{groetsch1993inverse,groetsch1999inverse}
+Modeling the liquid level in a draining tank over time and the trajectory of the liquid jet, then comparing with experiment, is an accessible, popular problem for an undergraduate physics or process dynamics course \cite{farmer1992physical,driver1998torricelli,brady2009siphons,rother2024modelling,paldy1963apparatus,ivanov2014testing,williams2021vessel,pavesi2019investigating,planinvsivc2011holes,saleta2005experimental,lopac2015water}. Draining tanks provide interesting, undergraduate-friendly inverse problems \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse} as well: inferring the liquid level in the tank from the range of the liquid jet and the shape of the tank from the liquid level measured over time \cite{groetsch1993inverse,groetsch1999inverse}.
 
-
-
-
-\cite{oshikawa2019simple,d2021torricelli}.
-
-small oriface jet speed Toricelli, driven by gravity. potential energy converted to kinetic energy.
-
-inspiration \cite{groetsch1993inverse,groetsch1999inverse}
-
-
-
-
-liquid level in a draining tank over time and the gemetry of the jet:
-classroom demonstration for ``the Unreasonable Effectiveness of
-Mathematics in the Natural Sciences'' (E. Wigner\cite{wigner1990unreasonable}) \cite{farmer1992physical,driver1998torricelli,brady2009siphons,rother2024modelling,paldy1963apparatus,ivanov2014testing,williams2021vessel}.
-
-experimental measurements of the liquid level in a tank over time as it drains via a jet out of a small orifice \cite{de2000pin,blasone2015discharge,wadhwa2021study,liu2008drainage} or the speed/geometry of the liquid jet \cite{pavesi2019investigating,planinvsivc2011holes,saleta2005experimental,lopac2015water}.
-
-ce
+Herein, 
 
 \section{The forward model}
 
 \paragraph{Tank geometry.}
-We possess an open-top, plastic tank whose geometry is an inverted, right, truncated cone whose base (and cross sections parallel to the floor) is a rounded rectangle. 
+We possess an open-top, plastic tank whose geometry is an inverted, right, truncated cone with a rounded rectangle as the base (and cross sections parallel to the floor). 
 With $H$ [cm] the height of the tank, $a_0$ [cm$^2$] and $a_1$ [cm$^2$] the area of the rounded rectangle forming the bottom and top, respectively, of the tank, the cross-sectional area [parallel to the ground] of the tank as a function of height $h$ [cm] from the ground is:
 \begin{equation}
 a_t(h) = \frac{h}{H}a_1 + \left(1-\frac{h}{H}\right) a_0.
@@ -103,31 +87,30 @@ a_t(h) = \frac{h}{H}a_1 + \left(1-\frac{h}{H}\right) a_0.
 
 \paragraph{Orifice in tank.} We drilled a a small hole of radius $r_o$ [cm] in the side of the tank, holding the drill bit parallel to the floor, a height $h_o$ [cm] from the ground. 
 
-\paragraph{Toricelli's law.} Given the height of water in the tank is $h$ [cm], we wish to model the velocity $v$ [cm/s] of the jet of water flowing out of the orifice of the tank. This outflow is driven by gravity exerting a force on the water above the orifice, which creates a hydrostatic pressure in the water at the orifice. 
-Treating the water as inviscid and incompressible and the flow as at steady-state without frictional losses, Bernoulli's equation \cite{welty2020fundamentals}, a mechanical energy balance, simplifies to Toricelli's law \cite{d2021torricelli}:
+\paragraph{Torricelli's law.} Given the height of water in the tank is $h$ [cm], we wish to model the velocity $v$ [cm/s] of the jet of water flowing out of the orifice of the tank. This outflow is driven by gravity exerting a force on the water above the orifice, which creates a hydrostatic pressure in the water at the orifice. 
+Treating the water as inviscid and incompressible and the flow through the orifice as at steady-state, plug, and without frictional losses, Bernoulli's equation \cite{welty2020fundamentals}, a mechanical energy balance, simplifies to Torricelli's law \cite{d2021torricelli}:
 \begin{equation}
 	v =  \sqrt{2 g(h-h_o)}, \label{eq:Toricelli}
-\end{equation} where $g$ [cm/s$^2$] is the gravitational acceleration constant. In short, the hydrostatic pressure in the water at the orifice, $g(h-h_o)$, is relieved to give the water a kinetic energy, $v^2/2$.
+\end{equation} where $g$ [cm/s$^2$] is the acceleration due to gravity. In short, with $\rho$ [g/cm$^3$] the constant density of the water, the hydrostatic pressure in the water at the orifice, $\rho g(h-h_o)$, is relieved to give the water a kinetic energy (per mass), $\rho v^2/2$.
 
-\paragraph{Dynamic model of the liquid height in the tank.} Now, suppose we fill the tank to an initial liquid height $h_0 \leq H$ [m] and allow it drain through the orifice without further input of liquid. We wish to model the height of liquid in the tank as a function of time, $h=h(t)$, with $t$ [s] time. 
-Let $dh=dh(t)$ be the differential change in liquid level over a differential time interval $(t, t+dt)$ [min]. 
-Treating the water as incompressible (i.e., constant density), a mass balance on water over this time period, with the tank serving as the control volume, implies the decrease of volume of water in the tank must match the volume of water that exits the tank.
-Over this small time interval, (1) the volume of water that exits the tank is well-approximated by $v(h(t)) a_{j} dt$ [cm$^3$], with $v(h)$ given by Toricelli's law in eqn.~\ref{eq:Toricelli} and $a_j$ [cm$^2$] the cross-sectional area of the water jet out of the orifice, and (2) the lost volume of liquid in the tank is well-approximated by a prism, hence has a volume of $[a_t(h(t))-a^\prime(h(t))]dh(t)$ [cm$^3$]. Matching these volumes give a first-order differential equation for $h(t)$ subject to an initial condition:
+\paragraph{Dynamic model of the liquid height in the tank.} Now, suppose we fill the tank to an initial liquid height $h_0 \leq H$ [m] at time $t=0$ [s] then allow it drain through the orifice without further input of liquid. We wish to model the height of liquid in the tank as a function of time, $h=h(t)$, with $t$ [s] time. 
+A mass balance on water for $t\geq 0$, with the tank serving as the control volume, gives:
+\begin{equation}
+	\frac{d}{dt} \left ( \rho V(t) \right) = - \rho c \pi r_o^2 \sqrt{2 g(h(t)-h_o)},
+\end{equation}
+with $c\in(0,1)$ the discharge coefficient \cite{lienhard1984velocity,hicks2014determining,wadhwa2021study,teoman2022discharge} to account for frictional losses in the flow through the orifice, the vena contracta of the liquid jet out of the tank, and the non-uniform flow profile through the orifice. The term on the right is the mass flow rate of water out of the tank, and $V(t)$ [cm$^3$] is the volume of water in the tank at time $t$. 
+Since the flow rate of liquid out of the tank is small, we can treat the top of the liquid as flat and relate $V(t)$ to the height of the liquid as: 
+\begin{equation}
+	V(t)=\int_0^{h(t)} [a(y) - a^\prime(y)]dy,
+\end{equation}
+bringing the geometry of the tank and the object inside of it into play. Finally, treating the water as incompressible (constant $\rho$) gives a nonlinear, first-order differential equation for $h(t)$ subject to an initial condition:
+
 \begin{align}
 & [a_t(h)-a^\prime(h)]\frac{dh}{dt}= -c \pi r_o^2 \sqrt{2g (h(t)-h_o)}, \,\,\, t \geq 0 \\
-& h(t)=h_0,
+& h(0)=h_0.
 \end{align}
-where we write the area of the circular cross section of the jet as $a_j=c \pi r_o^2$.
-Here, $c\in(0,1)$ \cite{lienhard1984velocity,hicks2014determining,wadhwa2021study} is the discharge coefficient determined by the geometry of the orifice and the rheology of water \cite{teoman2022discharge}; it accounts for the vena contracta
 
-\begin{equation}
-\end{equation}
-
-tank top open to atmosphere
-
-steady state inviscid flow
-small orifice, neglect friction losses.
-Toricelli's law derived from a mechanical energy balance (Bernoulli's equation) \cite{teoman2022discharge}
+We refere to this as the fowardmodel bc
 
 \section{Discussion}
 
