@@ -1203,7 +1203,7 @@ md"### posterior"
 # ╔═╡ fb3ece76-f85c-41e1-a332-12c71d9d3cc0
 begin
 	γ = 5.0 # smoothness param
-	N = 15  # number of points to infer area on
+	N = 20  # number of points to infer area on
 end
 
 # ╔═╡ 02939a87-e811-4ae4-8b6b-173370029889
@@ -1227,7 +1227,9 @@ function viz_inferred_area(
 	object_posterior::DataFrame, 
 	object_true_area::DataFrame, 
 	γ::Float64, 
-	N::Int
+	N::Int;
+	savename::Union{Nothing, String}=nothing,
+	show_legend::Bool=true
 )
 	fig = Figure()
 	ax = Axis(
@@ -1245,17 +1247,23 @@ function viz_inferred_area(
 	end
 
 	scatter!(object_true_area[:, "h [cm]"], object_true_area[:, "area [cm²]"], 
-			label="data", color=colors["data"])
+			label="measurment\n(held-out)", color=colors["data"])
 
 	ylims!(0, tank_measurements.A_t)
 
-	axislegend("γ=$γ; N=$N", unique=true, position=:rt, titlefont="normal")
-
+	if show_legend
+		axislegend("γ=$γ; N=$N", unique=true, position=:rt, titlefont="normal")
+	end
+	
+	if ! isnothing(savename)
+		save("$savename.pdf", fig)
+	end
+	
 	return fig
 end
 
 # ╔═╡ b43f9f58-94fd-4c92-8e91-9a6b86cfc041
-viz_inferred_area(object_posterior, object_true_area, γ, N)
+viz_inferred_area(object_posterior, object_true_area, γ, N, savename="posterior_area")
 
 # ╔═╡ bd95428d-1077-4417-bfca-0c5da7378af2
 md"### prior"
@@ -1271,7 +1279,7 @@ begin
 end
 
 # ╔═╡ 8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
-viz_inferred_area(object_prior, object_true_area, γ, N)
+viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", show_legend=false)
 
 # ╔═╡ Cell order:
 # ╠═faf59350-8d67-11ee-0bdd-2510e986118b
