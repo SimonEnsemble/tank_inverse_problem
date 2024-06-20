@@ -17,20 +17,14 @@ end
 # ╔═╡ faf59350-8d67-11ee-0bdd-2510e986118b
 begin
     import Pkg; Pkg.activate()
-    using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions, Optim, Dierckx
+    using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions, Optim, Dierckx, MakieThemes
 end
 
 # ╔═╡ 4391f124-cbef-46e5-8462-e4e5126f5b38
 begin
-	# cool plot theme
-	import AlgebraOfGraphics
-	
-	AlgebraOfGraphics.set_aog_theme!(
-		fonts=[
-			AlgebraOfGraphics.firasans("Light"), 
-			AlgebraOfGraphics.firasans("Light")
-		]
-	)
+	# see https://makieorg.github.io/MakieThemes.jl/dev/themes/ggthemr
+	gg_theme = :fresh 
+	set_theme!(ggthemr(gg_theme))
 	
 	figsize = (0.9 * 500, 0.9 * 380)
 	
@@ -38,13 +32,14 @@ begin
 		fontsize=20, 
 		linewidth=4,
 		markersize=14,
-		titlefont=AlgebraOfGraphics.firasans("Light"),
+		# titlefont=AlgebraOfGraphics.firasans("Light"),
 		size=figsize
 	)
 
+	theme_colors = MakieThemes.GGThemr.ColorTheme[gg_theme][:swatch]
 	colors = Dict(zip(
 		["data", "model", "distn", "other"], 
-		AlgebraOfGraphics.wongcolors()[1:4])
+		theme_colors[1:4])
 	)
 end
 
@@ -133,7 +128,7 @@ begin
 	local fig = Figure()
 	local ax = Axis(
 		fig[1, 1], 
-		xlabel="water level, h [cm]", 
+		xlabel="water height, h [cm]", 
 		ylabel="cross-sectional area, A(h) [cm²]"
 	)
 	lines!(range(0, H), 
@@ -654,27 +649,45 @@ md"## posterior predictive check"
 
 # ╔═╡ 2ab35999-3615-4f5c-8d89-36d77802fe9b
 function viz_fit(posterior::DataFrame, data::DataFrame; 
-				savename::Union{String, Nothing}=nothing, n_sample::Int=50
+				savename::Union{String, Nothing}=nothing, 
+				n_sample::Int=75, only_ic::Bool=false
 )
 	fig = Figure()
 	ax = Axis(
 		fig[1, 1], 
 		xlabel="time, t [s]", 
-		ylabel="liquid level, h [cm]"
+		ylabel="liquid height, h [cm]"
 	)
 	
-	ts = range(0, maximum(data[:, "t [s]"]), length=500)
+	ts = range(0, 1.05 * maximum(data[:, "t [s]"]), length=500)
 	tspan = (0.0,  maximum(ts) * 1.05)
 	
 
 	# sample posterior models
 	for i in sample(1:nrow(posterior), n_sample)
+		# area of tank
+		A_of_h_tank = h -> h / posterior[i, "H"] * posterior[i, "A_t"] + 
+			  	    (1 - h / posterior[i, "H"]) * posterior[i, "A_b"]
+
+		# area of object
+		if "As[1]" in names(posterior)
+			N = sum(contains.(names(posterior), "As"))
+			
+			Aₒs = [posterior[i, "As[$n]"] for n in 1:N]
+			hs = range(
+				posterior[i, "h_hole"], posterior[i, "h₀"], length=N
+			)
+			
+			A_of_h_object = linear_interpolation(hs, Aₒs)
+		else
+			A_of_h_object(h) = 0.0
+		end
+		
 		params = (
 			  r_hole=posterior[i, "r_hole"],
 			  c=posterior[i, "c"],
 			  h_hole=posterior[i, "h_hole"],
-			  A_of_h=h -> h / posterior[i, "H"] * posterior[i, "A_t"] + 
-			  	    (1 - h / posterior[i, "H"]) * posterior[i, "A_b"]
+			  A_of_h=h -> A_of_h_tank(h) - A_of_h_object(h)
 			)
 
 		# set up, solve ODE
@@ -682,21 +695,24 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 			simulate(posterior[i, "h₀"], params, 1.05 * maximum(ts))
 		)
 			
-		
 		lines!(
 			sim_data[:, "timestamp"], sim_data[:, "value"], 
 			label="model", color=(colors["model"], 0.1)
 		)
+
+		# h hole
+		hlines!(ax, posterior[i, "h_hole"], color=("gray", 0.1), linestyle=:dash)
 	end	
+	
 	scatter!(
-		data[:, "t [s]"], 
-		data[:, "h [cm]"],
-		label="experiment",
+		data[only_ic ? 1 : 1:end, "t [s]"], 
+		data[only_ic ? 1 : 1:end, "h [cm]"],
+		label="data",
 		color=colors["data"]
 	)
 	axislegend(unique=true)
 	ylims!(0, nothing)
-	xlims!(0, nothing)
+	xlims!(0, maximum(ts))
 	if savename!=nothing
 		save( "$savename.pdf", fig)
 	end
@@ -704,7 +720,7 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 end
 
 # ╔═╡ 2a01b228-f281-46c4-9764-fac6cc1b4217
-viz_fit(train_posterior, train_data)
+viz_fit(train_posterior, train_data, savename="posterior_train")
 
 # ╔═╡ a5ae695b-bfc0-4425-9b64-bbeeba7da015
 md"""
@@ -768,7 +784,9 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		# plot trajectories
 		lines!(ax, sim_data[:, "timestamp"], sim_data[:, "value"], 
 			label="model", color=(colors["model"], 0.1))
-		hlines!(ax, posterior[i, "h_hole"], color=("gray", 0.1), linestyle=:dash)
+		# h hole
+		hlines!(ax, posterior[i, "h_hole"], color=("gray", 0.1), 
+			linestyle=:dash)
 	end
 
 	# plot dist'n of emptying times
@@ -781,14 +799,15 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		label="experiment",
 		color=colors["data"]
 		)
-	@assert 1.25 * test_data[end, "t [s]"] > maximum(emptying_time)
-	xlims!(0, 1.25 * test_data[end, "t [s]"])
+	# @assert 1.25 * test_data[end, "t [s]"] > maximum(emptying_time)
+	xlims!(0, 1.01 * maximum(emptying_time))
 	ylims!(ax, 0, nothing)
+	ylims!(ax_stopping, 0, nothing)
 
 	linkxaxes!(ax, ax_stopping)
 	axislegend(ax, unique=true)
 	
-	if isnothing(savename)
+	if ! isnothing(savename)
 		save("$savename.pdf", fig)
 	end
 	
@@ -814,7 +833,7 @@ begin
 end
 
 # ╔═╡ 2148cbb2-b41f-4df3-ab5c-55a89eff7bf1
-viz_fit(train_prior, train_data)
+viz_fit(train_prior, train_data, savename="prior_train", only_ic=true)
 
 # ╔═╡ 9533c662-80af-4dd4-bf25-02e894867360
 md"""
@@ -1183,7 +1202,7 @@ md"### posterior"
 
 # ╔═╡ fb3ece76-f85c-41e1-a332-12c71d9d3cc0
 begin
-	γ = 2.0 # smoothness param
+	γ = 5.0 # smoothness param
 	N = 15  # number of points to infer area on
 end
 
@@ -1198,7 +1217,10 @@ begin
 end
 
 # ╔═╡ 3c9a219f-74ef-45fb-83e7-c497e0bee362
-object_posterior
+@assert all(object_posterior[:, "h₀"] .< object_posterior[:, "H"])
+
+# ╔═╡ e1264f57-f675-4f37-b4db-313cfc52ab8e
+viz_fit(object_posterior, data_w_object, savename="posterior_object")
 
 # ╔═╡ a127225a-5b79-4074-a16b-cecd11030800
 function viz_inferred_area(
@@ -1210,8 +1232,8 @@ function viz_inferred_area(
 	fig = Figure()
 	ax = Axis(
 		fig[1, 1], 
-		xlabel="water level, h [cm]", 
-		ylabel="cross-sectional area of object, Aₒ [cm²]"
+		xlabel="height, h [cm]", 
+		ylabel="area, a′ [cm²]"
 	)
 	
 	for i in 1:nrow(object_posterior)
@@ -1219,15 +1241,16 @@ function viz_inferred_area(
 		hs = range(
 			object_posterior[i, "h_hole"], object_posterior[1, "h₀"], length=N
 		)
-		lines!(hs, Aₒs, label="model", color=(:green, 0.1))
+		lines!(hs, Aₒs, label="model", color=(theme_colors[8], 0.1))
 	end
 
 	scatter!(object_true_area[:, "h [cm]"], object_true_area[:, "area [cm²]"], 
-			label="measured") 
+			label="data", color=colors["data"])
 
-	axislegend(unique=true, position=:rb)
+	ylims!(0, tank_measurements.A_t)
 
-	ax.title = "γ=$γ; N=$N"
+	axislegend("γ=$γ; N=$N", unique=true, position=:rt, titlefont="normal")
+
 	return fig
 end
 
@@ -1352,6 +1375,7 @@ viz_inferred_area(object_prior, object_true_area, γ, N)
 # ╠═fb3ece76-f85c-41e1-a332-12c71d9d3cc0
 # ╠═02939a87-e811-4ae4-8b6b-173370029889
 # ╠═3c9a219f-74ef-45fb-83e7-c497e0bee362
+# ╠═e1264f57-f675-4f37-b4db-313cfc52ab8e
 # ╠═a127225a-5b79-4074-a16b-cecd11030800
 # ╠═b43f9f58-94fd-4c92-8e91-9a6b86cfc041
 # ╟─bd95428d-1077-4417-bfca-0c5da7378af2

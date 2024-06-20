@@ -6,7 +6,7 @@
 %% This file describes the coding for rsproca.cls
 
 \documentclass[openacc]{rsproca_new}%%%%where rsproca is the template name
-
+\usepackage{subcaption}
 %%%% *** Do not adjust lengths that control margins, column widths, etc. ***
 
 %%%%%%%%%%% Defining Enunciations  %%%%%%%%%%%
@@ -111,6 +111,33 @@ bringing the geometry of the tank and the object inside of it into play. Finally
 \end{align}
 
 We refere to this as the fowardmodel bc
+
+\section{Results}
+
+\begin{figure}[h!]
+    \centering
+        \begin{subfigure}[b]{0.3\textwidth}
+    	\includegraphics[width=\textwidth]{../tank_geometry/naked_tank.pdf}
+	\caption{Experimental setup} \label{fig:naked_tank}
+    \end{subfigure}
+    
+     \begin{subfigure}[b]{0.49\textwidth}
+    	\includegraphics[width=\textwidth]{../prior_train.pdf}
+	\caption{Prior distribution} \label{fig:prior_train}
+    \end{subfigure}
+     \begin{subfigure}[b]{0.49\textwidth}
+    	\includegraphics[width=\textwidth]{../posterior_train.pdf}
+	\caption{Data and posterior distribution} \label{fig:posterior_train}
+    \end{subfigure}
+    
+     \begin{subfigure}[b]{0.49\textwidth}
+    	\includegraphics[width=\textwidth]{../test.pdf}
+	\caption{Test} \label{fig:test}
+    \end{subfigure}
+    \caption{
+      \textbf{Model calibration.}
+      }
+\end{figure}
 
 \section{Discussion}
 
