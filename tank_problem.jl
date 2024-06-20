@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.42
+# v0.19.40
 
 using Markdown
 using InteractiveUtils
@@ -796,7 +796,7 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		ax,
 		test_data[:, "t [s]"], 
 		test_data[:, "h [cm]"],
-		label="experiment",
+		label="data (held-out)",
 		color=colors["data"]
 		)
 	# @assert 1.25 * test_data[end, "t [s]"] > maximum(emptying_time)
