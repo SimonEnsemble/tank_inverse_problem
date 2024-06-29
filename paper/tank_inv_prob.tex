@@ -56,23 +56,25 @@ Cory M. Simon$^{1}$
 
 \section{Introduction}
 Throughout engineering and the applied sciences, we encounter a liquid-holding tank that is draining via gravity-driven flow through a small orifice.
-Mathematical models of the dynamics of the liquid level in a draining tank are useful for designing the geometry of the tank and orifice, predicting the emptying time, forecasting the outlet flow rate, controlling the liquid level via an inlet stream, and inferring the liquid level from the outlet flow rate.
+Mathematical models of the dynamics of the liquid level in a draining tank are useful for designing the geometry of the tank and orifice, predicting the emptying time, forecasting the outlet flow rate, controlling the liquid level via an input stream, and inferring the liquid level from the outlet flow rate.
 
-Interestingly, ancient societies (e.g. ancient Greece) exploited the predictable dynamics of the water level in a draining tank to measure and display the passage of time.
-Specifically, the water clock, or clepsydra (Greek for ''water thief''), of the outflow design consisted of an open-top container, filled with water at some reference time, with a small orifice for outflow near its bottom.
-As the clepsydra drained, the elapsed time was visually indicated by the liquid level with respect to graduated markings on the inside of the container. \cite{bedini1962compartmented,hwang2021historical,ritner2016oriental,hejun1987research,schomberg2018karnak,mills1982newton}
-E.g. the Karnak clepsydra from $\sim$1300 BC \cite{schomberg2018karnak} was an inverted truncated cone. Notably, this geometry does not provide a constant rate of decrease in the liquid level; perhaps, though, its wider top was intended to compensate for faster outflow at higher liquid levels.
+Interestingly, ancient societies (e.g. ancient Greece) exploited the [empircally] predictable dynamics of the water level in a draining tank to measure and display the passage of time.
+Specifically, the outflow clepsydra (Greek for ''water thief'') was an open-top container with a small hole near its bottom and graduated markings on the inside. 
+Filled with water then allowed to drain, the elapsed time was indicated by the liquid level with respect to the markings on the inside \cite{bedini1962compartmented,hwang2021historical,ritner2016oriental,hejun1987research,schomberg2018karnak,mills1982newton}
+The preserved Karnak clepsydra from $\sim$1300 BC \cite{schomberg2018karnak} is an inverted truncated cone. Notably, this geometry does not provide a constant rate of decrease in the liquid level; perhaps, though, its wider top was intended to compensate for faster outflow at higher liquid levels.
 
 %Draining tanks have been studied since ancient times, as evidenced by water clocks in ancient Egypt, Greece, India, and China.
 %The water clock, or clepsydra (Greek for ''water thief''), of the outflow design consisted of an open-top container, filled with water at some reference time, with a small orifice for outflow near its bottom.
 
 %The geometry of an ideal clepsydra would produce a constant rate of decrease in the liquid level. However, the geometry of e.g. the preserved Karnak clepsydra from $\sim$1300 BC \cite{schomberg2018karnak}, an inverted truncated cone, does not. Though, perhaps, its wider top was intended to compensate for the faster outflow when the liquid level is higher.
 
-Italian physicist and mathematician Evangelista Torricelli (1608-1647) made a fundamental observation for mathematical modeling the liquid level in a tank draining via gravity-driven flow through a small orifice: the velocity $v$ at which liquid flows out of the orifice is proportional to the square root of the height of liquid above the orifice, $\Delta h$, i.e. $v\propto \sqrt{\Delta h}$ \cite{mills1982newton}. Today, we recover Torricelli's observation from Daniel Bernoulli's (1700–1782) equation, a mechanical energy balance applied to the steady, plug flow of an incompressible, inviscid fluid through the orifice, with frictional forces neglected. This gives what we today refer to as \emph{Torricelli's law}: $v=\sqrt{2 g \Delta h}$, with $g$ the acceleration due to gravity. \cite{d2021torricelli}
+Italian physicist and mathematician Evangelista Torricelli (1608-1647) made a fundamental observation for mathematical modeling the liquid level in a tank draining via gravity-driven flow through a small orifice: the velocity $v$ at which liquid flows out of the orifice is proportional to the square root of the height of liquid above the orifice, $\Delta h$, i.e. $v\propto \sqrt{\Delta h}$ \cite{mills1982newton}.
+% TODO: check that he didn't know g!
+Today, we recover Torricelli's observation from Daniel Bernoulli's (1700–1782) equation, a mechanical energy balance applied to the steady, plug flow of an incompressible, inviscid fluid through the orifice, with frictional forces neglected. This gives what we today refer to as \emph{Torricelli's law}: $v=\sqrt{2 g \Delta h}$, with $g$ the acceleration due to gravity. \cite{d2021torricelli}
 
 A mass balance and Torricelli's law give a first-order, [generally] nonlinear differential equation describing the liquid level over time in a tank draining of liquid via gravity-driven flow through a small orifice \cite{groetsch1993inverse,seborg2016process}.
 The geometry of the tank affects the dynamics of the liquid level through its cross-sectional area (parallel to the ground) as a function of height.
-The cross-sectional area of the orifice affects the volumetric flow rate out of the tank.
+% The cross-sectional area of the orifice affects the volumetric flow rate out of the tank.
 % TODO: a name for cross-sectional area parallel to the ground?
 For agreement with the experimentally measured liquid level in a draining tank over time \cite{de2000pin,blasone2015discharge,wadhwa2021study,liu2008drainage}, a discharge coefficient is introduced into the model as a `fudge factor' to
 % Specifically, we model the outlet flow rate as $c a_o \sqrt{2 g \Delta h}$. 
@@ -92,14 +94,17 @@ An inverse problem pertaining to the outflow clepsydra is: what container shape 
 
 
 \section{Experimental setup}
-In our experimental setup, we (1) fill a small, open-top, plastic tank with water, to an initial level $h_0$ [cm], then (2) at time $t:=0$ [s], allow the water to drain out through a small orifice in the side of the tank, near its bottom. We use a liquid level strip to measure the water level in the tank over time, giving time series data $\{(t_i, h_i)\}$. The tank may or may not have a heavy, solid, stationary object inside of it, displacing water and thus affecting the dynamics of emptying. Fig.~\ref{fig:photo_of_tank} shows a photo of our experimental setup (without an object inside of it).
+In our experimental setup, we (1) fill a small, open-top, plastic tank with water, to an initial level $h_0$ [cm], then (2) at time $t=0$ [s], allow the water to drain out through a small orifice in the side of the tank, near its bottom. 
+We use a liquid level strip to measure the water level in the tank over time, giving time series data $\{(t_i, h_i)\}$. The tank may or may not have a heavy, solid, stationary object inside of it, displacing water and thus affecting the dynamics of emptying. Fig.~\ref{fig:photo_of_tank} shows a photo of an experiment where the tank does not have an object inside of it.
 
-Ultimately, we conduct a set of three experiments. The first two experiments concern the tank without the object, for the purpose of gathering data to calibrate then test a dynamic mathematical model of the liquid level in the tank. The third experiment concerns the tank with an object inside of it, for the purpose of indirectly gathering data about then inferring the shape of the object.
+Ultimately, we conduct a set of three experiments. The first two [repeat] experiments concern the tank without the object, for the purpose of gathering data to calibrate then test a dynamic mathematical model of the liquid level in the tank. The third experiment concerns the tank with an object inside of it, for the purpose of indirectly gathering data about then inferring the shape of that object.
 
 \begin{figure}[h!]
 \begin{center}
 	% \includegraphics[width=0.3\textwidth]{../tank_geometry/photo_of_tank.png}
-	\caption{\textbf{Experimental setup.}}
+	\caption{\textbf{Experimental setup.} 
+	The water-holding tank is shaped as inverted, right, truncated cone with a rounded rectangle base and has a small hole in its side. In our experiments, we fill the tank with water, then allow the tank to drain via gravity-driven flow out of the small hole. A liquid level strip measures the liquid level in the tank over time, giving time series data.
+	}
 	\label{fig:photo_of_tank}
 \end{center}
 \end{figure}
@@ -111,19 +116,21 @@ Ultimately, we conduct a set of three experiments. The first two experiments con
 with $H$ [cm] the height of the tank and $a_0$ [cm$^2$] and $a_1$ [cm$^2$] the area of the rounded rectangle forming the bottom and top, respectively, base of the tank.
 The top of the tank is open to the atmosphere. 
 
-\paragraph{The small orifice in the side of the tank.} The tank has a small, circular hole of radius $r_o$ [cm] in its side---a small height $h_o$ [cm] from the bottom base.
+\paragraph{The small orifice in the side of the tank.} The tank has a small, circular hole of radius $r_o$ [cm] in its side, whose center is a small height $h_o$ [cm] from the bottom base.
 Thus, when the liquid level in the tank is larger than $h_o$, water flows out of this small orifice.
 (When drilling the hole, we held the drill bit parallel to the floor.) 
 
 \paragraph{The object [possibly] inside the tank.} We may place a heavy (denser than water), solid object inside the tank. Because the object is solid, it displaces water while in the tank. Because this object is heavy, it remains at rest, at the bottom of the tank, throughout the experiment. Let $a^\prime(h)$ be the cross-sectional [parallel to the floor] area of this object as a function of height $h$.
 
 \paragraph{The liquid level sensor.} We place a liquid level strip vertically inside the tank to measure the water level in the tank over time. The liquid level sensor communicates with an Arduino microcontroller, allowing us to automatically collect the time series data and write it to a file. The liquid level strip functions by virtue of water coming into contact with it and changing the electrical resistance. 
-We constructed a calibration curve to map the level sensor reading to the liquid level in the tank, in units of centimeters. 
-Note, in our modeling below, we will neglect the volume of liquid displaced by the level strip.
+% TODO look at manual
+We constructed a calibration curve with a resolution of 1 cm to map the reading of the level sensor [V] to the liquid level in the tank [cm]. 
+% what are the units of the reading of liquid level sensor
+Note, in our modeling below, we will neglect the small volume of liquid displaced by the level strip.
 
 \section{The forward and measurement models}
-The \emph{forward model} provides a prediction of the liquid level $h(t)$ [m] in our draining tank over time $t$ [s], \emph{given} the shape of the tank $a(h)$, the shape of the object inside our tank $a^\prime(h)$, the circular orifice radius $r_o$ and height $h_o$, the discharge coefficient $c$, and the initial liquid level $h_0$. 
-Coupled with a probabilistic \emph{measurement model} describing the noise in our liquid level sensor, the forward model allows us to compute the \emph{likelihood function}. The likelihood function specifies the probability of observing a time series data set $\{(t_i, h_i)\}$ from our experiment conditioned upon [proposed] functions/values of $a(h)$, $a^\prime(h)$, $r_o$, $h_o$, $c$, and $h_0$. Thus, when these quantities are uncertain/unknown, the likelihood function score the support that the data $\{(t_i, h_i)\}$ lend for them.
+The \emph{forward model} provides a prediction of the liquid level $h(t)$ [m] in our draining tank over time $t$ [s], \emph{given} the shape of the tank $a(h)$, the shape of the object inside our tank $a^\prime(h)$, the radius of the circular orifice $r_o$, the height $h_o$ of the orifice, the discharge coefficient $c$, and the initial liquid level $h_0$. 
+Coupled with a probabilistic \emph{measurement model} describing the noise contaminating the measurements by our liquid level sensor, the forward model allows us to compute the \emph{likelihood function}. The likelihood function specifies the probability of observing a time series data set $\{(t_i, h_i)\}$ from our experiment conditioned upon [proposed] functions/values $a(h)$, $a^\prime(h)$, $r_o$, $h_o$, $c$, and $h_0$. Thus, when these functions/values are uncertain/unknown, the likelihood function scores the support that the data $\{(t_i, h_i)\}$ lend for each possibility.
 
 Now, suppose we fill the tank to an initial liquid height $h_0 \leq H$ [m] at time $t=0$ [s] then allow it drain through the orifice without further input of liquid. We wish to model the height of liquid in the tank as a function of time, $h=h(t)$, with $t$ [s] time. 
 
@@ -142,18 +149,27 @@ Now, suppose we fill the tank to an initial liquid height $h_0 \leq H$ [m] at ti
 \section{Methods}
 
 \subsection{Details of the forward model}
+\paragraph{The water in the tank.} We approximate the water in the tank as inviscid and incompressible, hence with constant density $\rho$ [g/cm$^3$]. 
+We assume the outflow is sufficiently slow to treat the water at the top as flat.
+We do not explicitly model the flow lines of water internal to the tank.
+% TODO flow lines? ionno.
+
 \paragraph{Torricelli's law.} Given the height of water in the tank is $h$ [cm], we model the velocity $v$ [cm/s] of the jet of water flowing out of the orifice of the tank with Torricelli's law \cite{d2021torricelli}:
 \begin{equation}
 	v(h)=  \sqrt{2 g(h-h_o)}, \label{eq:Toricelli}
 \end{equation} where $g$ [cm/s$^2$] is the acceleration due to gravity. 
 Fundamentally, the outflow is driven by gravity exerting a force on the water above the orifice, which creates a hydrostatic pressure in the water at the entrance of the orifice. 
 Torricelli's law follows from Bernoulli's equation \cite{welty2020fundamentals}, a mechanical energy balance on the flow through the orifice, treating (i) the flow as steady, plug, and friction-lossless and (ii) the water as inviscid and incompressible.
-In short, with $\rho$ [g/cm$^3$] the [constant] density of the water, Torricelli's law matches the gravitational potential energy of the water at the very top of the tank, $\rho g(h-h_o)$, with the kinetic energy, $\rho v^2/2$, of the water out of the orifice \cite{groetsch1993inverse}. (The story: gravitational potential energy is converted to kinetic energy when water flows out of the tank.)
+
+An intuitive explanation of Torricelli's law is as follows. 
+Conceptually, in the process of draining, a small slice of liquid at the very top of the tank is removed and ejected from the orifice. 
+Torricelli's law matches the loss in gravitational potential energy per mass, $\rho g(h-h_o)$, with the kinetic energy, $\rho v^2/2$, gained per mass \cite{groetsch1993inverse}. 
+
 % In short, with $\rho$ [g/cm$^3$] the [constant] density of the water, the hydrostatic pressure in the water at the orifice, $\rho g(h-h_o)$, is relieved to give the water a kinetic energy (per mass), $\rho v^2/2$.
 
 \paragraph{Flow rate out of the tank.}
 By Torricelli's law in \ref{eq:Toricelli}, we may first propose to model the volumetric flow rate of water out of the tank as $a_o\sqrt{2 g(h-h_o)}$ [cm$^3$/s], with the area of the liquid jet assumed equal to the area of the orifice. 
-However, a ``fudge factor'' is needed for agreement with experiments---the di \cite{lienhard1984velocity}.
+However, a ``fudge factor'' is needed for agreement with experiments---the discharge coefficient $c\in(0,1)$ \cite{lienhard1984velocity}.
  this assumes the cross-sectional area of the liquid jet out of the side of the tank is the same as the orifice, $a_o$. In reality, a vena contracta 
 
 % TODO: explain why vena contracta exists. see "Study of coefficient of discharge through orifices".
