@@ -165,7 +165,8 @@ We constructed a calibration curve with a resolution of 1 cm to map the reading 
 The \emph{forward model} provides a prediction of the liquid level $h(t)$ [m] in our draining tank over time $t$ [s], \emph{given} the shape of the tank $a(h)$, the shape of the object inside our tank $a^\prime(h)$, the radius of the circular orifice $r_o$, the height $h_o$ of the orifice, the discharge coefficient $c$, and the initial liquid level $h_0$. 
 Coupled with a probabilistic \emph{measurement model} describing the noise contaminating a measurement $(t_i, h_i)$ by our liquid level sensor, the forward model allows us to compute the \emph{likelihood function}. The likelihood function specifies the probability of observing a time series data set $\{(t_i, h_i)\}$ from our experiment conditioned upon proposed functions/values for $a(h)$, $a^\prime(h)$, $r_o$, $h_o$, $c$, and $h_0$. Thus, when these functions/values are uncertain/unknown, the likelihood function scores the support that the time series data $\{(t_i, h_i)\}$ lend for each possibility.
 
-Now, suppose we fill our tank to an initial liquid height $h_0 \leq H$ [m], then at time $t=0$ [s] allow it drain through the orifice without further input of liquid. Fundamentally, the outflow is driven by gravity exerting a force on the water above the orifice, which creates a hydrostatic pressure in the water inside the tank at the entrance of the orifice. 
+\subsection{Forward model}
+Suppose we fill our tank to an initial liquid height $h_0 \leq H$ [m], then at time $t=0$ [s] allow it drain through the orifice without further input of liquid. Fundamentally, the outflow is driven by gravity exerting a force on the water above the orifice, which creates a hydrostatic pressure in the water inside the tank at the entrance of the orifice. 
 We wish to model the height of liquid in the tank as a function of time, $h=h(t)$, with $t$ [s] time. 
 
 We assume the drainage rate is sufficiently slow to keep the water at the top of the tank flat. We treat the water as incompressible (hence, constant density, $\rho$ [g/cm$^3$]) and inviscid. We do not attempt to explicitly model the flow streamlines inside the tank (as in Refs.~\cite{mathew2014numerical,sakri2017numerical}). 
@@ -193,6 +194,7 @@ Generally, the discharge coefficient depends on the rheology of the fluid, the g
 	V(h(t))=\int_0^{h(t)} \left( a(y) - a^\prime(y) \right) dy, \label{eq:volume}
 \end{equation}
 where $a(y)-a^\prime(y)$ is the cross-section of water in the tank when the liquid level is $h=y$. Subtraction of the area of the object $a^\prime(y)$ accounts for the displacement of water by the object inside the tank. 
+(We neglect the small volume of liquid displaced by the level strip.)
 
 \paragraph{Mass balance.} Application of the law of conservation of mass to the draining tank (the control volume) at time $t \geq 0$ equates the rate of deaccumulation of water in the tank [g/s] with the outflow rate [g/s] using expression \ref{eq:outletflow}:
 \begin{equation}
@@ -204,10 +206,16 @@ Taking the derivative of $V(h(t))$ in eqn.~\ref{eq:volume} and using the chain r
 & \left(a(h)-a^\prime(h)\right) \diff{h}{t}= -c \pi r_o^2 \sqrt{2g (h(t)-h_o)}, \,\,\, t \geq 0 \label{eq:forward_model} \\
 & h(0)=h_0,
 \end{empheq}
-
 a [generally] nonlinear, first-order differential equation in $h(t)$ subject to an initial condition.
 Given the tank and object geometry through $a(h)$ and $a^\prime(h)$, the discharge coefficient $c$, the orifice radius and height $r_o$ and $h_o$, and initial height $h_0$, we may numerically solve the ODE in eqn.~\ref{eq:forward_model} (using e.g. \texttt{DifferentialEquations.jl} \cite{rackauckas2017differentialequations}) to predict the dynamics of the liquid level $h(t)$. 
 This is a \emph{forward} model because it makes predictions forward in time, using the known causal factors that influence the dynamics of $h(t)$. 
+
+A remark on a regime of model invalidity: because the radius of our orifice $r_o$ is small, surface tension prevents water from flowing out of the orifice when $h- h_o$ is small and yet positive. In this regime, Torricelli's law and thus the forward model do not hold.
+
+\subsection{Measurement model}
+
+
+\subsection{Likelihood function}
 
 \section{Results}
 \subsection{Bayesian calibration of the dynamic model of the liquid level}
@@ -218,28 +226,7 @@ This is a \emph{forward} model because it makes predictions forward in time, usi
 
 \section{Methods}
 
-\subsection{Details of the forward model}
-Here, we build the forward model governing the height of liquid in the tank $h(t)$ [m] as a function of time $t$ [s].
 
-\paragraph{The water in the tank.} We approximate the water in the tank as incompressible, hence having constant density $\rho$ [g/cm$^3$]. 
-We assume the outflow is sufficiently slow so as to keep the water at the top of the tank as flat.
-We do not explicitly model the flow lines of water internal to the tank.
-% TODO flow lines? ionno.
-
-Note, in our modeling below, we will neglect the small volume of liquid displaced by the level strip.
-
-
-
-
-
-
-\paragraph{Volume of liquid in the tank.}
-
-
-\paragraph{Mass balance.}
-\section{The forward model}
-
-Note: surface tension stops flow before $h=h_o$ reached.
 
 
 
