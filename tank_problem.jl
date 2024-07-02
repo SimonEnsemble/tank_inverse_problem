@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.40
+# v0.19.42
 
 using Markdown
 using InteractiveUtils
@@ -422,7 +422,7 @@ sim_train_data = DataFrame(
 	simulate(
 		train_data[1, "h [cm]"], # h₀
 		params,
-		1.1 * train_data[end, "t [s]"] # end of time
+		1.25 * train_data[end, "t [s]"] # end of time
 	)
 )
 
@@ -461,6 +461,35 @@ end
 # ╔═╡ 8cfdc784-4060-48b8-8d1a-3b8d11f7a9a7
 viz_sim_fit(train_data, sim_train_data)
 
+# ╔═╡ 6c010734-e8a0-4000-88eb-f2a85d25ed99
+function viz_toy_h(sim_data::DataFrame)
+	 fig = Figure(resolution=(300, 300))
+	 ax = Axis(
+		fig[1, 1], 
+		xlabel="time, t [s]", 
+		ylabel="liquid level, h(t) [cm]",
+		yticks=(
+			[0, sim_data[1, "value"]], 
+			["0", rich("h", subscript("0"))]
+			),
+		xticks=[0]
+	)
+	hlines!(sim_data[end, "value"], color="gray", linestyle=:dash, linewidth=1)
+	hidedecorations!(ax, label=false, ticklabels=false)
+
+	lines!(sim_data[:, "timestamp"], sim_data[:, "value"], 
+		label="model", color=Cycled(2)
+	)
+	xlims!(0, sim_data[end, "timestamp"])
+	ylims!(0, nothing)
+	
+	save("toy_h.pdf", fig)
+	fig
+end
+
+# ╔═╡ b7e27b45-78d4-41b5-9770-9632057413c6
+viz_toy_h(sim_train_data)
+
 # ╔═╡ a1a10e2f-1b78-4b93-9295-7c0055e32692
 md"""
 # Bayesian inference for model parameters
@@ -480,12 +509,12 @@ md"""
 	tm::TankMeasurements; 
 	prior_only::Bool=false
 )
+	# defines variance for measuring length with measuring tape
+	σ_ℓ = 0.1 # cm
+	
 	#=
 	prior distributions
 	=#
-	# defines variance for measuring length with measuring tape
-	σ_ℓ ~ Uniform(0.0, 0.5) # cm
-	
 	# bottom, top tank area measurements
 	# std of product of two Guassians
 	#   https://ccrma.stanford.edu/~jos/sasp/Product_Two_Gaussian_PDFs.html
@@ -585,7 +614,7 @@ md"""
 """
 
 # ╔═╡ ccb1f005-567d-47f8-bec1-8db268d878ec
-inferred_params = ["σ_ℓ", "A_b", "A_t", "H", "r_hole", "c", "h_hole", "σ", "h₀"]
+inferred_params = ["A_b", "A_t", "H", "r_hole", "c", "h_hole", "σ", "h₀"]
 
 # ╔═╡ 5bb0b72a-8c77-4fcb-bbde-d144986d9c1e
 function viz_posterior(posterior::DataFrame, params::Vector{String},
@@ -1088,7 +1117,7 @@ md"## Bayesian inference
 	yesterday's posterior is today's prior
 	=#
 	# variance for measuring length.
-	σ_ℓ = mean(train_posterior.σ_ℓ)
+	σ_ℓ = 0.1
 	σ = mean(train_posterior.σ)
 	
 	#=
@@ -1202,7 +1231,7 @@ md"### posterior"
 
 # ╔═╡ fb3ece76-f85c-41e1-a332-12c71d9d3cc0
 begin
-	γ = 5.0 # smoothness param
+	γ = 1.0 # smoothness param
 	N = 20  # number of points to infer area on
 end
 
@@ -1235,7 +1264,7 @@ function viz_inferred_area(
 	ax = Axis(
 		fig[1, 1], 
 		xlabel="height, h [cm]", 
-		ylabel="area, a′ [cm²]"
+		ylabel="area, α [cm²]"
 	)
 	
 	for i in 1:nrow(object_posterior)
@@ -1335,6 +1364,8 @@ viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", 
 # ╟─d25cda2f-6ec6-4c93-8860-f5ce9c3ee629
 # ╠═444f6d74-273e-486d-905a-1443ec0e98df
 # ╠═8cfdc784-4060-48b8-8d1a-3b8d11f7a9a7
+# ╠═6c010734-e8a0-4000-88eb-f2a85d25ed99
+# ╠═b7e27b45-78d4-41b5-9770-9632057413c6
 # ╟─a1a10e2f-1b78-4b93-9295-7c0055e32692
 # ╠═58eff13c-44b5-4f19-8a42-cf9907ac9515
 # ╟─8a21fa0f-d3c3-4aa2-8b8b-74001d921c4a
