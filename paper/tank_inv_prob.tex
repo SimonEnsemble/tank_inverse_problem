@@ -15,14 +15,18 @@
 \newcommand*\mybox[1]{%
 \colorbox{myboxcolor}{\hspace{1em}#1\hspace{1em}}}
 
+\usepackage{xspace}
+\newcommand\thedata {$\{(t_i,h_{\text{obs}, i})\}_{i=1}^{N}$\xspace}
+\newcommand\thedatanomath {\{(t_i,h_{\text{obs}, i})\}_{i=1}^{N}}
+
 % from empheq pkg
 \definecolor{shadecolor}{rgb}{0.97, 0.97, 1.0}
-\definecolor{light-blue}{rgb}{0.96, 1.0, 0.98}
+\definecolor{titlecolor}{rgb}{0.96, 1.0, 0.98}
 \newsavebox{\mysaveboxM} % M for math
 \newsavebox{\mysaveboxT} % T for text
 \newcommand*\Garybox[2][Example]{%
 \sbox{\mysaveboxM}{#2}%
-\sbox{\mysaveboxT}{\fcolorbox{black}{light-blue}{#1}}%
+\sbox{\mysaveboxT}{\fcolorbox{black}{titlecolor}{#1}}%
 \sbox{\mysaveboxM}{%
 \fcolorbox{black}{shadecolor}{%
 \makebox[\linewidth-10em]{\usebox{\mysaveboxM}}%
@@ -36,6 +40,19 @@
 }%
 }%
 }
+
+\usepackage{tcolorbox} 
+\tcbuselibrary{breakable}
+\newtcolorbox[auto counter
+]{mytcbox}[2][]{
+% title=Box~\thetcbcounter: #2,#1,
+title=Box: #2, #1,
+colback=white,
+colframe=black,
+fonttitle=\bfseries,
+parbox=false
+}
+
 
 %%%% *** Do not adjust lengths that control margins, column widths, etc. ***
 
@@ -88,11 +105,13 @@ Cory M. Simon$^{1}$
 Throughout engineering and the applied sciences, we encounter a liquid-holding tank that is draining via gravity-driven flow through a small orifice.
 Mathematical models of the dynamics of the liquid level in a draining tank are useful for designing the geometry of the tank and orifice, predicting the emptying time, forecasting the outlet flow rate, controlling the liquid level via an input stream, and inferring the liquid level from the outlet flow rate \cite{d2021torricelli,seborg2016process,groetsch1993inverse,groetsch1999inverse}.
 
+\begin{mytcbox}[label=box:waterclocks, breakable]{Ancient water clocks}
 Interestingly, ancient societies (e.g. ancient Greece) exploited the empirically predictable dynamics of the water level in a draining tank to measure and display the passage of time.
 Specifically, the outflow \emph{clepsydra}, Greek for ``water thief'', was an open-top container with a small hole near its bottom and graduated markings on the inside. 
 Filled with water then allowed to drain, the elapsed time was indicated by the liquid level with respect to the markings on the inside. \cite{bedini1962compartmented,hwang2021historical,ritner2016oriental,hejun1987research,schomberg2018karnak,mills1982newton}
-The preserved Karnak clepsydra from $\sim$1300 BC \cite{schomberg2018karnak} is an inverted truncated cone. Notably, this geometry does not provide a constant rate of decrease in the liquid level; perhaps, though, its wider top was intended to compensate for faster outflow at higher liquid levels.
-
+The preserved Karnak clepsydra from $\sim$1300 BC \cite{schomberg2018karnak} is an inverted truncated cone. Notably, this geometry does not provide a constant rate of decrease in the liquid level; perhaps, though, its wider top was intended to compensate for faster outflow at higher liquid levels. An inverse problem pertaining to an outflow clepsydra is: what container shape gives a constant rate of decrease in the liquid level as it drains?
+(Such a clepsydra may be obtained via a solid of revolution about the vertical axis such that the radius is proportional to the quartic root of the height. \cite{mills1982newton,d2021torricelli})
+\end{mytcbox}
 %Draining tanks have been studied since ancient times, as evidenced by water clocks in ancient Egypt, Greece, India, and China.
 %The water clock, or clepsydra (Greek for ''water thief''), of the outflow design consisted of an open-top container, filled with water at some reference time, with a small orifice for outflow near its bottom.
 
@@ -120,8 +139,7 @@ A draining tank is an intuitive, relatable physical system to mathematically mod
 More, experiments in the classroom to collect data to validate the model of the liquid level over time are accessible and illustrate the effectiveness of mathematical models.
 \cite{farmer1992physical,driver1998torricelli,brady2009siphons,rother2024modelling,paldy1963apparatus,ivanov2014testing,williams2021vessel,pavesi2019investigating,planinvsivc2011holes,saleta2005experimental,lopac2015water,powell2012carrying}
 Draining tanks provide undergraduate-friendly inverse problems \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse} as well, such as inferring the shape of the tank from the observed liquid level over time \cite{groetsch1993inverse,groetsch1999inverse}. 
-An inverse problem pertaining to an outflow clepsydra is: what container shape gives a constant rate of decrease in the liquid level as it drains?
-(Such a clepsydra may be obtained via a solid of revolution about the vertical axis such that the radius is proportional to the quartic root of the height. \cite{mills1982newton,d2021torricelli})
+
 
 In this article, we consider the following inverse problem pertaining to a tank draining of liquid
 practically important:
@@ -155,7 +173,7 @@ The top of the tank is open to the atmosphere.
 Thus, when the liquid level in the tank is larger than $h_o$, water flows out of this small orifice.
 (When drilling the hole, we held the drill bit parallel to the floor.) 
 
-\paragraph{The object [possibly] inside the tank.} We may place a heavy (denser than water), solid object inside the tank. Because the object is solid, it displaces water while in the tank. Because this object is heavy, it remains at rest, at the bottom of the tank, throughout the experiment. Let $a^\prime(h)$ be the cross-sectional [parallel to the floor] area of this object as a function of height $h$.
+\paragraph{The object [possibly] inside the tank.} We may place a heavy (denser than water), solid object inside the tank. Because the object is solid, it displaces water while in the tank. Because this object is heavy, it remains at rest, at the bottom of the tank, throughout the experiment. Let $\alpha(h)$ be the cross-sectional [parallel to the floor] area of this object as a function of height $h$.
 
 \paragraph{The liquid level sensor.} We place a liquid level strip vertically inside the tank to measure the water level in the tank over time. The liquid level sensor communicates with an Arduino microcontroller, allowing us to automatically collect the time series data and write it to a file. The liquid level strip functions by virtue of water coming into contact with it and changing the electrical resistance. 
 % TODO look at manual
@@ -163,14 +181,14 @@ We constructed a calibration curve with a resolution of 1 cm to map the reading 
 % what are the units of the reading of liquid level sensor
 
 \section{The forward and measurement models}
-The \emph{forward model} provides a prediction of the liquid level $h(t)$ [m] in our draining tank over time $t$ [s], \emph{given} the shape of the tank $a(h)$, the shape of the object inside our tank $a^\prime(h)$, the radius of the circular orifice $r_o$, the height $h_o$ of the orifice, the discharge coefficient $c$, and the initial liquid level $h_0$. 
-Coupled with a probabilistic \emph{measurement model} describing the noise contaminating a measurement $(t_i, h_{\text{obs}, i})$ by our liquid level sensor, the forward model allows us to compute the \emph{likelihood function}. The likelihood function specifies the probability of observing a time series data set $\{(t_i, h_{\text{obs}, i})\}$ from our experiment conditioned upon proposed functions/values for $a(h)$, $a^\prime(h)$, $r_o$, $h_o$, $c$, and $h_0$. Thus, when these functions/values are uncertain/unknown, the likelihood function scores the support that the time series data $\{(t_i, h_{\text{obs}, i})\}$ lend for each possibility.
+The \emph{forward model} provides a prediction of the liquid level $h(t)$ [m] in our draining tank over time $t$ [s], given the following \emph{parameters}: shape of the tank $a(h)$, the shape of the object inside our tank $\alpha(h)$, the radius of the circular orifice $r_o$, the height $h_o$ of the orifice, the discharge coefficient $c$, and the initial liquid level $h_0$. 
+Coupled with a probabilistic \emph{measurement model} characterizing the noise contaminating a measurement $(t_i, h_{\text{obs}, i})$ by our liquid level sensor, the forward model allows us to compute the \emph{likelihood function}. The likelihood function specifies the probability of observing a time series data set $\{(t_i, h_{\text{obs}, i})\}$ from our experiment conditioned upon proposed functions/values for the parameters $\alpha(h)$, $H$, $a_0$, $a_1$, $r_o$, $h_o$, $c$, and $h_0$. Thus, when any of these parameters are uncertain/unknown, the likelihood function quantifies the support that the time series data $\{(t_i, h_{\text{obs}, i})\}$ lend for each possible set of parameters.
 
 \subsection{Forward model}
 Suppose we fill our tank to an initial liquid height $h_0 \leq H$ [m], then at time $t=0$ [s] allow it drain through the orifice without further input of liquid. Fundamentally, the outflow is driven by gravity exerting a force on the water above the orifice, which creates a hydrostatic pressure in the water inside the tank at the entrance of the orifice. 
 We wish to model the height of liquid in the tank as a function of time, $h=h(t)$, with $t$ [s] time. 
 
-We assume the drainage rate is sufficiently slow to keep the water at the top of the tank flat. We treat the water as incompressible (hence, constant density, $\rho$ [g/cm$^3$]) and inviscid. We do not attempt to explicitly model the flow streamlines inside the tank (as in Refs.~\cite{mathew2014numerical,sakri2017numerical}). 
+We assume the water at the top of the tank remains flat, allowed by a slow rate of discharge. We treat the water as incompressible (hence, constant density, $\rho$ [g/cm$^3$]) and inviscid. We do not attempt to explicitly model the flow streamlines inside the tank (as in Refs.~\cite{mathew2014numerical,sakri2017numerical}). (We omit $g$ from the parameter vector because we treat it as a constant known without uncertainty.)
 
 \paragraph{Torricelli's law.}
 Given the height of water in the tank is $h(t)$ [cm] at some time $t$, we model the velocity $v$ [cm/s] of the jet of water flowing out of the orifice with Torricelli's law \cite{d2021torricelli}:
@@ -178,70 +196,123 @@ Given the height of water in the tank is $h(t)$ [cm] at some time $t$, we model 
 	v\left(h(t) \right)=  \sqrt{2 g(h(t)-h_o)}, \label{eq:Torricelli}
 \end{equation} where $g$ [cm/s$^2$] is the acceleration due to gravity. Torricelli's law follows from Bernoulli's equation \cite{welty2020fundamentals}, a mechanical energy balance on the flow through the orifice, treating (i) the flow as steady, plug, and frictional-lossless and (ii) the water as inviscid and incompressible.
 An intuitive explanation of Torricelli's law is as follows. 
-Conceptually, over a small time interval during draining, a small slice of liquid at the very top of the tank is removed and, concomitantly, an equivalent mass $m$ [g] of liquid is ejected from the orifice. Gravitational potential energy is converted to kinetic energy. 
-Torricelli's law equates the loss in gravitational potential energy of the system, $m g(h-h_o)$, with the kinetic energy gained, $m v^2/2$ \cite{groetsch1993inverse,driver1998torricelli,williams2021vessel}. 
+Conceptually, over a small time interval during draining, a small slice of liquid at the very top of the tank is removed and, concomitantly, an equivalent mass $m$ [g] of liquid is ejected from the orifice.
+Gravitational potential energy is converted to kinetic energy. 
+Torricelli's law equates the loss in potential energy of the system, $m g(h-h_o)$, with the kinetic energy gained, $m v^2/2$ \cite{groetsch1993inverse,driver1998torricelli,williams2021vessel}. 
 
-\paragraph{Volumetric flow rate out of the tank.} Given the height of water in the tank is $h(t)$ [cm] at some time $t$, we apply Torricelli's law in eqn.~\ref{eq:Torricelli} model the volumetric flow rate of water out of the tank as:
+\paragraph{Volumetric flow rate out of the tank.} Given the height of water in the tank is $h(t)$ at time $t$, we apply Torricelli's law in eqn.~\ref{eq:Torricelli} and model the volumetric flow rate of water out of the tank as:
 \begin{equation}
 	c \pi r_o^2 \sqrt{2 g(h(t)-h_o)}, \label{eq:outletflow}
 \end{equation}
 with $c\in(0,1)$ the [dimensionless] discharge coefficient to account for the vena contracta in the liquid jet, non-plug flow through the orifice, and frictional losses as the water flows through the orifice. 
-Note, $c=1$ assumes the area of the liquid jet is equal to that of the (circular) orifice, $\pi r_o^2$, plug flow, and no frictional losses.
+Note, $c=1$ assumes the area of the liquid jet is equal to that of the orifice ($\pi r_o^2$), plug flow, and zero frictional losses.
 Generally, the discharge coefficient depends on the rheology of the fluid, the geometry of the orifice, and, for laminar as opposed to turbulent flow, the Reynolds number of the flow \cite{teoman2022discharge}. 
 \cite{horsch2020simple,teoman2022discharge,hicks2014determining,blasone2015discharge,lienhard1984velocity,wadhwa2021study}
 
-\paragraph{Volume of water in the tank.} Given the height of water in the tank is $h(t)$ [cm] at some time $t$, the volume $V$ of water inside the tank follows from the method of cross-sections in calculus \cite{debook}:
+\paragraph{Volume of water in the tank.} Given the height of water in the tank is $h(t)$ at time $t$, the volume $V$ of water inside the tank follows from the method of cross-sections in calculus \cite{debook}:
 \begin{equation}
-	V(h(t))=\int_0^{h(t)} \left( a(y) - a^\prime(y) \right) dy, \label{eq:volume}
+	V(h(t))=\int_0^{h(t)} \left(a(y) - \alpha(y) \right) dy, \label{eq:volume}
 \end{equation}
-where $a(y)-a^\prime(y)$ is the cross-section of water in the tank when the liquid level is $h=y$. Subtraction of the area of the object $a^\prime(y)$ accounts for the displacement of water by the object inside the tank. 
+where $a(y)-\alpha(y)$ is the cross-sectional area of water in the tank when the liquid level is $h=y$. Subtraction of the area of the object $\alpha(y)$ accounts for the displacement of water by the object inside the tank. 
 (We neglect the small volume of liquid displaced by the level strip.)
 
-\paragraph{Mass balance.} Application of the law of conservation of mass to the draining tank (the control volume) at time $t \geq 0$ equates the rate of deaccumulation of water in the tank [g/s] with the outflow rate [g/s] using expression \ref{eq:outletflow}:
+\paragraph{Mass balance.} Application of the law of conservation of mass to the draining tank (the control volume) at time $t \geq 0$ equates the rate of deaccumulation of water in the tank [g/s] with the outflow rate [g/s] in expression \ref{eq:outletflow}:
 \begin{equation}
 	\overbrace{\diff{}{t} \Bigl( \rho V(h(t)) \Bigr )}^{\text{rate of accumulation}}= - \overbrace{\rho c \pi r_o^2 \sqrt{2 g(h(t)-h_o)}}^{\text{outflow rate}}
 \end{equation}
 Taking the derivative of $V(h(t))$ in eqn.~\ref{eq:volume} and using the chain rule \cite{debook} gives our forward model for $h(t)$:
 %\begin{empheq}[box=\mybox]{align}
 \begin{empheq}[box={\Garybox[forward model]}]{align}
-& \left(a(h)-a^\prime(h)\right) \diff{h}{t}= -c \pi r_o^2 \sqrt{2g (h(t)-h_o)}, \,\,\, t \geq 0 \label{eq:forward_model} \\
+& \left(a(h)-\alpha(h)\right) \diff{h}{t}= -c \pi r_o^2 \sqrt{2g (h(t)-h_o)}, \,\,\, t \geq 0 \label{eq:forward_model} \\
 & h(0)=h_0, \nonumber
 \end{empheq}
 a [generally] nonlinear, first-order differential equation in $h(t)$ subject to an initial condition.
-Given the tank and object geometry through $a(h)$ and $a^\prime(h)$, the discharge coefficient $c$, the orifice radius and height $r_o$ and $h_o$, and initial height $h_0$, we may numerically solve the ODE in eqn.~\ref{eq:forward_model} (using e.g. \texttt{DifferentialEquations.jl} \cite{rackauckas2017differentialequations}) to predict the dynamics of the liquid level $h(t)$. 
-This is a \emph{forward} model because it makes predictions forward in time, using the known causal factors that influence the dynamics of $h(t)$. 
+Given the tank and object geometry through $a(h)$ and $\alpha(h)$, the discharge coefficient $c$, the orifice radius and height $r_o$ and $h_o$, and initial height $h_0$, we may numerically solve the ODE in eqn.~\ref{eq:forward_model} (using e.g. \texttt{DifferentialEquations.jl} \cite{rackauckas2017differentialequations}) to predict the dynamics of the liquid level $h(t)$. 
+I.e., this \emph{forward} model makes predictions of the effect/system output $h(t)$ when given the causal factors/system inputs.
 
 A remark on a regime of model invalidity: because the radius of our orifice $r_o$ is small, surface tension prevents water from flowing out of the orifice when $h- h_o$ is small and yet positive. In this regime, Torricelli's law and thus the forward model do not hold.
 
-\paragraph{Parameters.} The dynamics of $h(t; \theta)$ depend on parameters $\theta$:
+\paragraph{Parameterization of $\alpha(h)$.}
+We parameterize the area of the object inside the tank as a function of height, $\alpha(h)$, with a list of $n$ discrete evaluations of $\alpha(h)$ on a uniform grid of points on its domain:
+\begin{equation}
+	\boldsymbol \alpha := [\alpha_0, \alpha_1, ... \alpha_n]
+\end{equation}
+where $\alpha_i :=\alpha(i H/n)$. Then, we represent $\alpha(h)$ via linear interpolation of these values.
+
+\paragraph{Parameter vector.} The dynamics of $h(t)$ depend on the system inputs/ causal factors/ \emph{parameters} that we stack into a vector:
+\begin{equation}
+	\boldsymbol \theta := [H, a_0, a_1, \alpha_0, ..., \alpha_n , r_o, h_o, h_0, c].
+\end{equation}
+The parameter vector $\boldsymbol \theta \in \mathbb{R}^{n+7}$ characterize the geometry of the tank, the object inside the tank, and the orifice; the initial state of the system; and the rheology of the liquid in the system (embedded in $c$). Consequently, we may write $h(t; \boldsymbol \theta)$ to explicitly indicate the dependence of $h(t)$ on the parameter vector $\boldsymbol \theta$. 
 
 \subsection{Measurement model}
 Suppose at time $t$ our liquid level sensor measures the height of liquid in the tank, giving us a data point $(t, h_{\text{obs}})$ (obs for ``observation''). 
 To capture the [unobservable] noise corrupting the measurement, we treat the measured liquid level $h_{\text{obs}}$ as a realization of a random variable $H_{\text{obs}}$:
 \begin{equation}
-	H_{\text{obs}} = h(t) + \Psi,
+	H_{\text{obs}} = h(t; \boldsymbol \theta)  + \Psi,
 \end{equation}
-with $\Psi \sim \mathcal{N}(0, \sigma^2)$ the unobservable noise. We model the noise as additive to the model prediction $h(t)$ from eqn.~\ref{eq:forward_model} and, among multiple measurements, independent and identically-distributed as a zero-mean Gaussian with variance $\sigma^2$. Therefore, the probability distribution governing the observation is a Gaussian of variance $\sigma^2$, centered at the model prediction $h(t)$:
+with the random variable $\Psi \sim \mathcal{N}(0, \sigma^2)$ the unobservable noise. 
+We model the noise as additive to the model prediction $h(t; \boldsymbol \theta)$ from eqn.~\ref{eq:forward_model} and, among multiple measurements, independent and identically-distributed (IID) as a zero-mean Gaussian with variance $\sigma^2$. 
+Therefore, the probability distribution governing the measured liquid level is a Gaussian of variance $\sigma^2$, centered at the model prediction $h(t;\boldsymbol \theta)$:
 \begin{equation}
-	H_{\text{obs}} \sim \mathcal{N}(h(t), \sigma^2).
-\end{equation}
-% TODO: plot residuals
+	H_{\text{obs}} \mid \boldsymbol  \theta, \sigma^2 \sim \mathcal{N}(h(t; \boldsymbol \theta), \sigma^2). \label{eq:H_obs_distn}
+\end{equation} Importantly, the probability distribution of $H_{\text{obs}}$ is conditioned upon both the parameter vector $\boldsymbol  \theta$ and the variance $\sigma^2$ of the noise.
 
-Note, our measurement model neglects the possibility of model discrepancy \cite{brynjarsdottir2014learning,kennedy2001bayesian}, a difference between the true dynamics of the liquid level in the tank and the model $h(t)$ with the best-fit parameters/functions. I.e., we assume the model $h(t)$ is capable of capturing the true $h(t)$ function without bias.
+% TODO: plot residuals
+% TODO expand 
+
+Note, our measurement model neglects the possibility of model discrepancy \cite{brynjarsdottir2014learning,kennedy2001bayesian}, a difference between the true dynamics of the liquid level in the tank and the model $h(t)$ with the best-fit parameters/functions. In other words, we assume our forward model is capable of capturing the true $h(t)$ function without bias.
 
 
 \subsection{Likelihood function}
+The likelihood is the probability density of observing time series data \thedata given model parameters $\boldsymbol \theta$ and noise variance $\sigma^2$. Once the data are collected, the likelihood is instead viewed as a function of $\boldsymbol \theta$ and $\sigma^2$, quantifying the support that the data lend for the proposed parameter vector $\boldsymbol \theta$ and noise variance $\sigma^2$. Based on eqn.~\ref{eq:H_obs_distn} and the IID assumption, the likelihood function is:
+\begin{equation}
+ \pi_{\text{like}}(\thedatanomath \mid \boldsymbol \theta, \sigma^2 ) = \prod_{i=1}^N \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left[-\frac{1}{2}\left(\frac{h_{\text{obs}, i} - h(t_i; \boldsymbol\theta)}{\sigma} \right)^2 \right]. \label{eq:like}
+\end{equation}
+
+\section{Bayesian statistical inversion}
+In Phase I of our work, we wish to leverage tank drainage time series data \thedata to calibrate the model---an inverse problem of parameter inference where the discharge coefficient $c$ is the primary unknown.
+In Phase II, we wish to leverage \thedata to infer the shape of an object inside of the tank---an inverse problem of reconstruction where $\boldsymbol \alpha$ giving the area of the object at a set of heights is the primary unknown. 
+
+We sequentially tackle both of these inverse problems with Bayesian statistical inversion, which comprises three stages. To capture uncertainty about the parameter vector $\boldsymbol \theta$ and noise variance $\sigma^2$, we treat them as random variables $\boldsymbol \Theta$ and $\boldsymbol \Sigma^2$.
+
+\paragraph{Stage 1: specify the prior distribution.}
+First, we specify a prior probability density $\pi_{\text{pr}}(\boldsymbol \theta, \sigma^2)$ expressing our beliefs, subjective but also perhaps grounded in information/data, about the values of $\boldsymbol \theta$ and $\sigma^2$.
+
+\paragraph{Stage 2: conduct an experiment and gather data.}
+Next, we conduct a tank-drainage experiment to gather time series data \thedata. This data contains new information about the parameter vector $\boldsymbol \Theta$ and noise variance $\Sigma^2$.
+
+\paragraph{Stage 3: update the prior to a posterior distribution.}
+Finally, we update the prior to a posterior probability density $\pi_{\text{post}}(\boldsymbol \theta, \sigma^2 \mid \thedatanomath)$ in light of the data \thedata we collected. 
+The posterior density follows from the likelihood function in eqn.~\ref{eq:like} and prior density via Bayes's theorem:
+\begin{equation}
+	\pi_{\text{post}}(\boldsymbol \theta, \sigma^2 \mid \thedatanomath) = \frac{
+	\pi_{\text{like}}(\thedatanomath \mid \boldsymbol \theta, \sigma^2 ) 
+	\pi_{\text{pr}}(\boldsymbol \theta, \sigma^2)
+	}{
+	\pi_{\text{ev}}(\thedatanomath) 
+	}, \label{eq:post}
+\end{equation} where the denominator, the \emph{evidence}, is the marginal likelihood:
+\begin{equation}
+    \pi_{\text{ev}}(\thedatanomath) = \int_0^\infty \int_{\mathbb{R}^{n+7}} \pi_{\text{like}}(\thedatanomath \mid \boldsymbol \theta, \sigma^2 ) 
+	\pi_{\text{pr}}(\boldsymbol \theta, \sigma^2) d\sigma^2 d \boldsymbol\theta
+\end{equation}
+that can in principle be computed from the likelihood and prior. 
+
+\paragraph{The posterior is the solution to the inverse problem.}
+The posterior probability density, with the noise variance marginalized out, $\int_0^\infty \pi_{\text{post}}(\boldsymbol \theta, \sigma^2 \mid \thedatanomath) d\sigma^2$ is the raw, uncertainty-quantifying solution to the inverse problem. Interpreting the posterior: assuming the forward model and prior assumptions hold, the parameter vector plausibly belongs to the region of parameter space containing the bulk of the posterior density, and the spread of the posterior over parameter space quantifies our uncertainty about the parameter vector. 
+From the posterior, we may obtain a credible interval for each unknown parameter, in light of the data. E.g., the 95\% equal-tailed credible interval for a parameter contains 95\% of the posterior density with equal-area tails omitted on both sides. We may also use the posterior to answer a range of probabilistic questions, such as ``what is the probability that a draining tank with initial liquid level $h_0$ reaches a liquid level $h^\prime$ before a time $t^\prime$?''.
+
+\paragraph{Sampling from the posterior distribution.} We resort to Markov chain Monte Carlo (MCMC) simulations to obtain samples from the posterior density $\pi_{\text{post}}(\boldsymbol \theta, \sigma^2 \mid \thedatanomath)$ in eqn.~\ref{eq:post}. Advantageously, MCMC samplers do not require us to obtain the evidence $\pi_{\text{ev}}(\thedatanomath)$, which requires computing a high-dimensional integral. Specifically, we employ the no-U-turn sampler (NUTS).
+
+
 
 \section{Results}
-\subsection{Bayesian calibration of the dynamic model of the liquid level}
+\subsection{Phase I: Bayesian calibration of the dynamic model of the liquid level}
 
-\subsection{Bayesian inference of the shape of an object inside the tank}
+\subsection{Phase II: Bayesian inference of the shape of an object inside the tank}
 
-\section{Conclusions and Discussion}
 
-\section{Methods}
-
-\section{Results}
 
 \begin{figure}[h!]
     \centering
@@ -281,11 +352,11 @@ Note, our measurement model neglects the possibility of model discrepancy \cite{
     
      \begin{subfigure}[b]{0.49\textwidth}
     	\includegraphics[width=\textwidth]{../prior_area.pdf}
-	\caption{Prior dist'n of $a^\prime(h)$} \label{fig:prior_area.pdf}
+	\caption{Prior dist'n of $\alpha(h)$} \label{fig:prior_area.pdf}
     \end{subfigure}
        \begin{subfigure}[b]{0.49\textwidth}
     	\includegraphics[width=\textwidth]{../posterior_area.pdf}
-	\caption{Posterior dist'n of $a^\prime(h)$} \label{fig:posterior_area.pdf}
+	\caption{Posterior dist'n of $\alpha(h)$} \label{fig:posterior_area.pdf}
     \end{subfigure}
     
   
@@ -294,11 +365,15 @@ Note, our measurement model neglects the possibility of model discrepancy \cite{
       }
 \end{figure}
 
-\section{Discussion}
+\section{Conclusions and Discussion}
+
+Calibrate first. then can infer shape.
 
 Rocks inside tank. infer type of rock, coupled with packing. Popcorn polymer.
 
 Surface tension dominates keeping the liquid from exiting. Then Torricelli's law not valid. Liquid stops emptyhing slightly above the hole. 
+
+basis functions for a(h), instead of point by point, but prior harder to interpret.
 
 Mariotte's bottle \cite{kirevs2006mariotte}
 
