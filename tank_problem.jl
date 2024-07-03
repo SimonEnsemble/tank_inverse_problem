@@ -87,6 +87,7 @@ begin
 	# height of tank (from perpendicular) [cm]
 	local δ = (L_t - L_b) / 2 # overhang
 	H = sqrt(H★ ^ 2 - δ ^ 2)
+	@show H
 
 	# solve for the r consistent with a rounded rectangle [cm]
 	#  https://mathworld.wolfram.com/RoundedRectangle.html
@@ -103,6 +104,7 @@ begin
 
 	# hole in tank (radius, area, height)
 	r_hole = 5 / 64 * 2.54 / 2 # cm
+	@show r_hole
     a_hole = π * r_hole ^ 2    # cm²
     h_hole = 0.9 # cm
 
@@ -496,12 +498,18 @@ md"""
 """
 
 # ╔═╡ 58eff13c-44b5-4f19-8a42-cf9907ac9515
-@bind n_MC_sample Select([10, 50, 100, 250], default=10)
+@bind n_MC_sample Select([25, 50, 100, 250], default=25)
 
 # ╔═╡ 8a21fa0f-d3c3-4aa2-8b8b-74001d921c4a
 md"""
 ## infer model parameters for object-free experiment (training)
 """
+
+# ╔═╡ c5754b4b-b576-4257-95d2-8888bbd063ec
+const σ_ℓ = 0.1 # cm [gives precision of our length measurements via tape]
+
+# ╔═╡ 0bc7df52-4ac9-42ac-9094-ecaf3c27da31
+const σ_drill = 0.001 # cm [precision of our drill]
 
 # ╔═╡ 8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
 @model function forward_model(
@@ -509,9 +517,6 @@ md"""
 	tm::TankMeasurements; 
 	prior_only::Bool=false
 )
-	# defines variance for measuring length with measuring tape
-	σ_ℓ = 0.1 # cm
-	
 	#=
 	prior distributions
 	=#
@@ -529,8 +534,8 @@ md"""
 
 	# radius of the hole. std 2%
 	r_hole ~ Truncated(
-		Normal(tm.r_hole, 0.02 * tank_measurements.r_hole),
-		0.9 * tm.r_hole, 1.1 * tm.r_hole
+		Normal(tm.r_hole, σ_drill),
+		tm.r_hole - σ_drill, tm.r_hole + σ_drill
 	) # cm
 
 	# discharge coefficient. Wikipedia says 0.65 for water.
@@ -544,7 +549,7 @@ md"""
 	
 	# defines variance of liquid level sensor
 	#   (treated as an unknown and inferred)
-	σ ~ Uniform(0.0, 1.0) # cm
+	σ ~ Uniform(0.0, 0.5) # cm
 
 	# initial liquid level
 	h₀_obs = data[1, "h [cm]"] # cm
@@ -1110,34 +1115,16 @@ md"## Bayesian inference
 
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
 @model function forward_model_object(
-	data_w_object::DataFrame, train_posterior::DataFrame, γ::Float64, N::Int;
+	data_w_object::DataFrame, train_posterior::DataFrame, γ::Float64, N::Int,
+	tm::TankMeasurements
+	;
 	prior_only::Bool=false
 )
 	#=
 	yesterday's posterior is today's prior
 	=#
 	# variance for measuring length.
-	σ_ℓ = 0.1
 	σ = mean(train_posterior.σ)
-	
-	#=
-	prior distributions
-	=#
-	# defines variance for measuring length.
-	# height of tank
-	H ~ Truncated(
-		Normal(mean(train_posterior.H), std(train_posterior.H)), 
-		mean(train_posterior.H) - 4 * std(train_posterior.H),
-		mean(train_posterior.H) + 4 * std(train_posterior.H)
-	)
-
-	# radius of the hole
-	r_hole ~ Truncated(
-		Normal(mean(train_posterior.r_hole), std(train_posterior.r_hole)),
-		mean(train_posterior.r_hole) - 4 * std(train_posterior.r_hole),
-		mean(train_posterior.r_hole) + 4 * std(train_posterior.r_hole)
-	)
-		
 
 	# discharge coefficient. 
 	c ~ Truncated(
@@ -1146,12 +1133,32 @@ md"## Bayesian inference
 		mean(train_posterior.c) + 2 * std(train_posterior.c)
 	)
 
+	#=
+	prior distributions
+	=#
+	# bottom, top tank area measurements
+	# std of product of two Guassians
+	#   https://ccrma.stanford.edu/~jos/sasp/Product_Two_Gaussian_PDFs.html
+	A_b ~ Normal(tm.A_b, σ_ℓ ^ 2 / 2) # cm²
+	A_t ~ Normal(tm.A_t, σ_ℓ ^ 2 / 2) # cm²
+
+	# height of tank
+	H ~ Truncated(
+		Normal(tm.H, σ_ℓ),
+		tm.H - σ_ℓ, tm.H + σ_ℓ
+	) # cm
+
+	# radius of the hole. std 2%
+	r_hole ~ Truncated(
+		Normal(tm.r_hole, σ_drill),
+		tm.r_hole - σ_drill, tm.r_hole + σ_drill
+	) # cm
+
 	# height of the hole
 	h_hole ~ Truncated(
-		Normal(mean(train_posterior.h_hole), std(train_posterior.h_hole)),
-		mean(train_posterior.h_hole) - 4 * std(train_posterior.h_hole),
-		mean(train_posterior.h_hole) + 4 * std(train_posterior.h_hole)
-	)
+		Normal(tm.h_hole, σ_ℓ),
+		tm.h_hole - σ_ℓ, tm.h_hole + σ_ℓ
+	) # cm
 
 	# initial liquid level
 	h₀_obs = data_w_object[1, "h [cm]"]
@@ -1159,19 +1166,6 @@ md"## Bayesian inference
 		Normal(h₀_obs, σ), 
 		h₀_obs - 4 * σ, 
 		0.999 * H
-	)
-		
-	# bottom, top tank area measurements
-	A_b ~ Truncated(
-		Normal(mean(train_posterior.A_b), std(train_posterior.A_b)),
-		mean(train_posterior.A_b) - 4 * std(train_posterior.A_b),
-		mean(train_posterior.A_b) + 4 * std(train_posterior.A_b)
-	)
-	
-	A_t ~ Truncated(
-		Normal(mean(train_posterior.A_t), std(train_posterior.A_t)),
-		mean(train_posterior.A_t) - 4 * std(train_posterior.A_t),
-		mean(train_posterior.A_t) + 4 * std(train_posterior.A_t)
 	)
 
 	# Random distribution of obstacle area grid at points N 
@@ -1237,7 +1231,7 @@ end
 
 # ╔═╡ 02939a87-e811-4ae4-8b6b-173370029889
 begin
-	object_tank_model = forward_model_object(data_w_object, train_posterior, γ, N)
+	object_tank_model = forward_model_object(data_w_object, train_posterior, γ, N, tank_measurements)
 	object_posterior = DataFrame(
 		sample(object_tank_model, NUTS(0.65), MCMCSerial(), 
 			n_MC_sample, 3; progress=true
@@ -1369,6 +1363,8 @@ viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", 
 # ╟─a1a10e2f-1b78-4b93-9295-7c0055e32692
 # ╠═58eff13c-44b5-4f19-8a42-cf9907ac9515
 # ╟─8a21fa0f-d3c3-4aa2-8b8b-74001d921c4a
+# ╠═c5754b4b-b576-4257-95d2-8888bbd063ec
+# ╠═0bc7df52-4ac9-42ac-9094-ecaf3c27da31
 # ╠═8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
 # ╠═8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 # ╟─2ee1ca40-141f-40ad-b4c1-a2e025f69f95
