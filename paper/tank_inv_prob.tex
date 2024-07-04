@@ -274,7 +274,7 @@ The likelihood is the probability density of observing time series data \thedata
 Our first objective is to leverage tank drainage time series data \thedata, without a solid object inside the tank, to calibrate the forward model in eqn.~\ref{eq:forward_model}---an inverse problem of parameter inference where the discharge coefficient $c$ is the primary unknown.
 Subsequently, our second objective is to leverage the calibrated forward model and tank drainage data \thedata to infer the shape of a heavy, solid object inside of the tank---an inverse problem of reconstruction where $\boldsymbol \alpha$, the area of the object at a set of heights, is the primary unknown. 
 
-We sequentially tackle both of these inverse problems with Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical} to allow incorporation of prior information into the solution and quantify uncertainty in the solution.
+We sequentially tackle both of these inverse problems with Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical} to incorporate prior information and quantify uncertainty in the solution.
 To capture our uncertainty about the parameter vector $\boldsymbol \theta$ and noise variance $\sigma^2$, we treat them as random variables $\boldsymbol \Theta$ and $\boldsymbol \Sigma^2$ and model their probability distributions. Bayesian statistical inversion follows three stages:
 
 \vspace{-\baselineskip}
@@ -315,16 +315,16 @@ Considering $\pi_{\text{post}}(\boldsymbol\theta)$ in conjunction with the forwa
 
 
 \section{Results}
-We now test the efficacy of our forward and measurement model for tackling an inverse problem of reconstruction: inferring the shape of a solid, heavy object inside of a gravity-driven tank from measurements of the liquid level in the tank over time. 
-First, we calibrate our forward and measurement model using data from a drainage experiment where the tank does not contain a solid object.
+We now test the efficacy of our forward and measurement model for tackling an inverse problem of reconstruction via Bayesian statistical inversion: inferring the shape of a solid, heavy object inside of a tank based on measurements of the liquid level in the tank as it drains over time. 
+First, we calibrate our forward and measurement model using data from a tank drainage experiment where the tank does not contain a solid object.
 
 \subsection{Prior distributions on the tank and orifice geometry}
 For both model calibration and the reconstruction problem, we employ the same prior distributions for the geometry of the tank and the orifice, informed by length-measurements and the reported drill bit diameter.
 
-We use a measuring tape to make length-measurements of the dimensions of the tank, giving estimates for the area of the rounded rectangle forming the top and bottom of the tank, $a_{t, \text{obs}}=129.9$\,cm and $a_{b, \text{obs}}=103.0$\,cm, and the height of the tank, $h_{\text{max, obs}}=28.6$\,cm, appearing in $a(h)$ in eqn.~\ref{eq:a_of_h}. We also measure the height of the orifice in the side of the tank, $h_{o, \text{obs}}=0.9$\,cm. We model our uncertainty about the tank and orifice geometry by treating $A_t$, $A_b$, $H_{\text{max}}$, $H_o$ as random variables and imposing informative prior distributions on them, centered at our measurements of them:
+We use a measuring tape to make length-measurements of the dimensions of the tank, giving estimates for the area of the rounded rectangle forming the top and bottom of the tank, $a_{t, \text{obs}}=129.9$\,cm and $a_{b, \text{obs}}=103.0$\,cm, and the height of the tank, $h_{\text{max, obs}}=28.6$\,cm, characterizing $a(h)$ in eqn.~\ref{eq:a_of_h}. We also measure the height of the orifice in the side of the tank, $h_{o, \text{obs}}=0.9$\,cm. We model our uncertainty about the tank and orifice geometry by treating $A_t$, $A_b$, $H_{\text{max}}$, and $H_o$ as random variables (hence, capitalized) and imposing informative prior distributions on them, centered at our measurements of them:
 \begin{align}
-A_t &\sim \mathcal{N}(a_{t, \text{obs}}, \sigma_\ell^2) \\
-A_b &\sim \mathcal{N}(a_{b, \text{obs}}, \sigma_\ell^2) \\
+A_t &\sim \mathcal{N}(a_{t, \text{obs}}, \sigma_\ell^2/2) \label{eq:A_t_prior} \\
+A_b &\sim \mathcal{N}(a_{b, \text{obs}}, \sigma_\ell^2/2) \\
 H_{\text{max}} &\sim \mathcal{N}(h_{\text{max}, \text{obs}}, \sigma_\ell^2) \\
 H_o &\sim \mathcal{N}(h_{o, \text{obs}}, \sigma_\ell^2),
 \end{align}
@@ -332,15 +332,36 @@ where $\sigma_\ell=0.1$\,cm is the assumed standard deviation of our length meas
 
 For the radius of the orifice, we impose the informative prior distribution:
 \begin{equation}
-r_o \sim \mathcal{N}(r_{o, \text{obs}}, \sigma_d^2),
+r_o \sim \mathcal{N}(r_{o, \text{obs}}, \sigma_d^2), \label{eq:R_o_prior}
 \end{equation}
 with $r_{o, \text{obs}}=0.1$\,cm based on the diameter (5/64\,in) of the drill bit we used to drill the orifice in the tank, reported by the manufacturer of the drill bit. We assume a standard deviation of $\sigma_d= 0.001$\,cm to account for uncertainty in the drill bit radius and translation into orifice radius during drilling.
 
 \subsection{Phase I: Bayesian calibration of the dynamic model of the liquid level}
-First, we calibrate our forward and measurement models in eqn.~\ref{eq:forward_model} and \ref{eq:H_obs_distn} through conducting a tank drainage experiment when an solid, heavy object is certainly not present inside the tank.
+First, we calibrate our forward and measurement models in eqn.~\ref{eq:forward_model} and \ref{eq:H_obs_distn} through conducting a tank drainage experiment when an solid, heavy object is certainly \emph{not} present inside the tank. 
+Since we directly measured the other parameters, the two primary unknowns for our model calibration phase are the discharge coefficient $C$ and noise variance $\Sigma^2$. 
 
+\paragraph{Experimental setup.}
+We set up a tank draining experiment (see Sec.~\ref{sec:expt}) with initial water level (measured by the level strip) $h_{0, \text{obs}}=26.5$\,cm. 
+Certainly, no heavy, solid object resides in the tank. See Fig.~\ref{fig:naked_tank}.
 
-\paragraph{Posterior predictive}
+\paragraph{Prior distributions.} We impose the informative prior distributions on the tank and orifice geometry listed in eqns.~\ref{eq:A_t_prior}-\ref{eq:R_o_prior}.  To admit uncertainty in the initial liquid level as measured by the level strip, we impose an informative prior distribution on the initial liquid level:
+\begin{equation}
+	H_0 \sim \mathcal{N}(h_{0, \text{obs}}, \sigma^2),
+\end{equation} where $\sigma^2$ is the [unknown] variance of the noise in the liquid level strip as in our measurement model.
+Because no solid object resides in the tank, $\boldsymbol \alpha=\mathbf{0}$ with certainty. 
+We impose a uniform prior on the standard deviation of the noise:
+\begin{equation}
+\Sigma \sim \mathcal{U}(0\,\text{cm}, 0.5\,\text{cm})
+\end{equation} whose generous upper bound is informed by our experience in calibrating the liquid level strip. Finally, we impose a weakly informative prior distribution on the discharge coefficient
+\begin{equation}
+	C \sim \mathcal{N}(0.65, 0.25),
+\end{equation} whose mean is informed by the reported discharge coefficient for water flow through a round orifice. 
+These [independent] prior distributions together comprise our prior distribution over the parameter vector $\pi_{\text{pr}}(\boldsymbol \theta, \sigma^2)$. 
+The prior distribution $\pi_{\text{pr}}(\boldsymbol \theta, \sigma^2)$ together with the forward model in eqn.~\ref{eq:forward_model} encode a prior distribution over liquid level trajectories in the tank, $h(t; \boldsymbol \theta)$. Fig~\ref{fig:prior_train} shows functions $h(t; \boldsymbol \theta)$ sampled from the prior distribution along with the measured initial liquid level. 
+
+\paragraph{Data from a tank-drainage experiment.} At time $t:=0$, we allow the tank to drain of water through the small orifice in its side. The time series data \thedata are shown in Fig.~\ref{fig:posterior_train}.
+
+\paragraph{Posterior distribution.} In light of the data, the posterior distribution $\pi_{\text{post}}(\boldsymbol \theta, \sigma^2 \mid \thedatanomath)$
 
 \subsubsection{Test}
 
@@ -357,20 +378,29 @@ First, we calibrate our forward and measurement models in eqn.~\ref{eq:forward_m
     
      \begin{subfigure}[b]{0.49\textwidth}
     	\includegraphics[width=\textwidth]{../prior_train.pdf}
-	\caption{Prior dist'n of $h(t)$} \label{fig:prior_train}
+	\caption{Prior dist'n of $h(t; \boldsymbol \Theta)$} \label{fig:prior_train}
     \end{subfigure}
      \begin{subfigure}[b]{0.49\textwidth}
     	\includegraphics[width=\textwidth]{../posterior_train.pdf}
-	\caption{Data $\{(t_i, h_i)\}$ and posterior dist'n of $h(t)$} \label{fig:posterior_train}
+	\caption{Data $\{(t_i, h_i)\}$ and posterior dist'n of $h(t; \boldsymbol \Theta)$} \label{fig:posterior_train}
     \end{subfigure}
     
-     \begin{subfigure}[b]{0.49\textwidth}
-    	\includegraphics[width=\textwidth]{../test.pdf}
-	\caption{Test} \label{fig:test}
+     \begin{subfigure}[b]{0.85\textwidth}
+    	\includegraphics[width=\textwidth]{../posterior_train_theta.pdf}
+	\caption{Posterior dist'n of $\boldsymbol \Theta$} \label{fig:posterior_train_theta}
     \end{subfigure}
+    
     \caption{
       \textbf{Model calibration.}
       }
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    	\includegraphics[width=0.5\textwidth]{../test.pdf}
+    \caption{
+      \textbf{Model test.}
+      } \label{fig:test}
 \end{figure}
 
 \begin{figure}[h!]

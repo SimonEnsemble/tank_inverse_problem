@@ -523,8 +523,8 @@ const σ_drill = 0.001 # cm [precision of our drill]
 	# bottom, top tank area measurements
 	# std of product of two Guassians
 	#   https://ccrma.stanford.edu/~jos/sasp/Product_Two_Gaussian_PDFs.html
-	A_b ~ Normal(tm.A_b, σ_ℓ ^ 2 / 2) # cm²
-	A_t ~ Normal(tm.A_t, σ_ℓ ^ 2 / 2) # cm²
+	A_b ~ Normal(tm.A_b, σ_ℓ / sqrt(2)) # cm²
+	A_t ~ Normal(tm.A_t, σ_ℓ / sqrt(2)) # cm²
 
 	# height of tank
 	H ~ Truncated(
@@ -618,65 +618,71 @@ md"""
 ## visualize posterior distribution of model parameters
 """
 
-# ╔═╡ ccb1f005-567d-47f8-bec1-8db268d878ec
-inferred_params = ["A_b", "A_t", "H", "r_hole", "c", "h_hole", "σ", "h₀"]
-
 # ╔═╡ 5bb0b72a-8c77-4fcb-bbde-d144986d9c1e
-function viz_posterior(posterior::DataFrame, params::Vector{String},
+function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			           tm::TankMeasurements, h₀_obs::Float64
 )
 	params_to_title = Dict(
-						"A_b" => "A, tank bottom", 
-						"A_t" => "A, tank top",
-						"r_hole" => "hole radius",
-						"c" => "discharge coefficient",
-						"h_hole" => "hole height",
-						"h₀" => "h₀",
-						"σ_ℓ" => "std length measurement",
-						"H" => "tank height", 
-						"σ" => "std level sensor"
+						"A_b" => rich("a", subscript("b"), " [cm²]"), 
+						"A_t" => rich("a", subscript("t"), " [cm²]"),
+						"r_hole" => rich("r", subscript("o"), " [cm]"),
+						"c" => "c",
+						"h_hole" => rich("h", subscript("o"), " [cm]"),
+						"h₀" => rich("h", subscript("0"), " [cm]"),
+						"σ_ℓ" => rich("σ", subscript("ℓ"), " [cm]"),
+						"H" => "H [cm]", 
+						"σ" => "σ [cm]"
 	)
 	
-	fig = Figure(size=(600, 600))
-	i, j = 1, 1 # row, col
-	 
-	for p in params
-		# vizualize the distribution
-		ax = Axis(fig[i, j])
-		hist!(ax, posterior[:, p], color=Cycled(1))
+	fig = Figure(size=(1000, 500))
+	axs = [Axis(fig[i, j]) for i = 1:2, j = 1:4]
 
-		# plot equal-tailed 80% interval
-		lo, hi = quantile(posterior[:, p], [0.1, 0.9])
-		lines!(ax, [lo, hi], [0, 0], linewidth=5, color=Cycled(2))
-		
-		ax.xlabel = params_to_title[p]
+	for i = 1:2
+		for j = 1:4
+			p = params[i, j]
 
-		if j == 1
-			ax.ylabel = "density"
-		end
+			# vizualize the distribution
+			hist!(axs[i, j], posterior[:, p], color=Cycled(5))
 		
-		if ! (p in ["h₀", "c", "σ_ℓ", "σ", "dp"])
-			p_obs = getfield(tm, Symbol(p))
-			# plot measured value
-			vlines!(ax, p_obs, linestyle=:dash, color=Cycled(3), 
-					label="measurement")
-		elseif p == "h₀"
-			vlines!(ax, h₀_obs, linestyle=:dash, color=Cycled(3), label="true value")
-		end
+			# plot equal-tailed 80% interval
+			lo, hi = quantile(posterior[:, p], [0.1, 0.9])
+			lines!(axs[i, j], [lo, hi], [0, 0], linewidth=8, color=Cycled(2))
+			
+			axs[i, j].xlabel = params_to_title[p]
 		
-		if j == 3
-			i += 1
-			j = 1
-		else
-			j += 1
+			if j == 1
+				axs[i, j].ylabel = "# samples"
+			else
+				hideydecorations!(axs[i, j], grid=false)
+			end
+			
+			if ! (p in ["h₀", "c", "σ_ℓ", "σ"])
+				p_obs = getfield(tm, Symbol(p))
+				# plot measured value
+				vlines!(axs[i, j], p_obs, linestyle=:dash, color=Cycled(4), 
+						label="measurement")
+			elseif p == "h₀"
+				vlines!(axs[i, j], h₀_obs, linestyle=:dash, color=Cycled(4), label="true value")
+			end
+			ylims!(axs[i, j], 0, nothing)
+
+			if i == 1
+				axs[i, j].xticks = LinearTicks(3)
+			end
 		end
 	end
-	
+	linkyaxes!(axs...)
+	save("posterior_train_theta.pdf", fig)
 	return fig
 end
 
 # ╔═╡ ded5b462-06dd-43a4-93b0-c52ad87174eb
-viz_posterior(train_posterior, inferred_params, tank_measurements, train_data[1, "h [cm]"])
+viz_posterior(
+	train_posterior,
+	["A_b" "A_t" "H" "r_hole"; "h_hole" "h₀" "σ" "c"],
+	tank_measurements, 
+	train_data[1, "h [cm]"]
+)
 
 # ╔═╡ 86b56683-c80e-4c0f-8b03-a4869860d04f
 md"## posterior predictive check"
@@ -1116,15 +1122,19 @@ md"## Bayesian inference
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
 @model function forward_model_object(
 	data_w_object::DataFrame, train_posterior::DataFrame, γ::Float64, N::Int,
-	tm::TankMeasurements
-	;
+	tm::TankMeasurements;
 	prior_only::Bool=false
 )
 	#=
 	yesterday's posterior is today's prior
 	=#
 	# variance for measuring length.
-	σ = mean(train_posterior.σ)
+	σ ~ Truncated(
+		Normal(mean(train_posterior.σ), std(train_posterior.σ)),
+		mean(train_posterior.σ) - 2 * std(train_posterior.σ),
+		mean(train_posterior.σ) + 2 * std(train_posterior.σ)
+	)
+		
 
 	# discharge coefficient. 
 	c ~ Truncated(
@@ -1139,8 +1149,8 @@ md"## Bayesian inference
 	# bottom, top tank area measurements
 	# std of product of two Guassians
 	#   https://ccrma.stanford.edu/~jos/sasp/Product_Two_Gaussian_PDFs.html
-	A_b ~ Normal(tm.A_b, σ_ℓ ^ 2 / 2) # cm²
-	A_t ~ Normal(tm.A_t, σ_ℓ ^ 2 / 2) # cm²
+	A_b ~ Normal(tm.A_b, σ_ℓ / sqrt(2)) # cm²
+	A_t ~ Normal(tm.A_t, σ_ℓ / sqrt(2)) # cm²
 
 	# height of tank
 	H ~ Truncated(
@@ -1173,19 +1183,19 @@ md"## Bayesian inference
 
 	function A_of_tank(h)
 		h < 0 ? error("h < 0") : nothing
-		h > H ? error("h > H") : nothing
+		# h > H ? error("h > H") : nothing
 		return h / H * A_t + (1 - h / H) * A_b
 	end
 
 	# corresponding h's for the unknown A's
-	hs = range(h_hole, h₀, length=N)
+	hs = range(0.0, H, length=N)
 	# prior: object could be ANY size
-	As[1] ~ Uniform(0.0, 0.99 * A_of_tank(hs[1]))
+	As[1] ~ Uniform(0.0, 0.999 * A_of_tank(hs[1]))
 	for i in 2:N
 		As[i] ~ Truncated(
 						  As[i - 1] + Normal(0.0, γ), 
 						  0.0, 
-						  0.99 * A_of_tank(hs[i])
+						  0.999 * A_of_tank(hs[i])
 						 )
 	end
 
@@ -1225,7 +1235,7 @@ md"### posterior"
 
 # ╔═╡ fb3ece76-f85c-41e1-a332-12c71d9d3cc0
 begin
-	γ = 1.0 # smoothness param
+	γ = 5.0 # smoothness param
 	N = 20  # number of points to infer area on
 end
 
@@ -1264,7 +1274,7 @@ function viz_inferred_area(
 	for i in 1:nrow(object_posterior)
 		Aₒs = [object_posterior[i, "As[$n]"] for n in 1:N]
 		hs = range(
-			object_posterior[i, "h_hole"], object_posterior[1, "h₀"], length=N
+			0.0, object_posterior[1, "H"], length=N
 		)
 		lines!(hs, Aₒs, label="model", color=(theme_colors[8], 0.1))
 	end
@@ -1273,6 +1283,7 @@ function viz_inferred_area(
 			label="measurment\n(held-out)", color=colors["data"])
 
 	ylims!(0, tank_measurements.A_t)
+	xlims!(0, nothing)
 
 	if show_legend
 		axislegend("γ=$γ; N=$N", unique=true, position=:rt, titlefont="normal")
@@ -1293,7 +1304,7 @@ md"### prior"
 
 # ╔═╡ 65d81268-9ff2-4a18-b0ce-4b105740dc8b
 begin
-	object_tank_model_prior = forward_model_object(data_w_object, train_posterior, γ, N, prior_only=true)
+	object_tank_model_prior = forward_model_object(data_w_object, train_posterior, γ, N, tank_measurements, prior_only=true)
 	object_prior = DataFrame(
 		sample(object_tank_model_prior, NUTS(0.65), MCMCSerial(), 
 			n_MC_sample, 3; progress=true
@@ -1370,7 +1381,6 @@ viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", 
 # ╟─2ee1ca40-141f-40ad-b4c1-a2e025f69f95
 # ╠═c2d877b5-d309-4868-925d-dab8d7d23403
 # ╟─c239deed-8291-45aa-95cf-94df26e0136d
-# ╠═ccb1f005-567d-47f8-bec1-8db268d878ec
 # ╠═5bb0b72a-8c77-4fcb-bbde-d144986d9c1e
 # ╠═ded5b462-06dd-43a4-93b0-c52ad87174eb
 # ╟─86b56683-c80e-4c0f-8b03-a4869860d04f
