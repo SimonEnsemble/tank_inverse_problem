@@ -641,12 +641,18 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 		for j = 1:4
 			p = params[i, j]
 
+			if p in ["c", "σ"]
+				println(p)
+				println("\tstd: ", std(posterior[:, p]))
+				println("\tmean: ", mean(posterior[:, p]))
+			end
+
 			# vizualize the distribution
 			hist!(axs[i, j], posterior[:, p], color=Cycled(5))
 		
 			# plot equal-tailed 80% interval
 			lo, hi = quantile(posterior[:, p], [0.1, 0.9])
-			lines!(axs[i, j], [lo, hi], [0, 0], linewidth=8, color=Cycled(2))
+			lines!(axs[i, j], [lo, hi], [0, 0], linewidth=8, color=Cycled(3))
 			
 			axs[i, j].xlabel = params_to_title[p]
 		
@@ -687,6 +693,20 @@ viz_posterior(
 # ╔═╡ 86b56683-c80e-4c0f-8b03-a4869860d04f
 md"## posterior predictive check"
 
+# ╔═╡ 323f3fd7-e9a9-4598-ad2e-c1790cf4a264
+function mean_abs_residual(data::DataFrame, sim_data::DataFrame)
+	# build h(t; θ)
+	h_of_t = linear_interpolation(sim_data[:, "timestamp"], sim_data[:, "value"])
+	# compute mean residual
+	r = 0.0
+	for row in eachrow(data)
+		tᵢ, hᵢ = row["t [s]"], row["h [cm]"]
+		ĥᵢ = h_of_t(tᵢ)
+		r += abs(hᵢ - ĥᵢ)
+	end
+	return r / nrow(data)
+end
+
 # ╔═╡ 2ab35999-3615-4f5c-8d89-36d77802fe9b
 function viz_fit(posterior::DataFrame, data::DataFrame; 
 				savename::Union{String, Nothing}=nothing, 
@@ -704,6 +724,7 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 	
 
 	# sample posterior models
+	mar = 0.0 # mean absolute residual
 	for i in sample(1:nrow(posterior), n_sample)
 		# area of tank
 		A_of_h_tank = h -> h / posterior[i, "H"] * posterior[i, "A_t"] + 
@@ -740,9 +761,14 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 			label="model", color=(colors["model"], 0.1)
 		)
 
+		# mean abs residual
+		mar += mean_abs_residual(data, sim_data)
+
 		# h hole
 		hlines!(ax, posterior[i, "h_hole"], color=("gray", 0.1), linestyle=:dash)
-	end	
+	end
+	mar /= n_sample
+	println("mean abs residual: [cm] ", mar)
 	
 	scatter!(
 		data[only_ic ? 1 : 1:end, "t [s]"], 
@@ -1384,6 +1410,7 @@ viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", 
 # ╠═5bb0b72a-8c77-4fcb-bbde-d144986d9c1e
 # ╠═ded5b462-06dd-43a4-93b0-c52ad87174eb
 # ╟─86b56683-c80e-4c0f-8b03-a4869860d04f
+# ╠═323f3fd7-e9a9-4598-ad2e-c1790cf4a264
 # ╠═2ab35999-3615-4f5c-8d89-36d77802fe9b
 # ╠═2a01b228-f281-46c4-9764-fac6cc1b4217
 # ╟─a5ae695b-bfc0-4425-9b64-bbeeba7da015
