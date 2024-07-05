@@ -464,8 +464,8 @@ end
 viz_sim_fit(train_data, sim_train_data)
 
 # ╔═╡ 6c010734-e8a0-4000-88eb-f2a85d25ed99
-function viz_toy_h(sim_data::DataFrame)
-	 fig = Figure(resolution=(300, 300))
+function viz_toy_h(sim_data::DataFrame; savename::String="toy_h")
+	 fig = Figure(resolution=(300, 300), backgroundcolor=:transparent)
 	 ax = Axis(
 		fig[1, 1], 
 		xlabel="time, t [s]", 
@@ -485,7 +485,7 @@ function viz_toy_h(sim_data::DataFrame)
 	xlims!(0, sim_data[end, "timestamp"])
 	ylims!(0, nothing)
 	
-	save("toy_h.pdf", fig)
+	save(savename * ".pdf", fig)
 	fig
 end
 
@@ -710,7 +710,7 @@ end
 # ╔═╡ 2ab35999-3615-4f5c-8d89-36d77802fe9b
 function viz_fit(posterior::DataFrame, data::DataFrame; 
 				savename::Union{String, Nothing}=nothing, 
-				n_sample::Int=75, only_ic::Bool=false
+				n_sample::Int=100, only_ic::Bool=false
 )
 	fig = Figure()
 	ax = Axis(
@@ -813,6 +813,7 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 
 	# sample from the train posterior
 	emptying_time = Float64[]
+	mar = 0.0 # mean absolute residual
 	for i in sample(1:nrow(posterior), n_sample)
 		# check for first instance when the liquid level
 		#  is the same as the height of the hole in the base
@@ -846,7 +847,10 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		sim_data = DataFrame(
 			simulate(h₀, params, 1.25 * test_data[end, "t [s]"], cb)
 		)
-			
+		
+		# mean abs residual
+		mar += mean_abs_residual(test_data, sim_data)
+		
 		# plot trajectories
 		lines!(ax, sim_data[:, "timestamp"], sim_data[:, "value"], 
 			label="model", color=(colors["model"], 0.1))
@@ -854,7 +858,9 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		hlines!(ax, posterior[i, "h_hole"], color=("gray", 0.1), 
 			linestyle=:dash)
 	end
-
+	mar /= n_sample
+	println("mean abs residual: [cm] ", mar)
+	
 	# plot dist'n of emptying times
 	hist!(ax_stopping, emptying_time, color=Cycled(3))
 
@@ -1012,6 +1018,9 @@ sim_object_data = DataFrame(
 
 # ╔═╡ cfbe753d-85a8-445f-9eda-14a376d7e0c6
 viz_sim_fit(data_w_object, sim_object_data)
+
+# ╔═╡ 54e9eda2-d564-453a-8ea8-4c8395be9ed6
+viz_toy_h(sim_object_data, savename="toy_h_w_object")
 
 # ╔═╡ c53edeef-324a-418f-907d-aaf557cb8d24
 md"## classical method
@@ -1432,6 +1441,7 @@ viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", 
 # ╠═b59fa654-6946-4687-b14b-c2ef1f766f5c
 # ╠═b12963ae-bf7d-4ef7-b1a8-e2d1e24f9b4b
 # ╠═cfbe753d-85a8-445f-9eda-14a376d7e0c6
+# ╠═54e9eda2-d564-453a-8ea8-4c8395be9ed6
 # ╟─c53edeef-324a-418f-907d-aaf557cb8d24
 # ╠═4831a3be-35d3-420c-8463-bb14a597cc6a
 # ╠═f3f886d6-3010-4dd9-b42a-d5309463beb6
