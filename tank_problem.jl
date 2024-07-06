@@ -17,7 +17,7 @@ end
 # ╔═╡ faf59350-8d67-11ee-0bdd-2510e986118b
 begin
     import Pkg; Pkg.activate()
-    using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions, Optim, Dierckx, MakieThemes
+    using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions, Optim, Dierckx, MakieThemes, Printf
 end
 
 # ╔═╡ 4391f124-cbef-46e5-8462-e4e5126f5b38
@@ -675,6 +675,12 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			if i == 1
 				axs[i, j].xticks = LinearTicks(3)
 			end
+
+			μ, σ = mean(posterior[:, p]), std(posterior[:, p])
+			Label(fig[i, j], justification=:left,
+				@sprintf("μ: %.2f\nσ: %.2f", μ, σ), font=:regular, fontsize=12.0,
+				tellwidth=false, tellheight=false, halign=0.02, valign=0.9
+			)
 		end
 	end
 	linkyaxes!(axs...)
@@ -1154,6 +1160,9 @@ md"## Bayesian inference
 ### forward model
 "
 
+# ╔═╡ 44308c8c-00e3-4334-84f5-b7ff0cffd5f7
+train_posterior.r_hole
+
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
 @model function forward_model_object(
 	data_w_object::DataFrame, train_posterior::DataFrame, γ::Float64, N::Int,
@@ -1161,6 +1170,7 @@ md"## Bayesian inference
 	prior_only::Bool=false
 )
 	#=
+	prior distributions
 	yesterday's posterior is today's prior
 	=#
 	# variance for measuring length.
@@ -1178,32 +1188,37 @@ md"## Bayesian inference
 		mean(train_posterior.c) + 2 * std(train_posterior.c)
 	)
 
-	#=
-	prior distributions
-	=#
-	# bottom, top tank area measurements
-	# std of product of two Guassians
-	#   https://ccrma.stanford.edu/~jos/sasp/Product_Two_Gaussian_PDFs.html
-	A_b ~ Normal(tm.A_b, σ_ℓ / sqrt(2)) # cm²
-	A_t ~ Normal(tm.A_t, σ_ℓ / sqrt(2)) # cm²
+	A_b ~ Truncated(
+		Normal(mean(train_posterior.A_b), std(train_posterior.A_b)),
+		mean(train_posterior.A_b) - 2 * std(train_posterior.A_b),
+		mean(train_posterior.A_b) + 2 * std(train_posterior.A_b)
+	)
+	A_t ~ Truncated(
+		Normal(mean(train_posterior.A_t), std(train_posterior.A_t)),
+		mean(train_posterior.A_t) - 2 * std(train_posterior.A_t),
+		mean(train_posterior.A_t) + 2 * std(train_posterior.A_t)
+	)
 
 	# height of tank
 	H ~ Truncated(
-		Normal(tm.H, σ_ℓ),
-		tm.H - σ_ℓ, tm.H + σ_ℓ
-	) # cm
+		Normal(mean(train_posterior.H), std(train_posterior.H)),
+		mean(train_posterior.H) - 2 * std(train_posterior.H),
+		mean(train_posterior.H) + 2 * std(train_posterior.H)
+	)
 
 	# radius of the hole. std 2%
 	r_hole ~ Truncated(
-		Normal(tm.r_hole, σ_drill),
-		tm.r_hole - σ_drill, tm.r_hole + σ_drill
-	) # cm
+		Normal(mean(train_posterior.r_hole), std(train_posterior.r_hole)),
+		mean(train_posterior.r_hole) - 2 * std(train_posterior.r_hole),
+		mean(train_posterior.r_hole) + 2 * std(train_posterior.r_hole)
+	)
 
 	# height of the hole
 	h_hole ~ Truncated(
-		Normal(tm.h_hole, σ_ℓ),
-		tm.h_hole - σ_ℓ, tm.h_hole + σ_ℓ
-	) # cm
+		Normal(mean(train_posterior.h_hole), std(train_posterior.h_hole)),
+		mean(train_posterior.h_hole) - 2 * std(train_posterior.h_hole),
+		mean(train_posterior.h_hole) + 2 * std(train_posterior.h_hole)
+	)
 
 	# initial liquid level
 	h₀_obs = data_w_object[1, "h [cm]"]
@@ -1452,6 +1467,7 @@ viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", 
 # ╠═0a48e016-2fba-47cc-a212-47b4a3324b20
 # ╠═5feb46c0-3888-4586-8b12-f990d4d38912
 # ╟─b23dc763-d91f-4d66-94d2-dcf96cb07f54
+# ╠═44308c8c-00e3-4334-84f5-b7ff0cffd5f7
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
 # ╟─da44647a-36e4-4116-9698-df1cb059c2b7
 # ╠═fb3ece76-f85c-41e1-a332-12c71d9d3cc0
