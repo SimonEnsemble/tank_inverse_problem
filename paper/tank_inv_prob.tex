@@ -18,6 +18,8 @@
 \usepackage{xspace}
 \newcommand\thedata {$\{(t_i,h_{\text{obs}, i})\}_{i=1}^{N}$\xspace}
 \newcommand\thedatanomath {\{(t_i,h_{\text{obs}, i})\}_{i=1}^{N}}
+\newcommand\themodel {$h(t; h_0, \boldsymbol \alpha, \boldsymbol\theta)$\xspace}
+\newcommand\themodelnomath {h(t; h_0, \boldsymbol \alpha, \boldsymbol\theta)}
 
 % from empheq pkg
 \definecolor{shadecolor}{rgb}{0.97, 0.97, 1.0}
@@ -164,7 +166,7 @@ practically important:
 interesting: infer a function. 
 
 
-\section{Experimental setup} \label{sec:expt}
+\section{Setup for tank drainage experiments} \label{sec:expt}
 In our experimental setup, we (1) fill a small, open-top, plastic tank with water, to an initial level $h_0$ [cm], then (2) at time $t=0$ [s], allow the water to drain out through a small orifice in the side of the tank, near its bottom. 
 We use an immersive, electrical-resistance-based liquid level strip to measure the water level in the tank over time, giving time series data $\{(t_i, h_{\text{obs}, i}) \}$. The tank may or may not have a heavy, solid, stationary object inside of it, displacing water and thus affecting the dynamics of emptying. Fig.~\ref{fig:photo_of_tank} shows a photo of an experiment where the tank does not have an object inside of it.
 
@@ -234,7 +236,7 @@ Generally, the discharge coefficient depends on the rheology of the fluid, the g
 where $a(y)-\alpha(y)$ is the cross-sectional area of water in the tank when the liquid level is $h=y$. Subtraction of the area of the object $\alpha(y)$ from the area of the tank $a(h)$ accounts for the displacement of water by the object inside the tank. 
 (We neglect the volume of water displaced by the level strip.)
 
-\paragraph{Mass balance.} Application of the law of conservation of mass to the draining tank (the control volume) at time $t \geq 0$ equates the rate of deaccumulation of water in the tank [g/s] with the outflow rate [g/s] in expression \ref{eq:outletflow}:
+\paragraph{Mass balance to arrive at the forward model.} Application of the law of conservation of mass to the draining tank (the control volume) at time $t \geq 0$ equates the rate of deaccumulation of water in the tank [g/s] with the outflow rate [g/s] in expression \ref{eq:outletflow}:
 \begin{equation}
 	\overbrace{\diff{}{t} \Bigl( \rho V(h(t)) \Bigr )}^{\text{rate of accumulation}}= - \overbrace{\rho c \pi r_o^2 \sqrt{2 g(h(t)-h_o)}}^{\text{outflow rate}}
 \end{equation}
@@ -251,54 +253,58 @@ I.e., this \emph{forward} model makes predictions of the system output $h(t)$ (a
 \vspace{-\baselineskip}
 \subparagraph{A regime of model invalidity.} If the radius of the orifice $r_o$ is small, surface tension may prevent water from flowing out of the orifice when $h- h_o$ is small yet positive. In this regime, Torricelli's law and thus the forward model do not hold.
 
-\paragraph{Parameterization of $\alpha(h)$.}
+\paragraph{Input, output, and model parameters.} 
+In the language of inverse problems \cite{groetsch1999inverse,waqar2023tutorial}, we refer to the object geometry $\alpha(h)$ as an \emph{input} to the system (a \emph{cause}) and the water level as a function of time $h(t)$ as the \emph{output} of the system (an \emph{effect}).
+The initial water level $h_0$ is also an input.  
+The \emph{model parameters} $\boldsymbol \theta \in \mathbb{R}^6$ characterize the geometry of the tank and the orifice and the rheology of water (embedded in $c$):
+\begin{equation}
+	\boldsymbol \theta := [h_{\text{max}}, a_b, a_t, r_o, h_o, c]. \label{eq:theta}
+\end{equation}
+(We omit $g$ from $\boldsymbol \theta$ because we treat it as a constant known with certainty.)
+
 We parameterize the area of the object inside the tank as a function of height, $\alpha(h)$, with a list of $n+1$ discrete evaluations of $\alpha(h)$ on a uniform grid of points on its domain:
 \begin{equation}
 	\boldsymbol \alpha := [\alpha_0, \alpha_1, ... \alpha_n]
 \end{equation}
-where $\alpha_i :=\alpha(i h_{\text{max}}/n)$ for $i \in \{0, ..., n\}$. Then, we represent $\alpha(h)$ for $h\in [0, h_{\text{max}}]$ via linear interpolation of these values.
+where $\alpha_i :=\alpha(i h_{\text{max}}/n)$ for $i \in \{0, ..., n\}$. Then, we construct $\alpha(h)$ for $h\in [0, h_{\text{max}}]$ via linear interpolation of these values.
 
-\paragraph{Parameter vector.} The dynamics of $h(t)$ for $t\geq 0$ depend on the initial water level $h_0$ and the \emph{model parameters} that we stack into a vector:
-\begin{equation}
-	\boldsymbol \theta := [h_{\text{max}}, a_b, a_t, \alpha_0, ..., \alpha_n , r_o, h_o, c]. \label{eq:theta}
-\end{equation}
-The parameter vector $\boldsymbol \theta \in \mathbb{R}^{n+7}$ characterizes the geometry of the tank, the object inside the tank, and the orifice and the rheology of the liquid in the system, embedded in $c$. 
-Consequently, we may write $h(t; h_0, \boldsymbol \theta)$ to explicitly indicate the dependence of $h(t)$ on the initial liquid level $h_0$ and parameter vector $\boldsymbol \theta$. (We omit $g$ from $\boldsymbol \theta$ because we treat it as a constant known with certainty.)
+Hereafter, we write the forward model as \themodel to explicitly indicate the dependence of $h(t)$ on the initial liquid level $h_0$, the object geometry $\alpha(h)$, and the parameter vector $\boldsymbol \theta$. 
 
 \subsection{Measurement model}
 Suppose at time $t$ our liquid level sensor measures the height of liquid in the tank, giving us a data point $(t, h_{\text{obs}})$ (obs for ``observation''). 
 To capture the [unobservable] noise corrupting the measurement, we treat the measured liquid level $h_{\text{obs}}$ as a realization of a random variable $H_{\text{obs}}$:
 \begin{equation}
-	H_{\text{obs}} = h(t; h_0, \boldsymbol \theta)  + \Psi,
+	H_{\text{obs}} = \themodelnomath + \Psi,
 \end{equation}
 with the random variable $\Psi \sim \mathcal{N}(0, \sigma^2)$ the unobservable noise. 
-We model the noise as additive to the model prediction $h(t; h_0, \boldsymbol \theta)$ from eqn.~\ref{eq:forward_model} and, among multiple measurements, independent and identically-distributed (IID) as a zero-mean Gaussian with variance $\sigma^2$. 
-Therefore, the probability distribution governing the measured liquid level is a Gaussian with mean equal to the model prediction $h(t;h_0, \boldsymbol \theta)$ and variance $\sigma^2$:
+We model the noise as additive to the model prediction \themodel from eqn.~\ref{eq:forward_model} and, among multiple measurements, independent and identically-distributed (IID) as a zero-mean Gaussian with variance $\sigma^2$. 
+Therefore, the probability distribution governing the measured liquid level is a Gaussian with mean equal to the model prediction \themodel and variance $\sigma^2$:
 \begin{equation}
-	H_{\text{obs}} \mid \boldsymbol  \theta, \sigma^2 \sim \mathcal{N}(h(t; h_0, \boldsymbol \theta), \sigma^2). \label{eq:H_obs_distn}
-\end{equation} Importantly, the probability distribution of $H_{\text{obs}}$ is conditioned upon both the parameter vector $\boldsymbol  \theta$ and the variance $\sigma^2$ of the noise.
+	H_{\text{obs}} \mid h_0, \boldsymbol \alpha, \boldsymbol  \theta, \sigma^2 \sim \mathcal{N}(\themodelnomath, \sigma^2). \label{eq:H_obs_distn}
+\end{equation} Importantly, the probability distribution of $H_{\text{obs}}$ is conditioned upon the initial water level, the object geometry, the parameter vector, and the variance of the noise.
 % Sources of this noise are: imprecision of the liquid level strip, our calibration curve for the liquid level strip, vibrations
 
 % TODO: plot residuals
 % TODO expand 
 
-Note, our measurement model neglects the possibility of model discrepancy \cite{brynjarsdottir2014learning,kennedy2001bayesian}, a difference between the true dynamics of the liquid level in the tank and the model $h(t; h_0, \boldsymbol \theta_{\text{truth}})$ with the best-fit parameters $\boldsymbol \theta_{\text{truth}}$. In other words, we assume our forward model is capable of capturing the true liquid level dynamics $h(t)$ in the tank without bias.
+Note, our measurement model neglects the possibility of model discrepancy \cite{brynjarsdottir2014learning,kennedy2001bayesian}, a difference between the true dynamics of the liquid level in the tank and the model $h(t; h_0^*,  \boldsymbol \alpha^*, \boldsymbol \theta^*)$ with the true/best-fit (indicated by $*$) initial water level, object geometry, and parameters. In other words, we assume our forward model is capable of capturing the true liquid level dynamics in the tank without bias.
 
 
 \subsection{Likelihood function}
-The likelihood is the probability density of observing time series data \thedata given the initial water level $h_0$, the model parameters $\boldsymbol \theta$, and the measurement noise variance $\sigma^2$. Once the data are collected, the likelihood is instead viewed as a function of $h_0$, $\boldsymbol \theta$, and $\sigma^2$, quantifying the support that the data lend for the proposed values for $h_0$, $\boldsymbol \theta$, and $\sigma^2$. Based on eqn.~\ref{eq:H_obs_distn} and the IID assumption, the likelihood function is:
+The likelihood is the probability density of observing time series data \thedata given the initial water level $h_0$, object geometry $\boldsymbol \alpha$, model parameters $\boldsymbol \theta$, and measurement noise variance $\sigma^2$. Once the data are collected, the likelihood is instead viewed as a function of $h_0$, $\boldsymbol \alpha$, $\boldsymbol \theta$, and $\sigma^2$, quantifying the support that the data lend for those proposed values. Based on eqn.~\ref{eq:H_obs_distn} and the IID assumption, the likelihood function is:
 \begin{equation}
- \pi_{\text{like}}(\thedatanomath \mid h_0, \boldsymbol \theta, \sigma^2 ) = \prod_{i=1}^N \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left[-\frac{1}{2}\left(\frac{h_{\text{obs}, i} - h(t_i; h_0, \boldsymbol\theta)}{\sigma} \right)^2 \right]. \label{eq:like}
+ \pi_{\text{like}}(\thedatanomath \mid h_0,\boldsymbol  \alpha, \boldsymbol \theta, \sigma^2 ) = \prod_{i=1}^N \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left[-\frac{1}{2}\left(\frac{h_{\text{obs}, i} - h(t_i; h_0, \boldsymbol\alpha, \boldsymbol\theta)}{\sigma} \right)^2 \right]. \label{eq:like}
 \end{equation}
 
 \section{Bayesian statistical inversion}
-In phase I, our objective is to calibrate the forward and measurement models using length-measurements and tank drainage time series data \thedata \emph{without} a solid object inside the tank ($\boldsymbol \alpha=\mathbf{0}$).
-Model calibration is an inverse problem of parameter inference; we wish to leverage data to infer the parameter vector $\boldsymbol \theta$ with the constraint $\boldsymbol \alpha=\mathbf{0}$ and the measurement noise variance $\sigma^2$. 
+In phase I, our objective is to calibrate the forward and measurement models using length-measurements and tank drainage time series data \thedata \emph{without} a solid object inside the tank (so $\boldsymbol \alpha=\mathbf{0}$ is known).
+Model calibration is an inverse problem of parameter inference; we wish to leverage data to infer the parameter vector $\boldsymbol \theta$ and the measurement noise variance $\sigma^2$. 
 In phase II, our objective is to leverage the calibrated forward and measurement model to infer the shape of a heavy, solid object inside of the tank---i.e., infer $\boldsymbol \alpha$---from tank drainage data \thedata when an object resides in the tank. This constitutes an inverse problem of reconstruction. 
 
 We sequentially tackle both of these inverse problems with Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical} to incorporate prior information and quantify uncertainty in the solution. 
-Fundamentally, both inverse problems are united in the sense that we treat the initial water level, parameter vector, and measurement noise variance as random variables $H_0$, $\boldsymbol \Theta$, and $\Sigma^2$ and model their probability distributions.
-Bayesian statistical inversion follows three stages:
+Fundamentally, both inverse problems are united in the sense that we treat the initial water level, object geometry, parameter vector, and measurement noise variance as random variables $H_0$, $\boldsymbol A$, $\boldsymbol \Theta$, and $\Sigma^2$ and model their probability distributions. The two inverse problems simply differ in the degree of prior knowledge we have about $H_0$, $\boldsymbol A$, $\boldsymbol \Theta$, and $\Sigma^2$.
+
+Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical}  follows three stages:
 
 \vspace{-\baselineskip}
 \paragraph{Stage 1: express our prior beliefs and information about the unknowns via a prior distribution.}
@@ -340,11 +346,14 @@ Considering $\pi_{\text{post}}(h_0, \boldsymbol\theta)$ (with $\sigma^2$ margina
 
 
 \section{Results}
-We now use the forward and measurement model to tackle a reconstruction problem via Bayesian statistical inversion: infer the shape of a solid, heavy object inside of our tank from measurements of the water level in the tank over time as it drains due to gravity through a small orifice. We assess the fidelity of the posterior distribution of the object shape to the measured shape of the object (held out from the analysis). 
-First, we calibrate our forward and measurement model using length-measurements of the tank and orifice geometry and water level time series data from a tank drainage experiment where the tank does not contain a solid object.
+We now use Bayesian statistical inversion to:
+(1) calibrate our forward and measurement model using (a) length-measurements of the tank and orifice geometry and (b) water level time series data from a tank drainage experiment without an object, then
+(2) exploit our calibrated model to infer the shape of a solid, heavy object inside of our tank using water level time series data from a tank drainage experiment. 
 
 \subsection{Phase I: Bayesian calibration and testing of the dynamic model of the liquid level}
-First, we calibrate our forward and measurement models in eqn.~\ref{eq:forward_model} and \ref{eq:H_obs_distn} using water level time series data from a tank drainage experiment \emph{without} an object inside the tank ($\boldsymbol \alpha = \mathbf{0}$).
+Our objective in phase I is to calibrate our forward and measurement models in eqn.~\ref{eq:forward_model} and \ref{eq:H_obs_distn}.
+To do so, we (a) make length-measurements of our tank and orifice geometry and (b) collect water level time series data from a tank drainage experiment \emph{without} an object inside the tank (so, $\boldsymbol \alpha = \mathbf{0}$).
+
 The product of our model calibration phase is the posterior distribution of the model parameters $\boldsymbol \Theta$ and measurement noise variance $\Sigma^2$, $\pi_{\text{post}}(\boldsymbol \theta, \sigma^2 \mid \thedatanomath)$.
 The key idea is that our length-measurements of the tank and orifice geometry and water level time series data from a drainage experiment in a tank without an object provide information about the geometry of the tank and orifice ($A_t$, $A_b$, $H_{\text{max}}$, $H_o$, $R_o$), the discharge coefficient $C$, and the measurement noise variance $\Sigma^2$. Hopefully, the informative posterior distributions of these parameters we obtain from this model calibration phase will allow us to accuracy solve the reconstruction problem in phase II. 
 In phase I, we also conduct a replicate experiment for testing the calibrated model. 
