@@ -597,7 +597,11 @@ end
 
 # ╔═╡ 8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
 begin
-	train_model = forward_model(train_data, tank_measurements)
+	nb_data_train_omit = 3 # surface tension prevents flow
+	
+	train_model = forward_model(
+		train_data[1:end-nb_data_train_omit, :], tank_measurements
+	)
 	
 	train_posterior = DataFrame(
 		sample(
@@ -726,7 +730,8 @@ end
 # ╔═╡ 2ab35999-3615-4f5c-8d89-36d77802fe9b
 function viz_fit(posterior::DataFrame, data::DataFrame; 
 				savename::Union{String, Nothing}=nothing, 
-				n_sample::Int=100, only_ic::Bool=false
+				n_sample::Int=100, only_ic::Bool=false,
+				n_data_end_omit::Int=0
 )
 	fig = Figure()
 	ax = Axis(
@@ -785,13 +790,24 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 	end
 	mar /= n_sample
 	println("mean abs residual: [cm] ", mar)
-	
+
+	# data for fitting
 	scatter!(
-		data[only_ic ? 1 : 1:end, "t [s]"], 
-		data[only_ic ? 1 : 1:end, "h [cm]"],
+		data[only_ic ? 1 : 1:end-n_data_end_omit, "t [s]"], 
+		data[only_ic ? 1 : 1:end-n_data_end_omit, "h [cm]"],
 		label="data",
 		color=colors["data"]
 	)
+	# data without fitting
+	if n_data_end_omit > 0
+		scatter!(
+			data[end-n_data_end_omit:end, "t [s]"], 
+			data[end-n_data_end_omit:end, "h [cm]"],
+			strokewidth=1,
+			strokecolor=colors["data"],
+			color=("white", 0.0)
+		)
+	end
 	axislegend(unique=true)
 	ylims!(0, nothing)
 	xlims!(0, maximum(ts))
@@ -802,7 +818,7 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 end
 
 # ╔═╡ 2a01b228-f281-46c4-9764-fac6cc1b4217
-viz_fit(train_posterior, train_data, savename="posterior_train")
+viz_fit(train_posterior, train_data, savename="posterior_train", n_data_end_omit=nb_data_train_omit)
 
 # ╔═╡ a5ae695b-bfc0-4425-9b64-bbeeba7da015
 md"""
@@ -1298,7 +1314,12 @@ end
 
 # ╔═╡ 02939a87-e811-4ae4-8b6b-173370029889
 begin
-	object_tank_model = forward_model_object(data_w_object, train_posterior, γ, N, tank_measurements)
+	nb_data_object_omit = 2 # surface tension prevents flow
+	
+	object_tank_model = forward_model_object(
+		data_w_object[1:end-nb_data_object_omit, :], train_posterior, γ, N, tank_measurements
+	)
+	
 	object_posterior = DataFrame(
 		sample(object_tank_model, NUTS(0.65), MCMCSerial(), 
 			n_MC_sample, 3; progress=true
@@ -1310,7 +1331,7 @@ end
 @assert all(object_posterior[:, "h₀"] .< object_posterior[:, "H"])
 
 # ╔═╡ e1264f57-f675-4f37-b4db-313cfc52ab8e
-viz_fit(object_posterior, data_w_object, savename="posterior_object")
+viz_fit(object_posterior, data_w_object, savename="posterior_object", n_data_end_omit=nb_data_object_omit)
 
 # ╔═╡ a127225a-5b79-4074-a16b-cecd11030800
 function viz_inferred_area(
