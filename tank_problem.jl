@@ -630,8 +630,12 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 						"h_hole" => rich("h", subscript("o"), " [cm]"),
 						"h₀" => rich("h", subscript("0"), " [cm]"),
 						"σ_ℓ" => rich("σ", subscript("ℓ"), " [cm]"),
-						"H" => "H [cm]", 
+						"H" => rich("h", subscript("max"), " [cm]"), 
 						"σ" => "σ [cm]"
+	)
+	units = Dict(
+		"A_b" => "cm²", "A_t" => "cm²", "r_hole" => "cm", "c" => "",
+		"h_hole" => "cm", "h₀" => "cm", "H" => "cm", "σ" => "cm"
 	)
 	
 	fig = Figure(size=(1000, 500))
@@ -639,6 +643,9 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 
 	for i = 1:2
 		for j = 1:4
+			if j != 4
+				colgap!(fig.layout, j, Relative(0.03))
+			end
 			p = params[i, j]
 
 			if p in ["c", "σ"]
@@ -673,13 +680,16 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			ylims!(axs[i, j], 0, nothing)
 
 			if i == 1
-				axs[i, j].xticks = LinearTicks(3)
+				axs[i, j].xticks = WilkinsonTicks(3)
+				if p == "σ"
+					axs[i, j].xticks = WilkinsonTicks(2)
+				end
 			end
 
 			μ, σ = mean(posterior[:, p]), std(posterior[:, p])
 			Label(fig[i, j], justification=:left,
-				@sprintf("μ: %.2f\nσ: %.2f", μ, σ), font=:regular, fontsize=12.0,
-				tellwidth=false, tellheight=false, halign=0.02, valign=0.9
+				@sprintf("μ: %.2f %s\nσ: %.2f %s", μ, units[p], σ, units[p]), font=:regular, fontsize=13.0,
+				tellwidth=false, tellheight=false, halign=0.025, valign=0.9
 			)
 		end
 	end
@@ -930,7 +940,7 @@ end
 all_data_w_object = read_h_time_series(data_w_object_filename)
 
 # ╔═╡ 807222ba-5ff8-4f33-a9a0-7c69b1dccf52
-data_w_object = downsample(all_data_w_object, n_data_sample)
+data_w_object = downsample(all_data_w_object, n_data_sample)[1:end-5, :] # cut end to avoid overfitting to h_hole
 
 # ╔═╡ 16158266-36ed-44c3-a418-0c454955ce78
 begin
@@ -1160,9 +1170,6 @@ md"## Bayesian inference
 ### forward model
 "
 
-# ╔═╡ 44308c8c-00e3-4334-84f5-b7ff0cffd5f7
-train_posterior.r_hole
-
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
 @model function forward_model_object(
 	data_w_object::DataFrame, train_posterior::DataFrame, γ::Float64, N::Int,
@@ -1257,7 +1264,7 @@ train_posterior.r_hole
 	#=
 	set up dynamic model for h(t)
 	=#
-	A_of_object = linear_interpolation(hs, As)
+	A_of_object = linear_interpolation(hs, As, extrapolation_bc=Line())
 
 	# parameter for ODE solver
 	params = (
@@ -1467,7 +1474,6 @@ viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", 
 # ╠═0a48e016-2fba-47cc-a212-47b4a3324b20
 # ╠═5feb46c0-3888-4586-8b12-f990d4d38912
 # ╟─b23dc763-d91f-4d66-94d2-dcf96cb07f54
-# ╠═44308c8c-00e3-4334-84f5-b7ff0cffd5f7
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
 # ╟─da44647a-36e4-4116-9698-df1cb059c2b7
 # ╠═fb3ece76-f85c-41e1-a332-12c71d9d3cc0
