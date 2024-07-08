@@ -478,7 +478,9 @@
 \artid{0000000}
 
 \newlength{\myrunhwidth}
-\def\runhead{\textcolor{jobcolor}{\rhfont royalsocietypublishing.org/journal/\@jname\enskip \@Journal \@artid\,\,\,}}
+\def\runhead{
+%\textcolor{jobcolor}{\rhfont royalsocietypublishing.org/journal/\@jname\enskip \@Journal \@artid\,\,\,}
+}
 
 \settowidth{\myrunhwidth}{\runhead}
 
@@ -488,11 +490,19 @@
 \hbox to \the\myrunhwidth{\dotfill}}}\end{turn}}}\hspace*{-3.5pc}}
 
  \def\ps@plain{\vskip-3pc\let\@mkboth\@gobbletwo
-         \def\@oddfoot{\noindent\raisebox{-7.5pt}{\hskip-12.8pt\includegraphics[scale=0.15]{RS_Pubs_Logo_Line_CMYK}}
+         \def\@oddfoot{
+         	\noindent\raisebox{-7.5pt}{\hskip-12.8pt%\includegraphics[scale=0.15]{RS_Pubs_Logo_Line_CMYK}
+	}
          \ifopenacc
-            \hskip28.8pt\colorbox{abstractcolor}{\hbox to 75mm{\fontfamily{\sfdefault}\fontseries{m}\fontshape{n}\fontsize{7.5}{10}\selectfont 
-            \vbox{\hsize75mm \textcolor{black}{$\copyright$ \@Year\ The Authors. Published by the Royal Society under the terms of the Creative Commons Attribution
-            License \iflink\href{http://creativecommons.org/licenses/by/4.0/}{http://creativecommons.org/licenses/}\break \href{http://creativecommons.org/licenses/by/4.0/}{by/4.0/}\else http://creativecommons.org/licenses/\break by/4.0/\fi, which permits unrestricted use, provided the original author and source are credited.\vphantom{g}}}\par}}
+            \hskip28.8pt
+            %\colorbox{white}{
+         %   \hbox to 75mm{\fontfamily{\sfdefault}\fontseries{m}\fontshape{n}\fontsize{7.5}{10}\selectfont 
+           % \vbox{\hsize75mm \textcolor{black}{
+            %$\copyright$ \@Year\ The Authors. Published by the Royal Society under the terms of the Creative Commons Attribution
+            %License \iflink\href{http://creativecommons.org/licenses/by/4.0/}{http://creativecommons.org/licenses/}\break \href{http://creativecommons.org/licenses/by/4.0/}{by/4.0/}\else http://creativecommons.org/licenses/\break by/4.0/\fi, which permits unrestricted use, provided the original author and source are credited.\vphantom{g}}}
+            %\par
+            % }
+        %    }
          \else
             \hskip28.8pt\colorbox{abstractcolor}{\hbox to 75mm{\fontfamily{\sfdefault}\fontseries{m}\fontshape{n}\fontsize{7.5}{10}\selectfont 
             \vbox{\hsize75mm \textcolor{black}{$\copyright$ \@Year\ The Author(s) Published by the Royal Society.
@@ -1207,7 +1217,7 @@
      \gdef\@corres{{\fontfamily{\sfdefault}\fontseries{b}\fontshape{n}\fontsize{10}{14}\selectfont\raggedright 
      \correshead}\par #1}}%
 
-\def\@history{{\fontfamily{\sfdefault}\fontseries{m}\fontshape{n}\fontsize{10}{14}\selectfont\raggedright Article submitted to journal}}
+\def\@history{{\fontfamily{\sfdefault}\fontseries{m}\fontshape{n}\fontsize{10}{14}\selectfont\raggedright }}
 \newcommand\history[1]{%
 \global\@history@providedtrue
 \gdef\@history{#1}}
@@ -1306,9 +1316,12 @@ at http://dx.doi.org/\@doi\ or via http://royalsocietypublishing.org/journal/\@j
 \vspace*{-5.5pc}
 \noindent\begin{minipage}[!t]{50mm}
 \hskip-1pc
-\vbox to 242mm{{\vskip68pt\includegraphics[scale=0.58]{PROCEEDINGS_A_RGB}\vskip21pt
+\vbox to 242mm{
+{\vskip68pt\vskip21pt
 {\fontfamily{\sfdefault}\fontseries{m}\fontshape{n}\fontsize{13.5}{15}\selectfont\raggedright 
-\textcolor{jobcolor}{\fontsize{11}{14}\selectfont royalsocietypublishing.org/journal/\@jname}}\vskip10pt
+%\textcolor{jobcolor}{
+%\fontsize{11}{14}\selectfont royalsocietypublishing.org/journal/\@jname}
+}\vskip10pt
 \if@citearticle@provided
         \vskip11pt
         {\researchfont \@citearticle\par}
@@ -1369,7 +1382,8 @@ at http://dx.doi.org/\@doi\ or via http://royalsocietypublishing.org/journal/\@j
     \fi
     \ifvoid\absbox\else
         \vskip15pt%
-        {\colorbox{abstractcolor}{\vbox{\hsize75mm{{\noindent\usebox\absbox}}}}}%
+        {
+        \colorbox{abstractcolor}{\vbox{\hsize75mm{{\noindent\usebox\absbox}}}}}%
     \fi
     \ifvoid\fmtextbox\else
         \vskip15pt%
@@ -1502,7 +1516,9 @@ at http://dx.doi.org/\@doi\ or via http://royalsocietypublishing.org/journal/\@j
 
 \def\fmbreak{\undefined\break\vspace*{-12pt}}
 
-\def\rsbreak{\ifabssplit\relax\maketitle\ifvoid\splitaffbox\else\vbox{\unvbox\splitaffbox}\par\vskip15pt\fi\ifvoid\splitabsbox\else{\noindent\colorbox{abstractcolor}{\vbox{\unvbox\splitabsbox}}\vskip2pc}\fi%
+\def\rsbreak{\ifabssplit\relax\maketitle\ifvoid\splitaffbox\else\vbox{\unvbox\splitaffbox}\par\vskip15pt\fi\ifvoid\splitabsbox\else{\noindent
+%\colorbox{abstractcolor}{\vbox{\unvbox\splitabsbox}}
+\vskip2pc}\fi%
 \else\break\end{fmtext}\maketitle\noindent\fi}
 
 \def\rseject{\ifabssplit\relax\maketitle\ifvoid\splitabsbox\else{\noindent\colorbox{abstractcolor}{\vbox{\unvbox\splitabsbox}}\vskip2pc}\fi%
