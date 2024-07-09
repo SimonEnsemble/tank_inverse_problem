@@ -517,6 +517,7 @@ const σ_drill = 0.001 # cm [precision of our drill]
 	tm::TankMeasurements; 
 	prior_only::Bool=false
 )
+	σs_trunc = 2.0 
 	#=
 	prior distributions
 	=#
@@ -529,7 +530,7 @@ const σ_drill = 0.001 # cm [precision of our drill]
 	# height of tank
 	H ~ Truncated(
 		Normal(tm.H, σ_ℓ),
-		tm.H - σ_ℓ, tm.H + σ_ℓ
+		tm.H - σs_trunc * σ_ℓ, tm.H + σs_trunc * σ_ℓ
 	) # cm
 
 	# radius of the hole. std 2%
@@ -622,26 +623,29 @@ md"""
 ## visualize posterior distribution of model parameters
 """
 
+# ╔═╡ 7979b889-4782-45be-9a4f-91375f22f26f
+params_to_title = Dict(
+					"A_b" => rich("a", subscript("b"), " [cm²]"), 
+					"A_t" => rich("a", subscript("t"), " [cm²]"),
+					"r_hole" => rich("r", subscript("o"), " [cm]"),
+					"c" => "c",
+					"h_hole" => rich("h", subscript("o"), " [cm]"),
+					"h₀" => rich("h", subscript("0"), " [cm]"),
+					"σ_ℓ" => rich("σ", subscript("ℓ"), " [cm]"),
+					"H" => rich("h", subscript("max"), " [cm]"), 
+					"σ" => "σ [cm]"
+)
+
+# ╔═╡ 73d702b9-cdc0-4ce9-802d-89443c8412ab
+params_to_units = Dict(
+	"A_b" => "cm²", "A_t" => "cm²", "r_hole" => "cm", "c" => "",
+	"h_hole" => "cm", "h₀" => "cm", "H" => "cm", "σ" => "cm"
+)
+
 # ╔═╡ 5bb0b72a-8c77-4fcb-bbde-d144986d9c1e
 function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			           tm::TankMeasurements, h₀_obs::Float64
 )
-	params_to_title = Dict(
-						"A_b" => rich("a", subscript("b"), " [cm²]"), 
-						"A_t" => rich("a", subscript("t"), " [cm²]"),
-						"r_hole" => rich("r", subscript("o"), " [cm]"),
-						"c" => "c",
-						"h_hole" => rich("h", subscript("o"), " [cm]"),
-						"h₀" => rich("h", subscript("0"), " [cm]"),
-						"σ_ℓ" => rich("σ", subscript("ℓ"), " [cm]"),
-						"H" => rich("h", subscript("max"), " [cm]"), 
-						"σ" => "σ [cm]"
-	)
-	units = Dict(
-		"A_b" => "cm²", "A_t" => "cm²", "r_hole" => "cm", "c" => "",
-		"h_hole" => "cm", "h₀" => "cm", "H" => "cm", "σ" => "cm"
-	)
-	
 	fig = Figure(size=(1000, 500))
 	axs = [Axis(fig[i, j]) for i = 1:2, j = 1:4]
 
@@ -692,7 +696,7 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 
 			μ, σ = mean(posterior[:, p]), std(posterior[:, p])
 			Label(fig[i, j], justification=:left,
-				@sprintf("μ: %.2f %s\nσ: %.2f %s", μ, units[p], σ, units[p]), font=:regular, fontsize=13.0,
+				@sprintf("μ: %.2f %s\nσ: %.2f %s", μ, params_to_units[p], σ, params_to_units[p]), font=:regular, fontsize=13.0,
 				tellwidth=false, tellheight=false, halign=0.025, valign=0.9
 			)
 		end
@@ -938,6 +942,45 @@ end
 
 # ╔═╡ 2148cbb2-b41f-4df3-ab5c-55a89eff7bf1
 viz_fit(train_prior, train_data, savename="prior_train", only_ic=true)
+
+# ╔═╡ 968de6ad-eb48-4d70-b431-209e609904aa
+md"## covariance matrix of posterior for reconstruction problem"
+
+# ╔═╡ aa9c9d45-bb7c-4eee-af87-6fbc01df271d
+var_list = ["A_b", "A_t", "H", "r_hole", "h_hole", "σ", "c"]
+
+# ╔═╡ bb0a7df4-7e84-472a-ab00-e3dd801daf8e
+Σ_train = cov(Matrix(train_posterior[:, var_list]))
+
+# ╔═╡ 3f640581-edcc-4c7a-86ba-b168f31fe4a3
+function viz_cov_matrix(Σ::Matrix{Float64}, var_list::Array{String})
+	fig = Figure()
+	ax = Axis(
+		fig[1, 1], 
+		xticks=(1:length(var_list), [params_to_title[p] for p in var_list]),
+		xticklabelrotation=π/2,
+		yticks=(1:length(var_list), [params_to_title[p] for p in var_list]),
+		aspect=DataAspect()
+	)
+	heatmap!(Σ)
+	Colorbar(fig[1, 2], label="covariance")
+	fig
+end
+
+# ╔═╡ 3bb65b71-d191-498b-81bf-40ffff4df1f4
+viz_cov_matrix(Σ_train, var_list)
+
+# ╔═╡ b4fbbef8-3389-4fe9-9ebf-7b356bedd705
+@assert var(train_posterior[:, var_list[1]]) == Σ_train[1, 1]
+
+# ╔═╡ f447b2c0-d9a8-4183-a1d3-a9e4e528b43d
+μ_train = mean(Matrix(train_posterior[:, var_list]), dims=1)[:]
+
+# ╔═╡ 22adb08e-4d8c-40c5-97ef-cb1f3f0f6d90
+@assert mean(train_posterior[:, var_list[1]]) == μ_train[1]
+
+# ╔═╡ 692a7f74-ca65-494b-b683-2d30e34e4c1e
+rand(MvNormal(μ_train, Σ_train)) # e.g. how to sample
 
 # ╔═╡ 9533c662-80af-4dd4-bf25-02e894867360
 md"""
@@ -1459,6 +1502,8 @@ viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", 
 # ╟─2ee1ca40-141f-40ad-b4c1-a2e025f69f95
 # ╠═c2d877b5-d309-4868-925d-dab8d7d23403
 # ╟─c239deed-8291-45aa-95cf-94df26e0136d
+# ╠═7979b889-4782-45be-9a4f-91375f22f26f
+# ╠═73d702b9-cdc0-4ce9-802d-89443c8412ab
 # ╠═5bb0b72a-8c77-4fcb-bbde-d144986d9c1e
 # ╠═ded5b462-06dd-43a4-93b0-c52ad87174eb
 # ╟─86b56683-c80e-4c0f-8b03-a4869860d04f
@@ -1471,6 +1516,15 @@ viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", 
 # ╟─67c46219-2183-47fd-bd3c-82facff98d53
 # ╠═38a03e22-d596-4227-a9de-3ef54dc7256e
 # ╠═2148cbb2-b41f-4df3-ab5c-55a89eff7bf1
+# ╟─968de6ad-eb48-4d70-b431-209e609904aa
+# ╠═aa9c9d45-bb7c-4eee-af87-6fbc01df271d
+# ╠═bb0a7df4-7e84-472a-ab00-e3dd801daf8e
+# ╠═3f640581-edcc-4c7a-86ba-b168f31fe4a3
+# ╠═3bb65b71-d191-498b-81bf-40ffff4df1f4
+# ╠═b4fbbef8-3389-4fe9-9ebf-7b356bedd705
+# ╠═f447b2c0-d9a8-4183-a1d3-a9e4e528b43d
+# ╠═22adb08e-4d8c-40c5-97ef-cb1f3f0f6d90
+# ╠═692a7f74-ca65-494b-b683-2d30e34e4c1e
 # ╟─9533c662-80af-4dd4-bf25-02e894867360
 # ╠═b06a1c07-6250-4324-8802-010e5d847edb
 # ╠═8b6d766a-8f7b-4b9a-9a15-0f7375087120
