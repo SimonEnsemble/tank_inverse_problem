@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.42
+# v0.19.43
 
 using Markdown
 using InteractiveUtils
@@ -340,17 +340,23 @@ md"""
 """
 
 # ╔═╡ c6a263eb-cb45-4ee7-9c02-549c89298652
-function f(h, params, t)
-	if h < params.h_hole
+function f!(dh, h, params, t) # use in-place to prevent ODE error
+	if h[1] <= params.h_hole
+		dh[1] = 0.0
 		return 0.0
 	end
-	return - π * params.r_hole ^ 2 * params.c * 
-		sqrt(2 * g * (h .- params.h_hole)) / params.A_of_h(h)
+	# for unphysical stuff
+	if (params.r_hole < 0.0) || (params.c < 0.0)
+		dh[1] = 1.0 # bogus but controlled growth so this won't count.
+	else
+		dh[1] = - π * params.r_hole ^ 2 * params.c * 
+			sqrt(2 * g * (h[1] .- params.h_hole)) / params.A_of_h(h[1])
+	end
 end
 
 # ╔═╡ 05ed4187-a01a-4a16-a0e7-b3867d252578
 function simulate(h₀, params::NamedTuple, tf::Float64, callback=nothing)
-	prob = ODEProblem(f, h₀, (0.0, tf), params)
+	prob = ODEProblem(f!, [h₀], (0.0, tf), params)
 	h_of_t = solve(
 		prob, Tsit5(), saveat=0.5, 
 		reltol=1e-6, abstol=1e-6, 
@@ -386,7 +392,7 @@ function loss(data::DataFrame, c::Float64, tm::TankMeasurements)
 	cost = 0.0
 	for i in 1:nrow(data)
 		tᵢ = data[i, "t [s]"]
-		cost += (data[i, "h [cm]"] - h_of_t(tᵢ)) ^ 2
+		cost += (data[i, "h [cm]"] - h_of_t(tᵢ)[1]) ^ 2
 	end
 	
 	return cost
@@ -449,7 +455,7 @@ function viz_sim_fit(data::DataFrame, sim_data::DataFrame;
 		label="experiment"
 	)
 	
-	lines!(sim_data[:, "timestamp"], sim_data[:, "value"], 
+	lines!(sim_data[:, "timestamp"], sim_data[:, "value1"], 
 		label="model", color=Cycled(2)
 	)
 
@@ -471,15 +477,15 @@ function viz_toy_h(sim_data::DataFrame; savename::String="toy_h")
 		xlabel="time, t [s]", 
 		ylabel="liquid level, h(t) [cm]",
 		yticks=(
-			[0, sim_data[1, "value"]], 
+			[0, sim_data[1, "value1"]], 
 			["0", rich("h", subscript("0"))]
 			),
 		xticks=[0]
 	)
-	hlines!(sim_data[end, "value"], color="gray", linestyle=:dash, linewidth=1)
+	hlines!(sim_data[end, "value1"], color="gray", linestyle=:dash, linewidth=1)
 	hidedecorations!(ax, label=false, ticklabels=false)
 
-	lines!(sim_data[:, "timestamp"], sim_data[:, "value"], 
+	lines!(sim_data[:, "timestamp"], sim_data[:, "value1"], 
 		label="model", color=Cycled(2)
 	)
 	xlims!(0, sim_data[end, "timestamp"])
@@ -498,7 +504,7 @@ md"""
 """
 
 # ╔═╡ 58eff13c-44b5-4f19-8a42-cf9907ac9515
-@bind n_MC_sample Select([25, 50, 100, 250], default=25)
+@bind n_MC_sample Select([25, 50, 100, 250], default=100)
 
 # ╔═╡ 8a21fa0f-d3c3-4aa2-8b8b-74001d921c4a
 md"""
@@ -589,7 +595,7 @@ const σ_drill = 0.001 # cm [precision of our drill]
 	=#
 	for i in 2:nrow(data) # start at 2 b/c IC handled with informative prior
 		tᵢ = data[i, "t [s]"]
-		ĥᵢ = h_of_t(tᵢ, continuity=:right)[1]
+		ĥᵢ = h_of_t(tᵢ)[1]
 		data[i, "h [cm]"] ~ Normal(ĥᵢ, σ)
 	end
 
@@ -720,7 +726,7 @@ md"## posterior predictive check"
 # ╔═╡ 323f3fd7-e9a9-4598-ad2e-c1790cf4a264
 function mean_abs_residual(data::DataFrame, sim_data::DataFrame)
 	# build h(t; θ)
-	h_of_t = linear_interpolation(sim_data[:, "timestamp"], sim_data[:, "value"])
+	h_of_t = linear_interpolation(sim_data[:, "timestamp"], sim_data[:, "value1"])
 	# compute mean residual
 	r = 0.0
 	for row in eachrow(data)
@@ -782,7 +788,7 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 		)
 			
 		lines!(
-			sim_data[:, "timestamp"], sim_data[:, "value"], 
+			sim_data[:, "timestamp"], sim_data[:, "value1"], 
 			label="model", color=(colors["model"], 0.1)
 		)
 
@@ -888,7 +894,7 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		mar += mean_abs_residual(test_data, sim_data)
 		
 		# plot trajectories
-		lines!(ax, sim_data[:, "timestamp"], sim_data[:, "value"], 
+		lines!(ax, sim_data[:, "timestamp"], sim_data[:, "value1"], 
 			label="model", color=(colors["model"], 0.1))
 		# h hole
 		hlines!(ax, posterior[i, "h_hole"], color=("gray", 0.1), 
@@ -946,11 +952,18 @@ viz_fit(train_prior, train_data, savename="prior_train", only_ic=true)
 # ╔═╡ 968de6ad-eb48-4d70-b431-209e609904aa
 md"## covariance matrix of posterior for reconstruction problem"
 
+# ╔═╡ 63977532-9afa-454c-9f51-af6f4b238120
+function compute_mean_cov(posterior_data::DataFrame, var_list::Array{String})
+	Σ = cov(Matrix(posterior_data[:, var_list]))
+	μ = mean(Matrix(posterior_data[:, var_list]), dims=1)[:]
+	return μ, Σ
+end
+
 # ╔═╡ aa9c9d45-bb7c-4eee-af87-6fbc01df271d
 var_list = ["A_b", "A_t", "H", "r_hole", "h_hole", "σ", "c"]
 
 # ╔═╡ bb0a7df4-7e84-472a-ab00-e3dd801daf8e
-Σ_train = cov(Matrix(train_posterior[:, var_list]))
+μ_train, Σ_train = compute_mean_cov(train_posterior, var_list)
 
 # ╔═╡ 3f640581-edcc-4c7a-86ba-b168f31fe4a3
 function viz_cov_matrix(Σ::Matrix{Float64}, var_list::Array{String})
@@ -971,13 +984,13 @@ end
 viz_cov_matrix(Σ_train, var_list)
 
 # ╔═╡ b4fbbef8-3389-4fe9-9ebf-7b356bedd705
-@assert var(train_posterior[:, var_list[1]]) == Σ_train[1, 1]
-
-# ╔═╡ f447b2c0-d9a8-4183-a1d3-a9e4e528b43d
-μ_train = mean(Matrix(train_posterior[:, var_list]), dims=1)[:]
+@assert var(train_posterior[:, var_list[1]]) ≈ Σ_train[1, 1]
 
 # ╔═╡ 22adb08e-4d8c-40c5-97ef-cb1f3f0f6d90
-@assert mean(train_posterior[:, var_list[1]]) == μ_train[1]
+@assert mean(train_posterior[:, var_list[1]]) ≈ μ_train[1]
+
+# ╔═╡ a515407b-f749-48f2-b8ea-62940a186cce
+@assert mean(train_posterior[:, var_list[3]]) ≈ μ_train[3]
 
 # ╔═╡ 692a7f74-ca65-494b-b683-2d30e34e4c1e
 rand(MvNormal(μ_train, Σ_train)) # e.g. how to sample
@@ -1229,73 +1242,54 @@ md"## Bayesian inference
 ### forward model
 "
 
+# ╔═╡ 31ed6b59-4071-41f0-b351-e0bcc0864a30
+function L_matrix(N::Int)
+	L = zeros(N, N)
+	for i = 1:N
+		L[i, i] = 1
+		if i < N
+			L[i + 1, i] = -1
+		end
+	end
+	return L
+end
+
+# ╔═╡ e9ec8114-9fc1-44f1-8dbf-c9650e6b5248
+L_matrix(5)
+
+# ╔═╡ daaf8fcf-77b8-45ec-8c83-b7ed120ea31b
+var_list
+
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
 @model function forward_model_object(
-	data_w_object::DataFrame, train_posterior::DataFrame, γ::Float64, N::Int,
-	tm::TankMeasurements;
+	data_w_object::DataFrame, train_posterior::DataFrame, 
+	γ::Float64, N::Int, tm::TankMeasurements;
 	prior_only::Bool=false
 )
 	#=
 	prior distributions
 	yesterday's posterior is today's prior
 	=#
-	# variance for measuring length.
-	σ ~ Truncated(
-		Normal(mean(train_posterior.σ), std(train_posterior.σ)),
-		mean(train_posterior.σ) - 2 * std(train_posterior.σ),
-		mean(train_posterior.σ) + 2 * std(train_posterior.σ)
-	)
-		
-
-	# discharge coefficient. 
-	c ~ Truncated(
-		Normal(mean(train_posterior.c), std(train_posterior.c)),
-		mean(train_posterior.c) - 2 * std(train_posterior.c),
-		mean(train_posterior.c) + 2 * std(train_posterior.c)
-	)
-
-	A_b ~ Truncated(
-		Normal(mean(train_posterior.A_b), std(train_posterior.A_b)),
-		mean(train_posterior.A_b) - 2 * std(train_posterior.A_b),
-		mean(train_posterior.A_b) + 2 * std(train_posterior.A_b)
-	)
-	A_t ~ Truncated(
-		Normal(mean(train_posterior.A_t), std(train_posterior.A_t)),
-		mean(train_posterior.A_t) - 2 * std(train_posterior.A_t),
-		mean(train_posterior.A_t) + 2 * std(train_posterior.A_t)
-	)
-
-	# height of tank
-	H ~ Truncated(
-		Normal(mean(train_posterior.H), std(train_posterior.H)),
-		mean(train_posterior.H) - 2 * std(train_posterior.H),
-		mean(train_posterior.H) + 2 * std(train_posterior.H)
-	)
-
-	# radius of the hole. std 2%
-	r_hole ~ Truncated(
-		Normal(mean(train_posterior.r_hole), std(train_posterior.r_hole)),
-		mean(train_posterior.r_hole) - 2 * std(train_posterior.r_hole),
-		mean(train_posterior.r_hole) + 2 * std(train_posterior.r_hole)
-	)
-
-	# height of the hole
-	h_hole ~ Truncated(
-		Normal(mean(train_posterior.h_hole), std(train_posterior.h_hole)),
-		mean(train_posterior.h_hole) - 2 * std(train_posterior.h_hole),
-		mean(train_posterior.h_hole) + 2 * std(train_posterior.h_hole)
-	)
-
+	μ_pr, Σ_pr = compute_mean_cov(train_posterior, var_list)
+	
+	# sample param vector from prior
+	θ ~ MvNormal(μ_pr, Σ_pr)
+	A_b    = θ[1] # hard-coded based on var_list: warning!
+	A_t    = θ[2]
+	H      = θ[3]
+	r_hole = θ[4]
+	h_hole = θ[5]
+	σ      = θ[6]
+	c      = θ[7]
+	
 	# initial liquid level
 	h₀_obs = data_w_object[1, "h [cm]"]
-	h₀ ~ Truncated(
-		Normal(h₀_obs, σ), 
-		h₀_obs - 4 * σ, 
-		0.999 * H
-	)
-
-	# Random distribution of obstacle area grid at points N 
-	As ~ filldist(Normal(), N) # cm²
+	h₀ ~ Normal(h₀_obs, σ)
+	# Truncated(
+	# 	Normal(h₀_obs, σ),
+	# 	h₀_obs - 4 * σ, 
+	# 	H
+	# )
 
 	function A_of_tank(h)
 		h < 0 ? error("h < 0") : nothing
@@ -1303,9 +1297,11 @@ md"## Bayesian inference
 		return h / H * A_t + (1 - h / H) * A_b
 	end
 
+	# Random distribution of obstacle area grid at points N 
 	# corresponding h's for the unknown A's
-	hs = range(0.0, H, length=N)
-	# prior: object could be ANY size
+	hs = range(0.0, 0.999 * H, length=N)
+	
+	As = Vector{Real}(undef, N)
 	As[1] ~ Uniform(0.0, 0.999 * A_of_tank(hs[1]))
 	for i in 2:N
 		As[i] ~ Truncated(
@@ -1332,14 +1328,22 @@ md"## Bayesian inference
 			  h_hole=h_hole,
 			  A_of_h=h ->  A_of_tank(h) - A_of_object(h)
 			)
+
+	# checks before simulation
+	@assert all([params.A_of_h(hᵢ) ≥ 0 for hᵢ in hs])
+	# @assert h₀ ≤ H
+	# @assert r_hole > 0.0
+	# @assert σ > 0.0
+	# @assert h_hole > 0.0
+	# @assert c > 0.0
 	
 	# set up, solve ODE
-	h_of_t = simulate(h₀, params, 1000.0)
+	h_of_t = simulate(h₀, params, 1.01 * data_w_object[end, "t [s]"])
 
 	# observations.
 	for i in 2:nrow(data_w_object)
 		tᵢ = data_w_object[i, "t [s]"]
-		ĥᵢ = h_of_t(tᵢ, continuity=:right)[1]
+		ĥᵢ = h_of_t(tᵢ)[1]
 		data_w_object[i, "h [cm]"] ~ Normal(ĥᵢ, σ)
 	end
 	
@@ -1352,10 +1356,10 @@ md"### posterior"
 # ╔═╡ fb3ece76-f85c-41e1-a332-12c71d9d3cc0
 begin
 	γ = 5.0 # smoothness param
-	N = 20  # number of points to infer area on
+	N = 10  # number of points to infer area on
 end
 
-# ╔═╡ 02939a87-e811-4ae4-8b6b-173370029889
+# ╔═╡ 1aca6b92-7754-4cb3-b9e8-5d486e3bfcf8
 begin
 	nb_data_object_omit = 2 # surface tension prevents flow
 	
@@ -1365,9 +1369,11 @@ begin
 	
 	object_posterior = DataFrame(
 		sample(object_tank_model, NUTS(0.65), MCMCSerial(), 
-			n_MC_sample, 3; progress=true
+			n_MC_sample, 3, progress=true
+			# n_MC_sample, 3; progress=true
 		)
 	)
+	rename!(object_posterior, ["θ[$i]" => var_list[i] for i = 1:length(var_list)]...)
 end
 
 # ╔═╡ 3c9a219f-74ef-45fb-83e7-c497e0bee362
@@ -1424,6 +1430,8 @@ viz_inferred_area(object_posterior, object_true_area, γ, N, savename="posterior
 md"### prior"
 
 # ╔═╡ 65d81268-9ff2-4a18-b0ce-4b105740dc8b
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 	object_tank_model_prior = forward_model_object(data_w_object, train_posterior, γ, N, tank_measurements, prior_only=true)
 	object_prior = DataFrame(
@@ -1431,10 +1439,14 @@ begin
 			n_MC_sample, 3; progress=true
 		)
 	)
+	rename!(object_posterior, ["θ[$i]" => var_list[i] for i = 1:length(var_list)]...)
 end
+  ╠═╡ =#
 
 # ╔═╡ 8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
+#=╠═╡
 viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", show_legend=false)
+  ╠═╡ =#
 
 # ╔═╡ Cell order:
 # ╠═faf59350-8d67-11ee-0bdd-2510e986118b
@@ -1517,13 +1529,14 @@ viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", 
 # ╠═38a03e22-d596-4227-a9de-3ef54dc7256e
 # ╠═2148cbb2-b41f-4df3-ab5c-55a89eff7bf1
 # ╟─968de6ad-eb48-4d70-b431-209e609904aa
+# ╠═63977532-9afa-454c-9f51-af6f4b238120
 # ╠═aa9c9d45-bb7c-4eee-af87-6fbc01df271d
 # ╠═bb0a7df4-7e84-472a-ab00-e3dd801daf8e
 # ╠═3f640581-edcc-4c7a-86ba-b168f31fe4a3
 # ╠═3bb65b71-d191-498b-81bf-40ffff4df1f4
 # ╠═b4fbbef8-3389-4fe9-9ebf-7b356bedd705
-# ╠═f447b2c0-d9a8-4183-a1d3-a9e4e528b43d
 # ╠═22adb08e-4d8c-40c5-97ef-cb1f3f0f6d90
+# ╠═a515407b-f749-48f2-b8ea-62940a186cce
 # ╠═692a7f74-ca65-494b-b683-2d30e34e4c1e
 # ╟─9533c662-80af-4dd4-bf25-02e894867360
 # ╠═b06a1c07-6250-4324-8802-010e5d847edb
@@ -1549,10 +1562,13 @@ viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", 
 # ╠═0a48e016-2fba-47cc-a212-47b4a3324b20
 # ╠═5feb46c0-3888-4586-8b12-f990d4d38912
 # ╟─b23dc763-d91f-4d66-94d2-dcf96cb07f54
+# ╠═31ed6b59-4071-41f0-b351-e0bcc0864a30
+# ╠═e9ec8114-9fc1-44f1-8dbf-c9650e6b5248
+# ╠═daaf8fcf-77b8-45ec-8c83-b7ed120ea31b
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
 # ╟─da44647a-36e4-4116-9698-df1cb059c2b7
 # ╠═fb3ece76-f85c-41e1-a332-12c71d9d3cc0
-# ╠═02939a87-e811-4ae4-8b6b-173370029889
+# ╠═1aca6b92-7754-4cb3-b9e8-5d486e3bfcf8
 # ╠═3c9a219f-74ef-45fb-83e7-c497e0bee362
 # ╠═e1264f57-f675-4f37-b4db-313cfc52ab8e
 # ╠═a127225a-5b79-4074-a16b-cecd11030800
