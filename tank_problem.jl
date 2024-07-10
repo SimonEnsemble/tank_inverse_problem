@@ -542,16 +542,16 @@ const σ_drill = 0.001 # cm [precision of our drill]
 	# radius of the hole. std 2%
 	r_hole ~ Truncated(
 		Normal(tm.r_hole, σ_drill),
-		tm.r_hole - σ_drill, tm.r_hole + σ_drill
+		tm.r_hole - σs_trunc * σ_drill, tm.r_hole + σs_trunc * σ_drill
 	) # cm
 
 	# discharge coefficient. Wikipedia says 0.65 for water.
-	c ~ Truncated(Normal(0.65, 0.25), 0.1, 1.0) # unitless
+	c ~ Truncated(Normal(0.65, 0.25), 0.0, 1.0) # unitless
 
 	# height of the hole
 	h_hole ~ Truncated(
 		Normal(tm.h_hole, σ_ℓ),
-		tm.h_hole - σ_ℓ, tm.h_hole + σ_ℓ
+		tm.h_hole - σs_trunc * σ_ℓ, tm.h_hole + σs_trunc * σ_ℓ
 	) # cm
 	
 	# defines variance of liquid level sensor
@@ -652,7 +652,7 @@ params_to_units = Dict(
 function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			           tm::TankMeasurements, h₀_obs::Float64
 )
-	fig = Figure(size=(1000, 500))
+	fig = Figure(size=(800, 400))
 	axs = [Axis(fig[i, j]) for i = 1:2, j = 1:4]
 
 	for i = 1:2
@@ -693,17 +693,17 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			end
 			ylims!(axs[i, j], 0, nothing)
 
-			if i == 1
-				axs[i, j].xticks = WilkinsonTicks(3)
-				if p == "σ"
-					axs[i, j].xticks = WilkinsonTicks(2)
-				end
+			axs[i, j].xticks = WilkinsonTicks(3)
+			if p in ["σ", "c"]
+				axs[i, j].xticks = LinearTicks(3)
 			end
 
 			μ, σ = mean(posterior[:, p]), std(posterior[:, p])
 			Label(fig[i, j], justification=:left,
-				@sprintf("μ: %.2f %s\nσ: %.2f %s", μ, params_to_units[p], σ, params_to_units[p]), font=:regular, fontsize=13.0,
-				tellwidth=false, tellheight=false, halign=0.025, valign=0.9
+				@sprintf("μ: %.2f %s\nσ: %.2f %s", μ, params_to_units[p], σ, params_to_units[p]), font=:regular, fontsize=11.0,
+				tellwidth=false, tellheight=false, 
+				halign=p in ["A_b", "h₀"] ? 0.025 : 0.99, 
+				valign=0.9
 			)
 		end
 	end
@@ -960,28 +960,69 @@ function compute_mean_cov(posterior_data::DataFrame, var_list::Array{String})
 end
 
 # ╔═╡ aa9c9d45-bb7c-4eee-af87-6fbc01df271d
-var_list = ["A_b", "A_t", "H", "r_hole", "h_hole", "σ", "c"]
+var_list = ["A_b", "A_t", "H", "r_hole", "h_hole", "c", "σ"]
 
 # ╔═╡ bb0a7df4-7e84-472a-ab00-e3dd801daf8e
 μ_train, Σ_train = compute_mean_cov(train_posterior, var_list)
 
 # ╔═╡ 3f640581-edcc-4c7a-86ba-b168f31fe4a3
-function viz_cov_matrix(Σ::Matrix{Float64}, var_list::Array{String})
+function viz_cov_matrix(
+	Σ::Matrix{Float64}, var_list::Array{String}; incl_values::Bool=false
+)
 	fig = Figure()
 	ax = Axis(
 		fig[1, 1], 
 		xticks=(1:length(var_list), [params_to_title[p] for p in var_list]),
 		xticklabelrotation=π/2,
 		yticks=(1:length(var_list), [params_to_title[p] for p in var_list]),
-		aspect=DataAspect()
+		aspect=DataAspect(),
+		title="covariance matrix, C",
+		titlefont=:regular
 	)
-	heatmap!(Σ)
-	Colorbar(fig[1, 2], label="covariance")
+	hm = heatmap!(Σ, colorrange=(0.0, 0.015))
+	if incl_values
+		for i = 1:size(Σ)[1]
+			for j = 1:size(Σ)[1]
+				text!(ax, i, j-.05, 
+					text=@sprintf("%0.1e", Σ[i,j]), 
+					align=(:center, :center), fontsize=6
+				)
+			end
+		end
+	end
+	Colorbar(fig[1, 2], hm, label="covariance")
+	save("posterior_cov_matrix.pdf", fig)
 	fig
 end
 
 # ╔═╡ 3bb65b71-d191-498b-81bf-40ffff4df1f4
 viz_cov_matrix(Σ_train, var_list)
+
+# ╔═╡ 2fc78ec1-bf53-49da-b31a-6b5bf165eb81
+function viz_mean_matrix(μ::Vector{Float64}, var_list::Array{String})
+	fig = Figure()
+	ax = Axis(
+		fig[1, 1], 
+		xticks=([], []),
+		yticks=(1:length(var_list), [params_to_title[p] for p in var_list]),
+		aspect=DataAspect(),
+		title=rich("mean vector, ", rich("m", font="bold")),
+		titlefont=:regular
+	)
+	hm = heatmap!(reshape(μ, (1, length(μ))))
+	Colorbar(fig[1, 2], hm, label="mean")
+	save("posterior_mean.pdf", fig)
+	fig
+end
+
+# ╔═╡ 34f621c0-207e-41e5-8193-ad81d2d21a01
+viz_mean_matrix(μ_train, var_list)
+
+# ╔═╡ 29518390-5d57-4f2d-b617-d7699468caf9
+[Σ_train[i, i] for i = 1:length(var_list)]
+
+# ╔═╡ e041f6b5-92b1-46f0-b383-606625d59a4a
+var_list
 
 # ╔═╡ b4fbbef8-3389-4fe9-9ebf-7b356bedd705
 @assert var(train_posterior[:, var_list[1]]) ≈ Σ_train[1, 1]
@@ -1257,9 +1298,6 @@ end
 # ╔═╡ e9ec8114-9fc1-44f1-8dbf-c9650e6b5248
 L_matrix(5)
 
-# ╔═╡ daaf8fcf-77b8-45ec-8c83-b7ed120ea31b
-var_list
-
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
 @model function forward_model_object(
 	data_w_object::DataFrame, train_posterior::DataFrame, 
@@ -1279,12 +1317,15 @@ var_list
 	H      = θ[3]
 	r_hole = θ[4]
 	h_hole = θ[5]
-	σ      = θ[6]
-	c      = θ[7]
+	c      = θ[6]
+	σ      = θ[7]
+	
 	
 	# initial liquid level
 	h₀_obs = data_w_object[1, "h [cm]"]
-	h₀ ~ Normal(h₀_obs, σ)
+	h₀ ~ Truncated(
+		Normal(h₀_obs, σ), 0, H
+	)
 	# Truncated(
 	# 	Normal(h₀_obs, σ),
 	# 	h₀_obs - 4 * σ, 
@@ -1302,12 +1343,12 @@ var_list
 	hs = range(0.0, 0.999 * H, length=N)
 	
 	As = Vector{Real}(undef, N)
-	As[1] ~ Uniform(0.0, 0.999 * A_of_tank(hs[1]))
+	As[1] ~ Uniform(0.0, A_b)
 	for i in 2:N
 		As[i] ~ Truncated(
 						  As[i - 1] + Normal(0.0, γ), 
 						  0.0, 
-						  0.999 * A_of_tank(hs[i])
+						  A_of_tank(hs[i])
 						 )
 	end
 
@@ -1356,7 +1397,7 @@ md"### posterior"
 # ╔═╡ fb3ece76-f85c-41e1-a332-12c71d9d3cc0
 begin
 	γ = 5.0 # smoothness param
-	N = 10  # number of points to infer area on
+	N = 20  # number of points to infer area on
 end
 
 # ╔═╡ 1aca6b92-7754-4cb3-b9e8-5d486e3bfcf8
@@ -1399,21 +1440,31 @@ function viz_inferred_area(
 	)
 	
 	for i in 1:nrow(object_posterior)
+		# plot inferred area of the object
 		Aₒs = [object_posterior[i, "As[$n]"] for n in 1:N]
 		hs = range(
-			0.0, object_posterior[1, "H"], length=N
+			0.0, object_posterior[i, "H"], length=N
 		)
 		lines!(hs, Aₒs, label="model", color=(theme_colors[8], 0.1))
+
+		# plot area of tank for reference
+		
+		lines!(
+			[0, object_posterior[i, "H"]], 
+			[object_posterior[i, "A_b"], object_posterior[i, "A_t"]], 
+			color=("gray", 0.1)
+		)
 	end
 
 	scatter!(object_true_area[:, "h [cm]"], object_true_area[:, "area [cm²]"], 
 			label="measurment\n(held-out)", color=colors["data"])
 
-	ylims!(0, tank_measurements.A_t)
-	xlims!(0, nothing)
+	ylims!(0, 1.05 * tank_measurements.A_t)
+	xlims!(0, tank_measurements.H * 1.05)
 
 	if show_legend
-		axislegend("γ=$γ; N=$N", unique=true, position=:rt, titlefont="normal")
+		axislegend(#"γ=$γ; N=$N", 
+			unique=true, position=:rc, titlefont="normal", labelsize=16)
 	end
 	
 	if ! isnothing(savename)
@@ -1430,23 +1481,22 @@ viz_inferred_area(object_posterior, object_true_area, γ, N, savename="posterior
 md"### prior"
 
 # ╔═╡ 65d81268-9ff2-4a18-b0ce-4b105740dc8b
-# ╠═╡ disabled = true
-#=╠═╡
 begin
-	object_tank_model_prior = forward_model_object(data_w_object, train_posterior, γ, N, tank_measurements, prior_only=true)
+	object_tank_model_prior = forward_model_object(
+		data_w_object, train_posterior, γ, N, tank_measurements, prior_only=true
+	)
+	
 	object_prior = DataFrame(
 		sample(object_tank_model_prior, NUTS(0.65), MCMCSerial(), 
 			n_MC_sample, 3; progress=true
 		)
 	)
-	rename!(object_posterior, ["θ[$i]" => var_list[i] for i = 1:length(var_list)]...)
+	
+	rename!(object_prior, ["θ[$i]" => var_list[i] for i = 1:length(var_list)]...)
 end
-  ╠═╡ =#
 
 # ╔═╡ 8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
-#=╠═╡
 viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", show_legend=false)
-  ╠═╡ =#
 
 # ╔═╡ Cell order:
 # ╠═faf59350-8d67-11ee-0bdd-2510e986118b
@@ -1534,6 +1584,10 @@ viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", 
 # ╠═bb0a7df4-7e84-472a-ab00-e3dd801daf8e
 # ╠═3f640581-edcc-4c7a-86ba-b168f31fe4a3
 # ╠═3bb65b71-d191-498b-81bf-40ffff4df1f4
+# ╠═2fc78ec1-bf53-49da-b31a-6b5bf165eb81
+# ╠═34f621c0-207e-41e5-8193-ad81d2d21a01
+# ╠═29518390-5d57-4f2d-b617-d7699468caf9
+# ╠═e041f6b5-92b1-46f0-b383-606625d59a4a
 # ╠═b4fbbef8-3389-4fe9-9ebf-7b356bedd705
 # ╠═22adb08e-4d8c-40c5-97ef-cb1f3f0f6d90
 # ╠═a515407b-f749-48f2-b8ea-62940a186cce
@@ -1564,7 +1618,6 @@ viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", 
 # ╟─b23dc763-d91f-4d66-94d2-dcf96cb07f54
 # ╠═31ed6b59-4071-41f0-b351-e0bcc0864a30
 # ╠═e9ec8114-9fc1-44f1-8dbf-c9650e6b5248
-# ╠═daaf8fcf-77b8-45ec-8c83-b7ed120ea31b
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
 # ╟─da44647a-36e4-4116-9698-df1cb059c2b7
 # ╠═fb3ece76-f85c-41e1-a332-12c71d9d3cc0
