@@ -1438,17 +1438,29 @@ function viz_inferred_area(
 		xlabel="height, h [cm]", 
 		ylabel="area, α [cm²]"
 	)
-	
+
+	residuals = zeros(nrow(object_posterior), nrow(object_true_area))
 	for i in 1:nrow(object_posterior)
-		# plot inferred area of the object
-		Aₒs = [object_posterior[i, "As[$n]"] for n in 1:N]
+		# characterize A(h)
 		hs = range(
 			0.0, object_posterior[i, "H"], length=N
 		)
+		Aₒs = [object_posterior[i, "As[$n]"] for n in 1:N]
+
+		# for computing residual
+		A_of_object = linear_interpolation(hs, Aₒs, extrapolation_bc=Line())
+		
+		# compute residuals
+		for j = 1:nrow(object_true_area)
+			hᵢ, aᵢ = object_true_area[j, "h [cm]"], object_true_area[j, "area [cm²]"]
+			âᵢ = A_of_object(hᵢ)
+			residuals[i, j] += abs(aᵢ - âᵢ)
+		end
+
+		# plot inferred area of the object
 		lines!(hs, Aₒs, label="model", color=(theme_colors[8], 0.1))
 
 		# plot area of tank for reference
-		
 		lines!(
 			[0, object_posterior[i, "H"]], 
 			[object_posterior[i, "A_b"], object_posterior[i, "A_t"]], 
@@ -1456,16 +1468,23 @@ function viz_inferred_area(
 		)
 	end
 
+	# measured area
 	scatter!(object_true_area[:, "h [cm]"], object_true_area[:, "area [cm²]"], 
 			label="measurment\n(held-out)", color=colors["data"])
 
 	ylims!(0, 1.05 * tank_measurements.A_t)
 	xlims!(0, tank_measurements.H * 1.05)
 
+	# plot H and h0
+	scatter!([mean(object_posterior[:, "H"])], [0], marker=:vline, color="gray")
+	scatter!([mean(object_posterior[:, "h_hole"])], [0], marker=:vline, color="gray")
+
 	if show_legend
 		axislegend(#"γ=$γ; N=$N", 
 			unique=true, position=:rc, titlefont="normal", labelsize=16)
 	end
+
+	println("mean residual: ", mean(residuals))
 	
 	if ! isnothing(savename)
 		save("$savename.pdf", fig)
