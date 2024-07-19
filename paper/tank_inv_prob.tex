@@ -297,7 +297,7 @@ We parameterize the area of the object inside the tank as a function of height, 
 where $\alpha_i :=\alpha(i \Delta h)$ for $i \in \{0, ..., n\}$, $\Delta h = h_{\text{max}}/n$. Then, we construct the function $\alpha(h)$ for $h\in [0, h_{\text{max}}]$ via linear interpolation of the function values in $\boldsymbol \alpha$. Equivalently, we represent the object's area as a function of height as:
 \begin{equation}
 	\alpha(h; \boldsymbol \alpha) = \sum_{i=0}^n \alpha_i \phi(h-i \Delta h) \label{eq:alpha_basis}
-\end{equation} where $\phi(x)= \max(0, 1-\lvert x \rvert / (\Delta h)) $ is a triangle hat function \cite{hat_functions}.
+\end{equation} where $\phi(x)= \max(0, 1-\lvert x \rvert / (\Delta h)) $ is a triangle ``tent'' function \cite{hat_functions}.
 
 \vspace{-\baselineskip}
 \subparagraph{Inputs, output, and model parameters.} 
