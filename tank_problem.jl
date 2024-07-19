@@ -1396,7 +1396,7 @@ md"### posterior"
 
 # ╔═╡ fb3ece76-f85c-41e1-a332-12c71d9d3cc0
 begin
-	γ = 5.0 # smoothness param
+	γ = 10.0 # smoothness param
 	N = 20  # number of points to infer area on
 end
 
@@ -1410,7 +1410,7 @@ begin
 	
 	object_posterior = DataFrame(
 		sample(object_tank_model, NUTS(0.65), MCMCSerial(), 
-			n_MC_sample, 3, progress=true
+			n_MC_sample, 5, progress=true
 			# n_MC_sample, 3; progress=true
 		)
 	)
@@ -1516,6 +1516,29 @@ end
 
 # ╔═╡ 8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
 viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", show_legend=false)
+
+# ╔═╡ 71471b2e-34b1-412c-871f-fa4c35e01c23
+md"# hat function idea"
+
+# ╔═╡ 8ba8d6c6-39ee-491a-afc7-5f7582435ef3
+ϕ(x, Δh) = max(0.0, 1 - abs(x / Δh))
+
+# ╔═╡ 7f49bea4-fa7d-4d1a-9908-246288be125b
+begin
+	Δh = 0.5
+	toy_α = [1.0, 2.0, 2.0, 5.0, 0.0]
+	n = length(toy_α) - 1
+	function my_α(h)
+		return sum(ϕ(h - i * Δh, Δh) * toy_α[i+1] for i =0:n)
+	end
+
+	fig = Figure()
+	ax = Axis(fig[1, 1])
+	scatter!([Δh * i for i = 0:n], toy_α)
+	hs = range(0.0, 2.0, length=150)
+	lines!(hs, my_α.(hs))
+	fig
+end
 
 # ╔═╡ Cell order:
 # ╠═faf59350-8d67-11ee-0bdd-2510e986118b
@@ -1648,3 +1671,6 @@ viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", 
 # ╟─bd95428d-1077-4417-bfca-0c5da7378af2
 # ╠═65d81268-9ff2-4a18-b0ce-4b105740dc8b
 # ╠═8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
+# ╟─71471b2e-34b1-412c-871f-fa4c35e01c23
+# ╠═8ba8d6c6-39ee-491a-afc7-5f7582435ef3
+# ╠═7f49bea4-fa7d-4d1a-9908-246288be125b
