@@ -106,13 +106,17 @@ Cory M. Simon$^{1}$
 \begin{abstract}
 In engineering, we often encounter an open-top, liquid-holding tank draining via gravity-driven flow through a small orifice in its side. 
 Torricelli's law and a mass balance give a differential equation model governing the dynamics of the liquid level in the tank. 
-Herein, we consider the inverse problem of leveraging this model to infer the shape of an exogenous solid, heavy object inside of a tank draining of liquid, using measurements of the liquid level over time. (Because the object displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the object at that height; as the liquid level drops, we ``scan'' the area of the object as a function of height.) To quantify uncertainty about the shape of the object, we employ Bayesian statistical inversion for reconstructing the object's cross-sectional area as a function of height. 
+Herein, we leverage this forward model to tackle an inverse problem: infer the shape of a solid, heavy object inside of a tank from measurements of the liquid level in the tank as it drains over time. 
+(Because the object displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the object at that height; 
+as the liquid level drops, it ``scans'' the area of the object as a function of height.) 
+To quantify uncertainty about the shape of the object, we employ Bayesian statistical inversion to reconstruct the object's cross-sectional area as a function of height. 
 
-In our experimental setup, a small, open-top tank 
+In our experimental setup, an open-top tank 
 % (an inverted, truncated cone with a rounded rectangle base) 
-drains of water through a small orifice in its side; a liquid level sensor collects time series data of the water level. 
-First, we calibrate and test our forward model of the dynamics of the water level using data from two drainage experiments without an object inside of the tank. Second, we conduct a drainage experiment with an object inside the tank, then leverage the calibrated forward model and the liquid level time series data to predict (i.e., obtain a posterior distribution for) the shape of the object inside the tank with quantified uncertainty.
-Our approach may be practically useful to infer the shape of an unknown object, or the porosity of packed particles, inside of an opaque tank that gives access to liquid level measurements. 
+drains of water through a small orifice in its side, while a liquid level sensor collects time series data of the water level. 
+First, we calibrate and test our forward model of the dynamics of the water level using data from two drainage experiments without an object inside of the tank. 
+Second, we conduct a drainage experiment with an object inside the tank, then leverage the calibrated forward model and the liquid level time series data to predict (i.e., obtain a posterior distribution for) the shape of the object inside the tank with quantified uncertainty.
+Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, inside of an opaque tank that gives access to liquid level measurements. 
 \newline
 
 \begin{center}
@@ -157,28 +161,29 @@ Applying a mass balance and Torricelli's law to a tank draining of liquid via gr
 The geometry of the tank affects the dynamics of the liquid level through its cross-sectional area (parallel to the ground) as a function of height.
 The cross-sectional area of the orifice affects the emptying time; theoretically, it gives the volumetric flow rate out of the tank from Torricelli's law. 
 % TODO: a name for cross-sectional area parallel to the ground?
-However, we must introduce a \emph{discharge coefficient} \cite{de2000pin,blasone2015discharge,wadhwa2021study,liu2008drainage} for the model to agree well with experimentally measured volumetric outflow rates \cite{farmer1992physical,driver1998torricelli,brady2009siphons,rother2024modelling,paldy1963apparatus,ivanov2014testing,williams2021vessel,pavesi2019investigating,planinvsivc2011holes,saleta2005experimental,lopac2015water,powell2012carrying}.
+However, a \emph{discharge coefficient} \cite{de2000pin,blasone2015discharge,wadhwa2021study,liu2008drainage} must be introduced into the model for agreement with experimentally-measured volumetric outflow rates \cite{farmer1992physical,driver1998torricelli,brady2009siphons,rother2024modelling,paldy1963apparatus,ivanov2014testing,williams2021vessel,pavesi2019investigating,planinvsivc2011holes,saleta2005experimental,lopac2015water,powell2012carrying}.
 The discharge coefficient
 (i) is defined as the ratio of the observed outlet volumetric flow rate to that predicted by Torricelli's law and the area of the orifice \cite{hicks2014determining};
 (ii) accounts for the vena contracta of the liquid jet, frictional losses across the orifice, and non-uniformity of the velocity profile; and
 (iii) depends on the rheology of the liquid, the geometry of the orifice, and, for laminar as opposed to turbulent flow, the Reynolds number \cite{teoman2022discharge}. 
-The vena contracta refers to the lesser cross-sectional area of the liquid jet issuing from the orifice than the area of the orifice; this owes to fluid streamlines, inside the tank and near the orifice, not perpendicular to the orifice area \cite{horsch2020simple}. 
+Regarding the vena contracta: the cross-sectional area of the liquid jet issuing from the orifice is smaller than the area of the orifice, owing to fluid streamlines inside the tank and near the orifice not being perpendicular to the orifice area \cite{horsch2020simple}. 
 %  and (ii) depends on the rheology of the fluid and the geometry of the orifice. 
 \cite{teoman2022discharge,hicks2014determining,blasone2015discharge,lienhard1984velocity,wadhwa2021study}
 
-As opposed to the \emph{forward problem} of using a dynamic model to predict the trajectory of the liquid level in a draining tank, given the tank geometry, Groetsch \cite{groetsch1993inverse,groetsch1999inverse} posed an \emph{inverse problem} \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse}: reconstruct the shape of the tank from measurements of the liquid level over time as it drains. 
-While impossible to infer the \emph{precise} geometry of the tank, determining the cross-sectional area of the tank as a function of height, from (a) the liquid level as a function of time and (b) the orifice area [and (c) the dynamic model of the liquid level], is a determined inverse problem. Although, this inverse problem is unstable: small errors in the measured liquid level can cause large errors in the estimated area of the tank. \cite{groetsch1993inverse}
+As opposed to the \emph{forward problem} of using a dynamic model to predict the trajectory of the liquid level in a draining tank when given the tank geometry, Groetsch \cite{groetsch1993inverse,groetsch1999inverse} posed an \emph{inverse problem} \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse}: reconstruct the shape of the tank from the liquid level over time as it drains. 
+While impossible to infer the precise 3D geometry of the tank, one can theoretically determine the cross-sectional area of the tank as a function of height from the liquid level as a function of time. Though, inverse problem is unstable: small errors in the measured liquid level can cause large errors in the estimated area of the tank. \cite{groetsch1993inverse}
 
 \subsection{Our contribution}
-Herein, we consider an inverse problem of reconstruction pertaining to a tank draining of liquid (due to gravity) through a small orifice in its side.
-Suppose (i) we know the geometry of the tank and the orifice but (ii) the tank contains an exogenous heavy, solid object, whose shape is unknown.
-To indirectly obtain information about the shape of the object, we fill the tank with liquid, then take measurements of the liquid level over time as the tank drains.
+Herein, we consider the following inverse problem of reconstruction.
+ % ertaining to a tank draining of liquid (due to gravity) through a small orifice in its side.
+Suppose an open-top tank of known geometry contains an exogenous, heavy, solid of unknown geometry.
+To [indirectly] obtain information about the shape of the exogenous solid, we fill the tank with liquid, allow the tank to drain through a small orifice (of known geometry) in its side, and measure the liquid level over time as it drains.
 From this liquid level time series data, we wish
 % and a differential equation model of the dynamics of the liquid level 
-to infer the shape of the solid object inside the tank---particularly, its cross-sectional area as a function of height.
+to infer the shape of the exogenous solid inside the tank---particularly, its cross-sectional area as a function of height.
 
-Explaining why this inverse problem is determined:
-because the solid displaces liquid in the tank, the rate of change of the liquid level during draining indicates the cross-sectional area of the solid at the height of the liquid.
+Our intuition underlying the possibility to reconstruct the shape of a solid inside a draining tank from its liquid level over time. 
+Because the solid displaces liquid in the tank, the rate of change of the liquid level while draining provides information about the cross-sectional area of the solid at the height of the liquid.
 As the liquid level drops, the liquid ``scans'' the object's cross-sectional area as a function of its height. 
 
 We conduct tank drainage experiments with water to collect liquid level time series data for illustrating and testing our ability to reconstruct the shape of an object inside the tank.
