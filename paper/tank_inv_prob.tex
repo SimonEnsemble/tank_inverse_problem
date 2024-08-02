@@ -106,16 +106,16 @@ Cory M. Simon$^{1}$
 \begin{abstract}
 In engineering, we often encounter an open-top, liquid-holding tank draining via gravity-driven flow through a small orifice in its side. 
 Torricelli's law and a mass balance give a differential equation model governing the dynamics of the liquid level in the tank. 
-Herein, we leverage this forward model to tackle an inverse problem: infer the shape of a solid, heavy object inside of a tank from measurements of the liquid level in the tank as it drains over time. 
-(Because the object displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the object at that height; 
-as the liquid level drops, it ``scans'' the area of the object as a function of height.) 
-To quantify uncertainty about the shape of the object, we employ Bayesian statistical inversion to reconstruct the object's cross-sectional area as a function of height. 
+Herein, we leverage this forward model to tackle an inverse problem of reconstruction: infer the shape of an exogenous, heavy solid inside of a tank from measurements of the liquid level in the tank as it drains over time. 
+(Because the solid displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the object at that height; 
+as the liquid level drops, it ``scans'' the area of the solid as a function of height.) 
+To quantify uncertainty, we employ Bayesian statistical inversion to obtain a posterior distribution over the solid's cross-sectional area as a function of height. 
 
-In our experimental setup, an open-top tank 
+In our experimental setup, an open-top tank
 % (an inverted, truncated cone with a rounded rectangle base) 
 drains of water through a small orifice in its side, while a liquid level sensor collects time series data of the water level. 
-First, we calibrate and test our forward model of the dynamics of the water level using data from two drainage experiments without an object inside of the tank. 
-Second, we conduct a drainage experiment with an object inside the tank, then leverage the calibrated forward model and the liquid level time series data to predict (i.e., obtain a posterior distribution for) the shape of the object inside the tank with quantified uncertainty.
+First, we calibrate and test a forward model of the water level dynamics using data from two drainage experiments with a tank devoid of an exogenous solid. 
+Second, we conduct a drainage experiment with a tank containing an exogenous solid, then leverage the calibrated forward model and data to infer (i.e., obtain a posterior distribution for) the shape of the solid inside the tank with quantified uncertainty.
 Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, inside of an opaque tank that gives access to liquid level measurements. 
 \newline
 
@@ -137,11 +137,11 @@ Our approach may be practically useful to infer the shape of an unknown solid, o
 %%%%%%%%%% Insert the texts which can accomdate on firstpage in the tag "fmtext" %%%%%
 
 \section{Introduction}
-Throughout engineering and the applied sciences, we encounter a liquid-holding tank, draining via gravity-driven flow through a small orifice.
-Mathematical models of the dynamics of the liquid level in a draining tank are useful for designing the geometry of the tank and orifice, predicting the emptying time, forecasting the outlet flow rate, controlling the liquid level by manipulating an input stream, and inferring the liquid level from the outlet flow rate \cite{d2021torricelli,seborg2016process,groetsch1993inverse,groetsch1999inverse}.
+Throughout engineering and the applied sciences, we encounter a liquid-holding tank, draining via gravity-driven flow through a small orifice (hereafter, a \emph{draining tank}).
+Mathematical models of the dynamics of the liquid level in a draining tank are useful for designing the tank and orifice geometry, predicting emptying times, forecasting outlet flow rates, controlling the liquid level by manipulating an input stream, and inferring the liquid level from the outlet flow rate \cite{d2021torricelli,seborg2016process,groetsch1993inverse,groetsch1999inverse}.
 
 \begin{mytcbox}[label=box:waterclocks, breakable]{Ancient water clocks}
-Interestingly, ancient societies (e.g. ancient Greece) exploited the empirically predictable dynamics of the water level in a draining container to measure and display the passage of time.
+Interestingly, ancient societies (e.g. ancient Greece) exploited the empirically predictable dynamics of the water level in a draining tank to measure and display the passage of time.
 Specifically, the outflow \emph{clepsydra}, Greek for ``water thief'', was an open-top container with a small hole near its bottom and graduated markings on the inside. 
 Filled with water then allowed to drain, the elapsed time was indicated by the liquid level with respect to the markings on the inside. \cite{bedini1962compartmented,hwang2021historical,ritner2016oriental,hejun1987research,schomberg2018karnak,mills1982newton}
 The preserved Karnak clepsydra from $\sim$1300 BC \cite{schomberg2018karnak} is an inverted truncated cone. Notably, this geometry does not provide a constant rate of decrease in the water level; perhaps, though, its wider top was intended to compensate for faster outflow at higher water levels. An inverse problem pertaining to an outflow clepsydra is: what clepsydra shape provides a constant rate of decrease in the water level as it drains?
@@ -153,41 +153,36 @@ The preserved Karnak clepsydra from $\sim$1300 BC \cite{schomberg2018karnak} is 
 %The geometry of an ideal clepsydra would produce a constant rate of decrease in the liquid level. However, the geometry of e.g. the preserved Karnak clepsydra from $\sim$1300 BC \cite{schomberg2018karnak}, an inverted truncated cone, does not. Though, perhaps, its wider top was intended to compensate for the faster outflow when the liquid level is higher.
 
 % Italian physicist and mathematician 
-Evangelista Torricelli (1608-1647) made a fundamental observation for mathematical modeling the liquid level in a tank draining via gravity-driven flow through a small orifice: the velocity $v$ at which liquid flows out of the orifice is proportional to the square root of the height of liquid above the orifice, $\Delta h$, i.e. $v\propto \sqrt{\Delta h}$ \cite{mills1982newton}.
+Evangelista Torricelli (1608-1647) made a fundamental observation for mathematically modeling the liquid level in a draining tank: the velocity $v$ at which liquid flows out of a small orifice in a tank is proportional to the square root of the height of liquid above the orifice, $\Delta h$, i.e. $v\propto \sqrt{\Delta h}$ \cite{mills1982newton}.
 % TODO: check that he didn't know g!
 Today, we recover Torricelli's observation from Daniel Bernoulli's (1700–1782) equation \cite{welty2020fundamentals}, a mechanical energy balance applied to the steady, plug flow of an incompressible, inviscid fluid through the small orifice, neglecting frictional forces. This gives \emph{Torricelli's law}: $v=\sqrt{2 g \Delta h}$, with $g$ the acceleration due to gravity. \cite{d2021torricelli,teoman2022discharge}
 
-Applying a mass balance and Torricelli's law to a tank draining of liquid via gravity-driven flow through a small orifice, we obtain a first-order, [generally] nonlinear differential equation governing the liquid level in the tank over time \cite{groetsch1993inverse,seborg2016process,debook}.
+Applying a mass balance and Torricelli's law to a draining tank, we obtain a first-order, [generally] nonlinear differential equation governing the liquid level in the tank over time \cite{groetsch1993inverse,seborg2016process,debook}.
 The geometry of the tank affects the dynamics of the liquid level through its cross-sectional area (parallel to the ground) as a function of height.
 The cross-sectional area of the orifice affects the emptying time; theoretically, it gives the volumetric flow rate out of the tank from Torricelli's law. 
 % TODO: a name for cross-sectional area parallel to the ground?
 However, a \emph{discharge coefficient} \cite{de2000pin,blasone2015discharge,wadhwa2021study,liu2008drainage} must be introduced into the model for agreement with experimentally-measured volumetric outflow rates \cite{farmer1992physical,driver1998torricelli,brady2009siphons,rother2024modelling,paldy1963apparatus,ivanov2014testing,williams2021vessel,pavesi2019investigating,planinvsivc2011holes,saleta2005experimental,lopac2015water,powell2012carrying}.
-The discharge coefficient
+The discharge coefficient \cite{teoman2022discharge,hicks2014determining,blasone2015discharge,lienhard1984velocity,wadhwa2021study}
 (i) is defined as the ratio of the observed outlet volumetric flow rate to that predicted by Torricelli's law and the area of the orifice \cite{hicks2014determining};
-(ii) accounts for the vena contracta of the liquid jet, frictional losses across the orifice, and non-uniformity of the velocity profile; and
-(iii) depends on the rheology of the liquid, the geometry of the orifice, and, for laminar as opposed to turbulent flow, the Reynolds number \cite{teoman2022discharge}. 
-Regarding the vena contracta: the cross-sectional area of the liquid jet issuing from the orifice is smaller than the area of the orifice, owing to fluid streamlines inside the tank and near the orifice not being perpendicular to the orifice area \cite{horsch2020simple}. 
+(ii) accounts for (a) the vena contracta of the liquid jet (the cross-sectional area of the liquid jet issuing from the orifice is smaller than that of the orifice, owing to fluid streamlines in the tank, near the orifice, non-perpendicular to the orifice area \cite{horsch2020simple}); (b) frictional losses across the orifice, and (c) non-uniformity of the velocity profile; and
+(iii) depends on the rheology of the liquid, the geometry of the orifice, and, for laminar flow, the Reynolds number \cite{teoman2022discharge}. 
 %  and (ii) depends on the rheology of the fluid and the geometry of the orifice. 
-\cite{teoman2022discharge,hicks2014determining,blasone2015discharge,lienhard1984velocity,wadhwa2021study}
 
-As opposed to the \emph{forward problem} of using a dynamic model to predict the trajectory of the liquid level in a draining tank when given the tank geometry, Groetsch \cite{groetsch1993inverse,groetsch1999inverse} posed an \emph{inverse problem} \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse}: reconstruct the shape of the tank from the liquid level over time as it drains. 
-While impossible to infer the precise 3D geometry of the tank, one can theoretically determine the cross-sectional area of the tank as a function of height from the liquid level as a function of time. Though, inverse problem is unstable: small errors in the measured liquid level can cause large errors in the estimated area of the tank. \cite{groetsch1993inverse}
+
+As opposed to the \emph{forward problem} of using a dynamic model to predict the trajectory of the liquid level in a draining tank when given the tank geometry, Groetsch \cite{groetsch1993inverse,groetsch1999inverse} framed an \emph{inverse problem} \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse}: reconstruct the shape of the tank from the liquid level over time as it drains. 
+While impossible to infer the precise 3D geometry of the tank, one can theoretically determine the cross-sectional area of the tank as a function of height from the liquid level as a function of time. However, this inverse problem is unstable: small errors in the measured liquid level can cause large errors in the estimated area of the tank. \cite{groetsch1993inverse}
 
 \subsection{Our contribution}
-Herein, we consider the following inverse problem of reconstruction.
- % ertaining to a tank draining of liquid (due to gravity) through a small orifice in its side.
-Suppose an open-top tank of known geometry contains an exogenous, heavy, solid of unknown geometry.
-To [indirectly] obtain information about the shape of the exogenous solid, we fill the tank with liquid, allow the tank to drain through a small orifice (of known geometry) in its side, and measure the liquid level over time as it drains.
-From this liquid level time series data, we wish
-% and a differential equation model of the dynamics of the liquid level 
-to infer the shape of the exogenous solid inside the tank---particularly, its cross-sectional area as a function of height.
-
-Our intuition underlying the possibility to reconstruct the shape of a solid inside a draining tank from its liquid level over time. 
-Because the solid displaces liquid in the tank, the rate of change of the liquid level while draining provides information about the cross-sectional area of the solid at the height of the liquid.
-As the liquid level drops, the liquid ``scans'' the object's cross-sectional area as a function of its height. 
-
-We conduct tank drainage experiments with water to collect liquid level time series data for illustrating and testing our ability to reconstruct the shape of an object inside the tank.
-Because this reconstruction problem is unstable \cite{groetsch1993inverse}, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to predict the object's area as a function of height \emph{with quantified uncertainty}.
+Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to solve the following inverse problem of reconstruction with quantified uncertainty: infer the shape of an exogenous, heavy solid contained in a draining tank from measurements of its liquid level over time.
+(Because the solid displaces liquid in the tank, the rate of decrease of the liquid level while draining provides information about the cross-sectional area of the solid at the height of the liquid.
+As the liquid level drops, the liquid ``scans'' the object's cross-sectional area as a function of its height.)
+To test our ability to reconstruct the shape of the object in the tank, we conduct tank drainage experiments with water and collect water level time series data with a level sensing strip. First, we build and calibrate (i.e., determine the posterior distribution of the parameters of) (i) a forward model governing the dynamics of the water level in our draining tank and (ii) a probabilistic model of measurement noise from our level sensor.
+For this task, we take length-measurements of the tank and orifice geometry and collect water level time series data from a drainage experiment in our tank devoid of an exogenous solid. 
+Second, we conduct a drainage experiment with a tank containing an exogenous solid (a bottle), then leverage this water level time series data and our calibrated forward model to infer the area of the solid in the tank as a function of height, with quantified uncertainty.
+We compare the posterior distribution of the solid's cross-sectional area as a function of height with our (held-out) measurement of it.
+%
+%Because this reconstruction problem is unstable \cite{groetsch1993inverse}, 
+%We employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to predict the object's area as a function of height \emph{with quantified uncertainty}.
 
 %To demonstrate and test our ability to solve this reconstruction problem, we conduct tank drainage experiments to collect liquid level time series data.
 %We drilled a small hole in the side of an open-top tank, near the bottom.
@@ -199,49 +194,47 @@ Because this reconstruction problem is unstable \cite{groetsch1993inverse}, we e
 %After a tank drainage experiment, we use (a) the [forward] dynamic model of the liquid level, (b) a probabilistic model of the noise in the measured liquid level, and (c) liquid level time series data to construct the likelihood function, which expresses the support the data lend for each possible parameter/input.
 %Via Bayes's theorem, the posterior distribution of the parameters/inputs---conditioned upon the liquid level time series data---follows from the prior and likelihood. The posterior, the solution to the reconstruction problem, expresses a probability distribution over the object's cross-sectional area as a function of height, in light of the the liquid level time series data from a drainage experiment.
 
-The structure of our paper is as follows. Sec.~\ref{sec:expt} describes our setup for tank drainage experiments.
-In Sec.~\ref{sec:forward_model} we build (i) a forward model governing the dynamics of the liquid level in the tank given the tank, orifice, and object geometry and the discharge coefficient and (ii) a probabilistic model of the noise contaminating the measurements of the liquid level by our sensor.
-Sec.~\ref{sec:bsi} gives a brief overview of Bayesian statistical inversion, a tool we employ to (1) calibrate our forward model then (2) solve the reconstruction problem.
-In Sec.~\ref{sec:phaseI}, we calibrate (i.e., determine the posterior distribution of the parameters of) the forward and measurement models using length-measurements of the tank and orifice geometry and water level time series data from a drainage experiment concerning a tank \emph{lacking} an exogenous object. 
-Finally, in Sec.~\ref{sec:phaseII}, we conduct a drainage experiment in a tank containing an exogenous object then leverage this water level time series data and our calibrated forward model to infer the area of the object in the tank as a function of height, with quantified uncertainty.
-We test the posterior over the object's shape by comparing to our held-out measurement of it.
-
+% The structure of our paper is as follows. Sec.~\ref{sec:expt} describes our setup for tank drainage experiments.
 \section{Setup for tank drainage experiments} \label{sec:expt}
-Here, we describe our experimental setup for tank drainage (of water) experiments.
+First, we describe our experimental setup for tank drainage (of water) experiments.
 
-We begin with a plastic, open-top tank with a small orifice drilled in its side, near the bottom and perpendicular to its face.
-The tank is approximately an inverted, right, truncated cone whose base is a rounded rectangle. The cross-sectional area [parallel to the ground] of the tank as a function of height $h$ [cm] from its bottom base is:
+We possess a plastic, open-top tank---an inverted, right, truncated cone with a rounded rectangle base. 
+The cross-sectional area [parallel to the ground] of the tank as a function of height $h$ [cm] from its bottom base is:
 \begin{equation}
 	a(h) = \frac{h}{h_{\text{max}}}a_t + \left(1-\frac{h}{h_{\text{max}}}\right) a_b, \label{eq:a_of_h}
 \end{equation}
 with $h_{\text{max}}$ [cm] the height of the tank and $a_b$ [cm$^2$] and $a_t$ [cm$^2$] the area of the rounded rectangle forming the bottom and top, respectively, base of the tank.
-The small, circular hole of radius $r_o$ [cm] in the side of the tank is a small height $h_o$ [cm] from the bottom base (to the hole's center).)
+We drilled a small, circular orifice of radius $r_o$ [cm] in the side of the tank, parallel with the ground and a small height $h_o$ [cm] (to its center) from the bottom base.
 
-A tank draining experiment constitutes: (1) optionally, placing a heavy, solid object inside the tank; (2) filling the tank with water, to an initial height $h_0$ [cm]; (3) at time $t=0$ [s], allowing the water to drain out (driven by gravity) through the orifice; and (4) collecting time series data of the water level in the tank over time $\{(t_i, h_{\text{obs}, i}) \}$ using a liquid level sensor communicating with an Arduino microcontroller. See Fig.~\ref{fig:photo_of_tank}.
+A tank draining experiment constitutes: 
+(1) optionally, placing an exogenous, heavy solid inside the tank; 
+(2) filling the tank with water, to an initial height $h_0$ [cm]; 
+(3) at time $t=0$ [s], allowing the water to drain out (driven by gravity) through the orifice; and 
+(4) collecting time series data of the water level in the tank over time, $\{(t_i, h_{\text{obs}, i}) \}$, from a liquid level sensor communicating with an Arduino microcontroller. See Fig.~\ref{fig:photo_of_tank}.
 
-Note, the exogenous object (i) is heavier than water, thus remains at rest at the bottom of the tank throughout the process of draining and (ii) displaces water in the tank.
-Let $\alpha(h)$ [cm$^2$] be the cross-sectional [parallel to the floor] area of this object as a function of height $h$.
+The exogenous solid (i) is heavier than water, thus remains stationary at the bottom of the tank throughout the draining process and (ii) displaces water in the tank.
+Let $\alpha(h)$ [cm$^2$] be the cross-sectional [parallel to the ground] area of this solid as a function of height $h$.
 
 \begin{figure}[h!]
 \begin{center}
 	%\includegraphics[width=0.3\textwidth]{../tank_geometry/photo_of_tank.png}
 	\caption{\textbf{Setup for tank drainage experiments.}
-	We fill our open-top tank (perhaps, containing an exogenous object) with water, then allow it to drain via gravity-driven flow out of a small hole in its side, near its bottom. A liquid level strip measures the water level in the tank over time, giving time series data.
+	We fill our open-top tank (perhaps, containing an exogenous solid) with water, then allow it to drain via gravity-driven flow out of a small hole in its side, near its bottom. A liquid level strip measures the water level in the tank over time, giving time series data.
 	}
 	\label{fig:photo_of_tank}
 \end{center}
 \end{figure}
 
 \paragraph{The liquid level sensor.}
-We place our water level sensor, an eTape\texttrademark\xspace liquid level strip, vertically inside the tank, immersed in the water, to measure the water level in the tank at different times. The sensor communicates with an Arduino microcontroller, allowing us to automatically collect the time series data and write it to a file. 
-The liquid level strip functions by virtue of being compressed by the hydrostatic pressure of the water in which it immersed; its resistive output is inversely proportional to the water level. 
-\cite{eTape}
-We constructed a calibration curve (a smooth 1D spline) with a resolution of 1 cm to map the reading from the level sensor [0-1023 integer values] to the liquid level in the tank [cm]. 
+We place an eTape\texttrademark\xspace liquid level strip vertically inside the tank, immersed in the water. 
+The level strip gives an electrically-resistive output inversely proportional to the water level owing to its compression by the hydrostatic pressure of the water in which it is immersed \cite{eTape}.
+The sensor communicates with an Arduino microcontroller, providing us measurements of the water level over a time series. 
+To map the reading from the level sensor [0-1023 integer values] to the liquid level in the tank [cm], we constructed a calibration curve (a smooth 1D spline) with a resolution of 1 cm.
 
 \section{The forward and measurement models and likelihood} \label{sec:forward_model}
-The [deterministic] \emph{forward model} predicts the water level $h(t)$ [m] in our draining tank over time $t$ [s], given the \emph{inputs} $\alpha(h)$ and $h_0$ and \emph{parameters} $a_t$, $a_b$, $h_{\text{max}}$, $r_o$, $h_o$, the discharge coefficient $c$. 
-The probabilistic \emph{measurement model} characterizes the noise contaminating a water level measurement $h_{\text{obs}}$ by our sensor.
-After time series data \thedata are collected from a tank drainage experiment, the forward and measurement models give the \emph{likelihood function}: the probability density the data \thedata conditioned upon proposed functions/values for the inputs/parameters. 
+The [deterministic] \emph{forward model} predicts the water level $h(t)$ [m] in our draining tank over time $t$ [s], given the \emph{inputs} $\alpha(h)$ and $h_0$ and \emph{parameters} $a_t$, $a_b$, $h_{\text{max}}$, $r_o$, $h_o$, and the discharge coefficient $c$. 
+The probabilistic \emph{measurement model} characterizes the noise contaminating a water level measurement $h_{\text{obs}}$ made by our sensor.
+After time series data \thedata are collected from a tank drainage experiment, the forward and measurement models give the \emph{likelihood function}: the probability density of the data \thedata conditioned upon proposed functions/values for the inputs/parameters. 
 When any of the inputs/parameters are uncertain, the likelihood function quantifies the support that the data \thedata lend for each possible set of inputs/parameters.
 
 \subsection{Forward model}
@@ -256,7 +249,7 @@ We model the velocity $v$ [cm/s] of the jet of water flowing out of the orifice 
 \begin{equation}
 	v(h(t)) =  \sqrt{2 g(h(t)-h_o)}, \label{eq:Torricelli}
 \end{equation} where $g$ [cm/s$^2$] is the acceleration due to gravity. Torricelli's law follows from Bernoulli's equation \cite{welty2020fundamentals}, a mechanical energy balance on the flow through the orifice, treating (i) the flow as steady, plug, and absent of frictional forces and (ii) the water as inviscid and incompressible.
-Torricelli's law matches (i) the gain in kinetic energy, $(\Delta m) v^2/2$, when a small mass $\Delta m$ of water is ejected from the orifice, with (ii) the loss of gravitational potential energy, $(\Delta m)g(h-h_o)$, from the concomitant removal of a small slice of water (of the same mass) from the top of the water in the tank. \cite{groetsch1993inverse,driver1998torricelli,williams2021vessel}
+Torricelli's law matches (i) the gain in kinetic energy, $(\Delta m) v^2/2$, when a small mass $\Delta m$ of water is ejected from the orifice with (ii) the loss of gravitational potential energy, $(\Delta m)g(h-h_o)$, from the concomitant removal of a small slice of water (of the same mass) from the top of the body of water in the tank. \cite{groetsch1993inverse,driver1998torricelli,williams2021vessel}
 
 \paragraph{Volumetric outflow rate.}
 %If Torricelli's law held and the cross-sectional area of the liquid jet out of the tank were the same as the cross-sectional area of the orifice ($\pi r_o^2$), the volumetric flow rate out of the tank would be $v\pi r_o^2$.
@@ -265,18 +258,18 @@ Invoking Torricelli's law, we model the volumetric flow rate out of the tank at 
 	c \pi r_o^2 \sqrt{2 g(h(t)-h_o)}, \label{eq:outletflow}
 \end{equation}
 with $c\in(0,1)$ the [dimensionless] discharge coefficient---a ``fudge factor'' to account for the vena contracta in the water jet, non-plug flow through the orifice, and frictional losses as the water flows through the orifice \cite{horsch2020simple,teoman2022discharge,hicks2014determining,blasone2015discharge,lienhard1984velocity,wadhwa2021study}. 
-Note, $c=1$ would imply a water jet whose cross-sectional area is equal to that of the orifice ($\pi r_o^2$), plug flow, and zero frictional losses.
+Note, $c=1$ corresponds with ideality of a water jet whose cross-sectional area is equal to that of the orifice ($\pi r_o^2$), plug flow, and zero frictional losses.
 
 \paragraph{Volume of water in the tank.} 
 The volume $V$ [cm$^3$] of water in the tank at time $t$, when the water height is $h(t)$, follows from the method of cross-sections in calculus \cite{debook}:
 \begin{equation}
 	V(h(t))=\int_0^{h(t)} \left[a(y) - \alpha(y) \right] dy. \label{eq:volume}
 \end{equation}
-The integrand is the cross-sectional area of water in the tank at height $y$; subtraction of the area of the object $\alpha(y)$ from the area of the tank $a(h)$ in eqn.~\ref{eq:a_of_h} accounts for the displacement of water by the object in the tank. 
-(We neglect the small volume of water displaced by the level sensor.)
+The integrand is the cross-sectional area of water in the tank at height $y$; subtraction of the area of the solid $\alpha(y)$ from the area of the tank $a(h)$ accounts for the solid displacing water. (We neglect the small volume of water displaced by the level sensor.)
 
 \paragraph{Conservation of mass.}
-Conservation of mass applied to the draining tank [as the control volume] at time $t \geq 0$ equates the rate of decrease of water in the tank [g/s] with the outflow rate [g/s]. Treating the water as incompressible (constant density: $\rho$ [g/cm$^3$]) and using the expression in eqn.~\ref{eq:outletflow} for the outflow rate, conservation of mass gives:
+A mass balance on the draining tank [as the control volume] at time $t \geq 0$ equates the rate of decrease of water in the tank [g/s] with the outflow rate [g/s].
+ Treating the water as incompressible (constant density: $\rho$ [g/cm$^3$]) and using expression~\ref{eq:outletflow} for the outflow term, the mass balance is:
 \begin{equation}
 	\overbrace{\diff{}{t} \Bigl( \rho V(h(t)) \Bigr )}^{\text{rate of accumulation}}= - \overbrace{\rho c \pi r_o^2 \sqrt{2 g(h(t)-h_o)}}^{\text{outflow rate}}. \label{eq:massbalance}
 \end{equation}
@@ -287,7 +280,7 @@ Differentiating $V(h(t))$ in eqn.~\ref{eq:volume} and using the chain rule \cite
 & h(0)=h_0, \nonumber
 \end{empheq}
 a [generally] nonlinear, first-order, ordinary differential equation (ODE) in $h(t)$ subject to an initial condition.
-Given the tank and object geometry through $a(h)$ and $\alpha(h)$, the discharge coefficient $c$, the orifice radius and height $r_o$ and $h_o$, and initial water height $h_0$, we may numerically solve the ODE in eqn.~\ref{eq:forward_model} (we employ \texttt{DifferentialEquations.jl} \cite{rackauckas2017differentialequations}) to predict the water height in our draining tank over time, $h(t)$. 
+Given the geometry of the tank and solid through $a(h)$ and $\alpha(h)$, the discharge coefficient $c$, the orifice radius and height $r_o$ and $h_o$, and initial water height $h_0$, we can numerically solve the ODE in eqn.~\ref{eq:forward_model} (with \texttt{DifferentialEquations.jl} \cite{rackauckas2017differentialequations}) to predict the water height in our draining tank over time, $h(t)$. 
 % I.e., this \emph{forward} model makes predictions of the system output $h(t)$ (an \emph{effect}) when given the parameters and initial condition (the \emph{cause} of the effect).
 
 \vspace{-\baselineskip}
@@ -299,10 +292,11 @@ We parameterize the area of the object inside the tank as a function of height, 
 \begin{equation}
 	\boldsymbol \alpha := [\alpha_0, \alpha_1, ... \alpha_n] \label{eq:alpha}
 \end{equation}
-where $\alpha_i :=\alpha(i \Delta h)$ for $i \in \{0, ..., n\}$, $\Delta h = h_{\text{max}}/n$. Then, we construct the function $\alpha(h)$ for $h\in [0, h_{\text{max}}]$ via linear interpolation of the function values in $\boldsymbol \alpha$. Equivalently, we represent the object's area as a function of height as:
+where $\alpha_i :=\alpha(i \Delta h)$ for $i \in \{0, ..., n\}$, $\Delta h = h_{\text{max}}/n$. Then, we construct the function $\alpha(h)$ for $h\in [0, h_{\text{max}}]$ via linear interpolation of the function values in $\boldsymbol \alpha$. 
+From another perspective, we assume the solid's area as a function of height belongs to a class of functions written as:
 \begin{equation}
 	\alpha(h; \boldsymbol \alpha) = \sum_{i=0}^n \alpha_i \phi(h-i \Delta h) \label{eq:alpha_basis}
-\end{equation} where $\phi(x)= \max(0, 1-\lvert x \rvert / (\Delta h)) $ is a triangle ``tent'' function \cite{hat_functions}.
+\end{equation} where $\phi(x)= \max(0, 1-\lvert x \rvert / (\Delta h)) $ is a triangle ``tent'' basis function \cite{hat_functions}.
 
 \vspace{-\baselineskip}
 \subparagraph{Inputs, output, and model parameters.} 
