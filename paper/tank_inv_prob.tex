@@ -293,15 +293,16 @@ We parameterize the area of the object inside the tank as a function of height, 
 	\boldsymbol \alpha := [\alpha_0, \alpha_1, ... \alpha_n] \label{eq:alpha}
 \end{equation}
 where $\alpha_i :=\alpha(i \Delta h)$ for $i \in \{0, ..., n\}$, $\Delta h = h_{\text{max}}/n$. Then, we construct the function $\alpha(h)$ for $h\in [0, h_{\text{max}}]$ via linear interpolation of the function values in $\boldsymbol \alpha$. 
-From another perspective, we assume the solid's area as a function of height belongs to a class of functions written as:
+From another perspective, we express the solid's area as a function of height as:
 \begin{equation}
 	\alpha(h; \boldsymbol \alpha) = \sum_{i=0}^n \alpha_i \phi(h-i \Delta h) \label{eq:alpha_basis}
 \end{equation} where $\phi(x)= \max(0, 1-\lvert x \rvert / (\Delta h)) $ is a triangle ``tent'' basis function \cite{hat_functions}.
 
 \vspace{-\baselineskip}
 \subparagraph{Inputs, output, and model parameters.} 
-In the language of inverse problems \cite{groetsch1999inverse,waqar2023tutorial}, we refer to the object's area $\boldsymbol \alpha$ as an \emph{input} to the system (a \emph{cause}) and the water level as a function of time $h(t)$ as the \emph{output} of the system (an \emph{effect}).
-The initial water level $h_0$ is also an input.  
+We
+%In the language of inverse problems \cite{groetsch1999inverse,waqar2023tutorial}, we 
+consider the solid's area $\boldsymbol \alpha$ and initial water level $h_0$ as \emph{inputs} (causal factors) to the system and the water level as a function of time $h(t)$ as the \emph{output} (effect) of the system.
 The \emph{model parameters} $\boldsymbol \theta \in \mathbb{R}^6$ characterize the geometry of the tank and orifice and the rheology of water embedded in $c$:
 \begin{equation}
 	\boldsymbol \theta := [h_{\text{max}}, a_b, a_t, r_o, h_o, c]. \label{eq:theta}
@@ -315,84 +316,85 @@ To model [unobservable] noise corrupting the measurement, we treat the measured 
 \begin{equation}
 	H_{\text{obs}} = \themodelnomath + \Psi,
 \end{equation}
-with the Gaussian-distributed random variable $\Psi \overset{\text{iid}}{\sim} \mathcal{N}(0, \sigma^2)$ representing the unobservable noise, additive to the model prediction \themodel and, among multiple measurements, independent and identically-distributed (iid). 
-Then, the probability density governing the measured liquid level is a Gaussian with mean equal to the model prediction \themodel and variance $\sigma^2$:
+with the Gaussian-distributed random variable $\Psi \overset{\text{iid}}{\sim} \mathcal{N}(0, \sigma^2)$ the noise, additive to the model output and, among multiple measurements, independent and identically-distributed (iid). 
+Then, the probability density governing the measured liquid level is a Gaussian with mean equal to the model output \themodel and variance $\sigma^2$:
 \begin{equation}
 	H_{\text{obs}} \mid h_0, \boldsymbol \alpha, \boldsymbol  \theta, \sigma^2 \sim \mathcal{N}(\themodelnomath, \sigma^2). \label{eq:H_obs_distn}
-\end{equation} Here, we explicitly write that $H_{\text{obs}}$ is conditioned upon the initial water level, the object shape, the parameter vector, and the variance of the measurement noise.
+\end{equation} We are explicit that $H_{\text{obs}}$ is conditioned upon the inputs, parameters, and noise variance.
 % Sources of this noise are: imprecision of the liquid level strip, our calibration curve for the liquid level strip, vibrations
 
 % TODO: plot residuals
 % TODO expand 
 
 \subsection{Likelihood function}
-The likelihood is the $N$-dimensional probability density of observing time series data \thedata given the inputs $h_0$ and $\boldsymbol \alpha$, model parameters $\boldsymbol \theta$, and measurement noise variance $\sigma^2$. 
-Based on eqn.~\ref{eq:H_obs_distn} and the iid assumption, the likelihood is:
+The likelihood is the $N$-dimensional probability density of observing $\mathbf{h}_\text{obs}:=(h_{\text{obs},1}, ..., h_{\text{obs},N})$ in time series data \thedata (each measurement time $t_i$ specified) given the inputs $h_0$ and $\boldsymbol \alpha$, model parameters $\boldsymbol \theta$, and measurement noise variance $\sigma^2$. 
+Based on eqn.~\ref{eq:H_obs_distn} and the iid assumption, the likelihood density is:
 \begin{equation}
  \pi_{\text{like}}(\thedatanomath \mid h_0,\boldsymbol  \alpha, \boldsymbol \theta, \sigma^2 ) = \prod_{i=1}^N \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left[-\frac{1}{2}\left(\frac{h_{\text{obs}, i} - h(t_i; h_0, \boldsymbol\alpha, \boldsymbol\theta)}{\sigma} \right)^2 \right]. \label{eq:like}
 \end{equation}
-Once the data are obtained, the likelihood is viewed as a function of $h_0$, $\boldsymbol \alpha$, $\boldsymbol \theta$, and $\sigma^2$. The likelihood function scores the consistency between (i) the model predictions of the water level over time, with proposed values for the inputs and parameters, and (ii) the water level time series data. Hence, the likelihood function quantifies the support the data lend for each possible set of values for the inputs and parameters. 
+Once the data \thedata are obtained, the likelihood is viewed as a function of $h_0$, $\boldsymbol \alpha$, $\boldsymbol \theta$, and $\sigma^2$. The likelihood function scores the consistency between (i) the model predictions of the water level over time, with proposed values for the inputs and parameters, and (ii) the water level time series data. Hence, the likelihood function quantifies the support the data lend for each possible set of values for the inputs and parameters. 
 % The key idea is: if the data were likely (unlikely) to be obtained under proposed values for the inputs and parameters, then the 
 
 \section{Bayesian statistical inversion (BSI)} \label{sec:bsi}
-Here, we briefly outline Bayesian statistical inversion (BSI)  \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} as a tool to solve inverse problems associated with draining tanks while incorporating prior information and quantifying uncertainty in the solution. 
-Later, we will employ BSI to, sequentially, (1, \emph{parameter inference}) calibrate our forward and measurement models using length-measurements of the tank and orifice and tank drainage time series data collected when the tank certainly does not contain a solid object then (2, \emph{reconstruction}) infer the shape of an unknown object inside of the tank using the calibrated model and tank drainage time series data collected when an object resides in the tank.
+Here, we outline Bayesian statistical inversion (BSI)  \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian}, a tool for solving inverse problems while incorporating prior information and quantifying uncertainty. 
+Later, we employ BSI to, using water level time series data from tank drainage experiments,  
+(1, parameter inference) calibrate our forward and measurement models and 
+(2, reconstruction) infer the shape of a solid in the tank.
 
-For inverse problems associated with draining tanks, we treat the uncertain input(s) and/or parameters as random variables and model their probability distributions. 
-The region(s) of input/parameter space containing most of the density represent our knowledge and beliefs about where the input/parameters most likely lie. And, the degree of spread of the density reflects our uncertainty. We may succinctly summarize the state of our knowledge and beliefs about an input/parameter through the moments of its probability distribution (e.g., mean and variance) with the other inputs/parameters marginalized out. 
+Under BSI, we treat the uncertain input(s) and/or parameters of a tank drainage experiment as random variables and model their probability distributions.
+The probability density over input/parameter space expresses our knowledge and beliefs about the inputs/parameters: 
+(i) the region containing the bulk of it is where the inputs/parameters most likely lie, and (ii) its degree of spread (concentration) quantifies our uncertainty (certainty) about the inputs/parameters. 
+
+%A may summarize the state of our knowledge and beliefs about an input/parameter through the moments of its probability distribution (e.g., mean and variance) with the other inputs/parameters marginalized out. 
 
 BSI proceeds in three stages:
 
 \vspace{-\baselineskip}
-\paragraph{(1) specify a prior probability distribution.}
-First, we specify a \emph{prior} probability density $\pi_{\text{pr}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2)$ expressing our knowledge and beliefs about the initial water level $h_0$, object shape $\boldsymbol \alpha$, parameter vector $\boldsymbol \theta$, and measurement noise variance $\sigma^2$ \emph{before} we allow the tank to drain and collect water level time series data.
-The prior density we impose on an input/parameter can range from (i) diffuse (e.g. a uniform distribution) if we have no knowledge about it, adopting the principle of indifference, to (ii) informative (e.g. a Gaussian with a small variance) if we made a [noisy] measurement of it. Regardless, prior distributions contain some degree of subjectivity.
+\paragraph{(1) specify the prior.}
+Before we allow the tank to drain and observe water level time series data, we must express our knowledge and [to an extent, subjective] beliefs about the inputs and parameters through a \emph{prior} probability density $\pi_{\text{pr}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2)$.
+The [marginal] prior density on an input/parameter can range from 
+(i) diffuse (eg.\ a uniform distribution) if we lack knowledge about it---adopting the principle of indifference---to 
+(ii) informative (eg.\ a Gaussian with a small variance) if we possess a [noisy] measurement of it. 
 \cite{van2021bayesian}
 
 \vspace{-\baselineskip}
-\paragraph{(2) conduct an experiment to collect data.}
-Next, we conduct a tank-drainage experiment (containing a solid object, or not) to collect water level time series data, \thedata. 
-When this data are considered against the forward and measurement models, the data provide new information about the inputs and parameters. 
-That is, compared to the prior distribution, the data may lend more support for some values of the inputs/parameters and contradict other values.
+\paragraph{(2) gather data and construct the likelihood.}
+Next, we conduct a tank-drainage experiment (perhaps, containing an exogenous solid) to collect water level time series data, \thedata. 
+When considered against the forward and measurement models, these data provide new information about the inputs and parameters. Specifically, the likelihood function $\pi_{\text{like}}(\thedatanomath \mid h_0,\boldsymbol  \alpha, \boldsymbol \theta, \sigma^2 )$ quantifies the support the data lends for different inputs and parameters.
 
 \vspace{-\baselineskip}
-\paragraph{(3) update the prior to a posterior probability distribution.}
-In light of the data \thedata we collected, we update the prior distribution of the inputs and parameters to a \emph{posterior} probability density $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$. I.e., we are conditioning the inputs and parameters upon the data.
-The posterior density follows from the likelihood function in eqn.~\ref{eq:like} and prior density via Bayes's theorem \cite{van2021bayesian,calvetti2018inverse}:
+\paragraph{(3) update the prior to a posterior.}
+In light of the data \thedata, we invoke Bayes's theorem  \cite{van2021bayesian,calvetti2018inverse} to update our prior density of the inputs and parameters to a \emph{posterior} density
 \begin{equation}
-	\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath) = \frac{
+	\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath) \propto % \frac{
 	\pi_{\text{like}}(\thedatanomath \mid h_0,  \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 ) 
-	\pi_{\text{pr}}(h_0, \boldsymbol\alpha, \boldsymbol \theta, \sigma^2)
-	}{
-	\pi_{\text{ev}}(\thedatanomath) 
-	}, \label{eq:post}
-\end{equation} where the denominator, the \emph{evidence}, is the marginal likelihood:
-\begin{multline}
-    \pi_{\text{ev}}(\thedatanomath) = \\ 
-    \int_0^\infty
-     \int_{\mathbb{R}^6}  
-     \int_{\mathbb{R}^{n+1}} 
-     \int_0^\infty 
-    \pi_{\text{like}}(\thedatanomath \mid h_0,  \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 ) 
-	\pi_{\text{pr}}(h_0, \boldsymbol\alpha, \boldsymbol \theta, \sigma^2)
-	dh_0 d \boldsymbol\alpha d \boldsymbol\theta d\sigma^2 \label{eq:ev}
-\end{multline}
-that can in principle be computed from the likelihood and prior in the numerator. 
+	\pi_{\text{pr}}(h_0, \boldsymbol\alpha, \boldsymbol \theta, \sigma^2).
+	%}{
+	%\pi_{\text{ev}}(\thedatanomath) 
+	%},
+	 \label{eq:post}
+\end{equation} 
+A compromise between the likelihood and prior,
+the posterior density expresses our knowledge and beliefs about the inputs and parameters \emph{conditioned upon the data} [and, implicitly, the structure of our forward and measurement models]. 
+Thus, the posterior represents the raw, uncertainty-quantifying solution to the inverse problem.
+Note, uncertainty (entropy) remains in the posterior because
+ (i) our measurements are noisy and 
+ (ii) perhaps, even noiseless data cannot fully constrain a subset of the parameters/inputs.
+(The normalizing factor for the posterior, the \emph{evidence} or \emph{marginal likelihood} is a high-dimensional integral that can in principle be computed from the likelihood and prior.)
 
-The posterior represents the raw, uncertainty-quantifying solution to the inverse problem: it expresses the state of our knowledge and beliefs about the inputs and parameters in light of the experimental tank drainage data, when compared with the forward and measurement models. 
-The posterior assigns a weight to each possible value of the inputs/parameters $h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2$ that could explain the data \cite{dashti2013bayesian}. 
-% Assuming the forward and measurement models and prior assumptions hold, the inputs/parameters plausibly belong to the region of input/parameter space containing the bulk of the posterior density, and the spread (concentration) of the posterior over this space quantifies our uncertainty (certainty) about the inputs/parameters.
-% We may summarize the posterior distribution of an input/parameter with a \emph{credible interval} that contains the bulk of the posterior density. 
-% E.g., the 95\% equal-tailed credible interval for a variable contains 95\% of the posterior density with equal-area tails omitted on both sides.
-The posterior may be 
-(i) summarized with a \emph{credible region} [that contains the bulk of the posterior density] for each parameter/input;
-(ii) queried e.g., ``what is the probability this input/parameter exceeds a certain value?''; and
-(iii) exploited in conjunction with the forward model to make probabilistic predictions, such as predicting the distribution of emptying times for a draining tank.
+
+%The posterior may be 
+%(i) summarized with a \emph{credible region} [that contains the bulk of the posterior density] for each parameter/input;
+%(ii) queried e.g., ``what is the probability this input/parameter exceeds a certain value?''; and
+%(iii) exploited in conjunction with the forward model to make probabilistic predictions, such as predicting the distribution of emptying times for a draining tank.
 
 \vspace{-\baselineskip}
-\subparagraph{Sampling from the posterior distribution.} We resort to Markov chain Monte Carlo (MCMC) simulations \cite{robert1999monte} to obtain [serially-correlated, sequential] samples \thesamples from the posterior density $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$. 
-Advantageously, MCMC samplers allow us to circumvent computing the evidence $\pi_{\text{ev}}(\thedatanomath)$ in eqn.~\ref{eq:ev}, a high-dimensional integral.  From the samples \thesamples from the posterior distribution, we may draw empirical posterior distributions (histograms), compute credible intervals, and plot samples of liquid level trajectories when paired with the forward model.
-Specifically, we employ the No-U-Turn Sampler (NUTS) \cite{hoffman2014no} implemented in the probabilistic programming language \cite{gordon2014probabilistic} \texttt{Turing.jl} \cite{ge2018turing}.
+\subparagraph{Sampling from the posterior distribution.} 
+We conduct Markov chain Monte Carlo (MCMC) simulations \cite{robert1999monte} to sample inputs/parameters $(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 )$ from the posterior density $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$. 
+From samples \thesamples from the posterior, we may draw empirical posterior distributions, compute credible intervals, and plot samples of liquid level trajectories when paired with the forward model.
+Specifically, we use the No-U-Turn Sampler (NUTS) \cite{hoffman2014no} implemented in the probabilistic programming language \cite{gordon2014probabilistic} \texttt{Turing.jl} \cite{ge2018turing}.
+A key advantage of MCMC samplers is that we can circumvent computing the evidence. 
+
 
 \section{Results}
 We now employ BSI to:
