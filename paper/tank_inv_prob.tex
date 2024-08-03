@@ -359,7 +359,7 @@ The [marginal] prior density on an input/parameter can range from
 
 \vspace{-\baselineskip}
 \paragraph{(2) gather data and construct the likelihood.}
-Next, we conduct a tank-drainage experiment (perhaps, containing an exogenous solid) to collect water level time series data, \thedata. 
+Next, we conduct a tank drainage experiment (perhaps, containing an exogenous solid) to collect water level time series data, \thedata. 
 When considered against the forward and measurement models, these data provide new information about the inputs and parameters. Specifically, the likelihood function $\pi_{\text{like}}(\thedatanomath \mid h_0,\boldsymbol  \alpha, \boldsymbol \theta, \sigma^2 )$ quantifies the support the data lends for different inputs and parameters.
 
 \vspace{-\baselineskip}
@@ -380,7 +380,7 @@ Thus, the posterior represents the raw, uncertainty-quantifying solution to the 
 Note, uncertainty (entropy) remains in the posterior because
  (i) our measurements are noisy and 
  (ii) perhaps, even noiseless data cannot fully constrain a subset of the parameters/inputs.
-(The normalizing factor for the posterior, the \emph{evidence} or \emph{marginal likelihood} is a high-dimensional integral that can in principle be computed from the likelihood and prior.)
+(The normalizing factor for the posterior, the \emph{evidence} or \emph{marginal likelihood} is a high-dimensional integral that can, in principle, be computed from the likelihood and prior.)
 
 
 %The posterior may be 
@@ -397,40 +397,39 @@ A key advantage of MCMC samplers is that we can circumvent computing the evidenc
 
 
 \section{Results}
-We now employ BSI to:
-(1) calibrate our forward and measurement models, then
-(2) exploit our calibrated model to infer the shape of a solid, heavy object using water level time series data from a tank drainage experiment with that object inside of the tank.
+We now employ BSI to, using water level time series data from tank drainage experiments,  
+(1) calibrate our forward and measurement models then
+(2) exploit our calibrated model to infer the shape of a solid contained in the tank.
 
 \subsection{Phase I: Bayesian calibration of the forward and measurement models}
 \label{sec:phaseI}
-In Phase I, our objective is to calibrate then test our forward and measurement models in eqn.~\ref{eq:forward_model} and \ref{eq:H_obs_distn}.
-For calibration, we (a) make length-measurements of our tank and orifice geometry and (b) collect water level time series data from a tank drainage experiment certainly \emph{without} an object inside the tank (so, $\boldsymbol \alpha = \mathbf{0}$ with certainty).
-These data provide information about the model parameters $\boldsymbol \Theta$ and measurement noise variance $\Sigma^2$. 
-The main product of ``Phase I: model calibration'' is the posterior distribution of $\boldsymbol \Theta$ and $\Sigma^2$.
-The forward and measurement models paired with this posterior distribution constitute the \emph{calibrated model}. 
+Our objective is to calibrate then test our forward and measurement models.
+The model parameters $\boldsymbol \Theta$ and measurement noise variance $\Sigma^2$ are highly uncertain at this point. 
+To gather information about $\boldsymbol \Theta$ and $\Sigma^2$, we (a) take length-measurements of the tank and orifice geometry and (b) collect water level time series data from a tank drainage experiment devoid of a solid (certainly, $\boldsymbol \alpha = \mathbf{0}$).
+The \emph{calibrated model} constitutes eqns.~\ref{eq:forward_model} and \ref{eq:H_obs_distn} with the resulting posterior distribution of $\boldsymbol \Theta$ and $\Sigma^2$. We test the calibrated model by judging its capability to predict the liquid level trajectory in a replicate tank drainage experiment.
+
 % The key idea is that our length-measurements of the tank and orifice geometry and water level time series data from a drainage experiment in a tank without an object provide information about the parameters and measurement noise variance. 
-Hopefully, the calibrated model will allow us to accuracy solve the reconstruction problem in Phase II. 
+%Hopefully, the calibrated model will allow us to accuracy solve the reconstruction problem in Phase II. 
 % Here, we also conduct a replicate experiment for testing the calibrated model. 
 % Since we directly measured the other parameters in $\theta$, the two primary unknowns for our model calibration phase are the discharge coefficient $C$ and noise variance $\Sigma^2$. 
 
 \subsubsection{Experimental setup}
-We set up a tank draining experiment (see Sec.~\ref{sec:expt}) with an initial water level (measured by the level strip) $h_{0, \text{obs}}=26.54$\,cm. 
-With certainty, no heavy, solid object resides in the tank. 
-See Fig.~\ref{fig:naked_tank}.
+We set up a tank draining experiment with an initial water level (measured by the level strip) $h_{0, \text{obs}}=26.54$\,cm. 
+With certainty, the tank does not contain an exogenous solid. See Fig.~\ref{fig:naked_tank}.
 
 \subsubsection{Prior distributions} 
-Below, we express our knowledge and beliefs about the inputs and parameters, before allowing the tank to train and collecting water level time series data, by constructing a prior probability density $\pi_{\text{pr}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2)$. (In our prior distribution, most variables are independent of the others; hence, we specify the prior density variable-by-variable.)
-
+We express our knowledge and beliefs about the inputs and parameters, before allowing the tank to drain and observing water level time series data, by constructing a prior density $\pi_{\text{pr}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2)$ variable-by-variable (assuming independence). 
 \vspace{-\baselineskip}
-\subparagraph{Tank geometry.} We employ a measuring tape to make length-measurements of the dimensions of the tank.
-Based on these measurements, our estimates for the area of the rounded rectangle forming the top and bottom of the tank are $a_{t, \text{obs}}=129.9$\,cm and $a_{b, \text{obs}}=103.0$\,cm. Our measured tank height is $h_{\text{max, obs}}=28.6$\,cm.
-The following prior distributions, informed by our [admittedly, noisy and imprecise] measurements, reflect our knowledge and beliefs about the tank geometry (see eqn.~\ref{eq:a_of_h}):
+\subparagraph{Tank geometry.} We use a measuring tape to make length-measurements of the dimensions of the tank.
+Our estimates for the area of the rounded rectangle forming the top and bottom of the tank are $a_{t, \text{obs}}=129.9$\,cm and $a_{b, \text{obs}}=103.0$\,cm. Our measured tank height is $h_{\text{max, obs}}=28.6$\,cm.
+%We impose the prior distribution, 
+Informed by our [noisy and imprecise] measurements, we impose Gaussian prior distributions:
 \begin{align}
 A_t &\sim \mathcal{N}(a_{t, \text{obs}}, \sigma_\ell^2/2) \label{eq:A_t_prior} \\
 A_b &\sim \mathcal{N}(a_{b, \text{obs}}, \sigma_\ell^2/2) \\
 H_{\text{max}} &\sim \mathcal{N}(h_{\text{max}, \text{obs}}, \sigma_\ell^2)
 \end{align}
-where $\sigma_\ell=0.1$\,cm is our assumed standard deviation of our length-measurements, based on the distance between markings on our measurement tape. 
+where $\sigma_\ell=0.1$\,cm is the [assumed] standard deviation of our length-measurements, based on the markings on our measurement tape. 
 (The factor of $1/2$ in the variance for $A_t$ and $A_b$ arises from the variance of a product of Gaussian random variables \cite{bromiley2003products}.)
 
 \vspace{-\baselineskip}
@@ -443,10 +442,10 @@ Informed by the manufacturer-reported diameter (5/64\,in) of the drill bit we us
 \begin{equation}
 R_o \sim \mathcal{N}(r_{o, \text{obs}}, \sigma_d^2), \label{eq:R_o_prior}
 \end{equation}
-where $\sigma_d= 0.001$\,cm accounts for uncertainty in the drill bit radius and its translation into an orifice radius.
+where $\sigma_d= 0.001$\,cm expresses uncertainty in the bit radius and its translation into an orifice.
 
 \vspace{-\baselineskip}
-\subparagraph{Exogenous object geometry.}
+\subparagraph{Exogenous solid geometry.}
 With certainty, no solid object resides in the tank, so $\boldsymbol \alpha=\mathbf{0}$ with certainty. Technically, this is a Dirac delta prior density on $\mathbf{A}$, $\pi_{\text{pr}}(\boldsymbol \alpha)=\delta(\boldsymbol \alpha - \mathbf{0})$. 
 
 
@@ -455,10 +454,10 @@ With certainty, no solid object resides in the tank, so $\boldsymbol \alpha=\mat
 
 \vspace{-\baselineskip}
 \subparagraph{Discharge coefficient.} 
-We impose a weakly informative prior distribution on the discharge coefficient
+Our prior distribution on the discharge coefficient is weakly informed:
 \begin{equation}
 	C \sim \mathcal{N}(0.65, 0.25^2),
-\end{equation} whose mean is informed by a reported discharge coefficient for water flow through a round orifice \cite{hicks2014determining}. 
+\end{equation} whose mean is a reported discharge coefficient for water flow through a round orifice \cite{hicks2014determining}. 
 
 \vspace{-\baselineskip}
 \subparagraph{Variance of measurement noise.} 
@@ -471,31 +470,32 @@ We impose a uniform prior on the standard deviation of the noise emanating from 
 \subparagraph{Initial water level.} We impose an informative prior distribution on the initial water level based on the initial reading of the water level sensor:
 \begin{equation}
 	H_0 \mid \Sigma=\sigma \sim \mathcal{N}(h_{0, \text{obs}}, \sigma^2),
-\end{equation} where $\sigma^2$ is the variance of the noise from the level sensor in our measurement model.
+\end{equation} where $\sigma^2$ is the uncertain variance of the noise from the level sensor in our measurement model.
 
 \paragraph{Visualization of the prior.}
 Together with the forward model in eqn.~\ref{eq:forward_model}, $\pi_{\text{pr}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2)$ gives a prior distribution over water level trajectories in the tank, \themodel. 
-To visualize and interpret the prior, Fig~\ref{fig:prior_train} shows samples of functions \themodel from the prior. The prior encodes a broad range of possible future water level trajectories. 
+Fig~\ref{fig:prior_train} shows samples of functions \themodel from the prior, which encodes a broad range of possible future trajectories. 
 
-\subsubsection{Water level time series data from a tank-drainage experiment} At time $t:=0$, we allow our tank to drain of water through the small orifice in its side. Our liquid level sensor records the water level in the tank over time. The resulting water level time series data \thedata are shown in Fig.~\ref{fig:posterior_train}.
+\subsubsection{Water level time series data from a tank-drainage experiment} At time $t:=0$, we allow the tank to drain of water while our level sensor records the water level over time. 
+Fig.~\ref{fig:posterior_train} shows the resulting water level time series data \thedata.
 
 \subsubsection{Posterior distribution}
-Given our prior probability density $\pi_{\text{pr}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2)$ and data \thedata from which we construct the likelihood function in eqn.~\ref{eq:like}, the posterior distribution $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$ follows from Bayes's theorem in eqn.~\ref{eq:post}. 
-We employ the MCMC sampler, NUTS, to obtain samples \thesamples from the posterior distribution. 
+The posterior distribution $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$ follows from our prior and likelihood function we construct from the data \thedata (see eqn.~\ref{eq:post}). 
+We employ NUTS to obtain samples \thesamples from the posterior distribution ($N_s=750$ over three independent chains). 
 
 %TODO how many samples
 
-\paragraph{Visualization of the posterior.}Fig.~\ref{fig:posterior_train_theta} visualizes the posterior distribution. 
+\paragraph{Visualization of the posterior.}Fig.~\ref{fig:posterior_train_theta} visualizes the empirical posterior distribution. 
 The top panel shows the [marginal] empirical posterior distributions (histograms) of the parameters and initial water level along with their 80\% equal-tailed credible intervals. 
-For the variables we measured with our measuring tape, the credible interval is centered at the measurement. 
+For the variables we measured with our measuring tape, the credible intervals are centered at the measurements. 
 The measured initial water level, however, falls outside of the credible interval; a higher initial water level than measured is consistent with the time series data \thedata.
-The bottom panel shows the covariance matrix of the parameters and inputs. 
+The bottom panel shows the covariance matrix of the parameters and input. 
 
 %The information that the data from this tank-draining experiment provided about $C$ and $\Sigma$ will be useful for the reconstruction inverse problem of inferring the shape of an object inside the tank from water level time series data. (We assume the object does not affect the discharge coefficient nor noise in the liquid level sensor.)
 
-\paragraph{Posterior predictive check.} We plot water level trajectories \themodel with $(\thevars)$ sampled from the posterior distribution, in Fig.~\ref{fig:posterior_train}. 
-The posterior models reasonably agree with the measured water levels over time (mean absolute residual: 0.26\,cm). 
-Comparing the water level trajectories sampled from the posterior in Fig.~\ref{fig:posterior_train} with those from the prior Fig.~\ref{fig:prior_train}, the much lower variance in the posterior indicate the large amount of information the water level time series data provided about the parameter vector.
+\paragraph{Posterior predictive check.} Fig.~\ref{fig:posterior_train} shows water level trajectories \themodel with $(\thevars)$ sampled from the posterior distribution, in . 
+The posterior trajectories agree reasonably with the measured water levels over time (mean absolute residual: 0.26\,cm). 
+Comparing the prior and posterior distributions of water level trajectories in Fig.~\ref{fig:prior_train} and Fig.~\ref{fig:posterior_train}, the much lower variance in the posterior indicates the large amount of information the water level time series data provided about the parameter vector and initial water level.
 
 \begin{figure}[!ht]
     \centering
@@ -521,33 +521,35 @@ Comparing the water level trajectories sampled from the posterior in Fig.~\ref{f
     \end{subfigure}
     \caption{
       \textbf{Model calibration.}
-      (a) We fill our empty tank with water, then, at $t=0$, allow it to drain through the orifice in its side.
-      (b) Samples of water level trajectories \themodel from the prior probability density $\pi_{\text{pr}}(\thevars)$.
-      (c) Time series data \thedata from the tank drainage experiment and samples of water level trajectories \themodel from the posterior distribution $\pi_{\text{post}}(\thevars \mid \thedatanomath)$.
-      (d) Visualizing the posterior distribution $\pi_{\text{post}}(\thevars \mid \thedatanomath)$. Top: marginals. Bottom: covariance matrix.      
+      (a) We fill our tank (devoid of an exogenous solid) with water, then, at $t=0$, allow it to drain through the orifice in its side. A level sensor measures the water level.     
+      (b) Samples of water level trajectories \themodel from the prior density $\pi_{\text{pr}}(\thevars)$.
+      (c) Time series data \thedata from the tank drainage experiment and samples of water level trajectories \themodel from the posterior $\pi_{\text{post}}(\thevars \mid \thedatanomath)$.
+      (d) Visualizing the posterior $\pi_{\text{post}}(\thevars \mid \thedatanomath)$. Top: marginals. Bottom: covariance matrix.      
       }
 \end{figure}
 
 \paragraph{The calibrated model.} The forward and measurement models in eqn.~\ref{eq:forward_model} and \ref{eq:H_obs_distn} together with the posterior distribution $\pi_{\text{post}}(\boldsymbol \theta, \boldsymbol \sigma^2 \mid \thedatanomath)$ (with $h_0$ marginalized out and $\boldsymbol \alpha=\mathbf{0}$) constitute the \emph{calibrated model}.
- The calibrated model will be useful for solving the reconstruction problem in phase II, because the presence of an object inside the tank presumably does not affect the parameter vector $\boldsymbol \theta$ nor the measurement noise variance $\sigma^2$ of the level sensor.
-We approximate the posterior distribution as a multi-variate Gaussian distribution
+%The calibrated model will be useful for solving the reconstruction problem in phase II, because the presence of an object inside the tank presumably does not affect the parameter vector $\boldsymbol \theta$ nor the measurement noise variance $\sigma^2$ of the level sensor.
+We approximate this posterior distribution as a multi-variate Gaussian distribution
 \begin{equation}
 	\begin{bmatrix} \boldsymbol \Theta \\ \Sigma \end{bmatrix} \mid \thedatanomath \sim \mathcal{N}(\mathbf{m}, \mathbf{C}) \label{eq:post_theta_sigma}
 \end{equation}
 with mean $\mathbf{m}$ and covariance matrix $\mathbf{C}$ computed from our MCMC samples $(\boldsymbol \theta_i, \sigma_i)_{i=1}^{N_s}$ from the posterior. 
-(The means of each parameter in $\mathbf{m}$ and the covariance matrix $\mathbf{C}$ are displayed in Fig.~\ref{fig:posterior_train_theta}.)
+(See Fig.~\ref{fig:posterior_train_theta} for the means of each parameter in $\mathbf{m}$ and the covariance matrix $\mathbf{C}$.)
 
 \subsubsection{A replicate experiment for testing the calibrated model}
-We now test our calibrated model for its ability to predict the dynamics of the water level in our tank in a new, replicate drainage experiment (also without an object inside, so $\boldsymbol \alpha=\mathbf{0}$) with measured initial water level $h_{0, \text{obs}}=26.49$\,cm. 
+Finally, we test our calibrated model for its capability to predict the dynamics of the water level in our draining tank in a new, replicate experiment (also, without an exogenous solid, so $\boldsymbol \alpha=\mathbf{0}$) with measured initial water level $h_{0, \text{obs}}=26.49$\,cm. 
 We sample water level trajectories \themodel predicted by the calibrated model by (1) sampling a $\boldsymbol \theta$ and $\sigma$ from the empirical posterior distribution, (2) sampling an initial water level from $H_0 \mid \Sigma=\sigma \sim \mathcal{N}(h_{0, \text{obs}}, \sigma^2)$, then (3) numerically solving the forward model to obtain \themodel.
-Fig.~\ref{fig:test} compares the water level time series data collected from the replicate experiment, \thedata, with the trajectories \themodel predicted by the calibrated model. We observe good agreement between the predictions by the calibrated model and the experimental data (mean absolute residual: 0.28\,cm). For kicks, we also show the distribution of predicted tank-emptying times.
+Fig.~\ref{fig:test} compares the water level time series data collected from the replicate experiment, \thedata, with the trajectories \themodel predicted by the calibrated model. The predictions by the calibrated model agree well with the experimental data (mean absolute residual: 0.28\,cm). 
+(For kicks, we also show the distribution of predicted tank-emptying times.)
 
 \begin{figure}[h!]
     \centering
     	\includegraphics[width=0.5\textwidth]{../test.pdf}
     \caption{
       \textbf{Testing the calibrated forward model.}
-      In a replicate tank-draining experiment without an object, we show (top) the predicted distribution of emptying times and (bottom) the water level time series data together with samples of the water level trajectory predicted by the calibrated forward model. Note, besides the measured initial water level, the time series data was held out from the model predictions and thus serves as test data.
+      (Bottom) Comparison between water level time series data from a replicate tank drainage experiment and water level trajectories predicted by the calibrated forward model. 
+      (Top) Distribution of predicted emptying times.
       } \label{fig:test}
 \end{figure}
 
@@ -683,6 +685,7 @@ Note, (b) may necessitate modeling the flow streamlines inside the tank (as in R
 More, during the Bayesian calibration phase, we could learn a model discrepancy \cite{brynjarsdottir2014learning,kennedy2001bayesian} function to capture any bias---i.e., a difference between the true dynamics of the liquid level in the tank and the model $h(t; h_0^*,  \boldsymbol \alpha^*, \boldsymbol \theta^*)$ with the true/best-fit (indicated by $*$) initial water level, object geometry, and parameters.
 % In other words, we assume our forward model is capable of capturing the true liquid level dynamics in the tank without bias.
 
+could solve for initila conditin too
 
 
 
