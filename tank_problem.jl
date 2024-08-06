@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.43
+# v0.19.40
 
 using Markdown
 using InteractiveUtils
@@ -1435,8 +1435,8 @@ function viz_inferred_area(
 	fig = Figure()
 	ax = Axis(
 		fig[1, 1], 
-		xlabel="height, h [cm]", 
-		ylabel="area, α [cm²]"
+		xlabel="area, α [cm²]",
+		ylabel="height, h [cm]"
 	)
 
 	residuals = zeros(nrow(object_posterior), nrow(object_true_area))
@@ -1458,22 +1458,27 @@ function viz_inferred_area(
 		end
 
 		# plot inferred area of the object
-		lines!(hs, Aₒs, label="model", color=(theme_colors[8], 0.1))
+		lines!(Aₒs, hs, label="model", color=(theme_colors[8], 0.1))
 
 		# plot area of tank for reference
 		lines!(
-			[0, object_posterior[i, "H"]], 
 			[object_posterior[i, "A_b"], object_posterior[i, "A_t"]], 
+			[0, object_posterior[i, "H"]], 
+			color=("gray", 0.1)
+		)
+		lines!(
+			[0.0, object_posterior[i, "A_t"]], 
+			[object_posterior[i, "H"], object_posterior[i, "H"]], 
 			color=("gray", 0.1)
 		)
 	end
 
 	# measured area
-	scatter!(object_true_area[:, "h [cm]"], object_true_area[:, "area [cm²]"], 
-			label="measurment\n(held-out)", color=colors["data"])
+	scatter!(object_true_area[:, "area [cm²]"], object_true_area[:, "h [cm]"],
+			label="measurment", color=colors["data"])
 
-	ylims!(0, 1.05 * tank_measurements.A_t)
-	xlims!(0, tank_measurements.H * 1.05)
+	xlims!(0, 1.05 * tank_measurements.A_t)
+	ylims!(0, tank_measurements.H * 1.05)
 
 	# plot H and h0
 	scatter!([mean(object_posterior[:, "H"])], [0], marker=:vline, color="gray")
@@ -1481,7 +1486,7 @@ function viz_inferred_area(
 
 	if show_legend
 		axislegend(#"γ=$γ; N=$N", 
-			unique=true, position=:rc, titlefont="normal", labelsize=16)
+			unique=true, position=(0.8, 0.8), titlefont="normal", labelsize=16)
 	end
 
 	println("mean residual: ", mean(residuals))
