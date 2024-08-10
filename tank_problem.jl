@@ -1423,70 +1423,115 @@ end
 # ╔═╡ e1264f57-f675-4f37-b4db-313cfc52ab8e
 viz_fit(object_posterior, data_w_object, savename="posterior_object", n_data_end_omit=nb_data_object_omit)
 
-# ╔═╡ a127225a-5b79-4074-a16b-cecd11030800
-function viz_inferred_area(
+# ╔═╡ 7127fc35-a0af-4463-9448-a948f229fd47
+function viz_inferred_radius(
 	object_posterior::DataFrame, 
 	object_true_area::DataFrame, 
 	γ::Float64, 
 	N::Int;
 	savename::Union{Nothing, String}=nothing,
-	show_legend::Bool=true
+	show_legend::Bool=true,
+	viz_measurements::Bool=true
 )
 	fig = Figure()
 	ax = Axis(
 		fig[1, 1], 
-		xlabel="area, α [cm²]",
-		ylabel="height, h [cm]"
+		xlabel="radius, √(α/π) [cm]",
+		ylabel="height, h [cm]",
+		aspect=DataAspect()
 	)
 
 	residuals = zeros(nrow(object_posterior), nrow(object_true_area))
+	fig_ia = nothing, nothing
 	for i in 1:nrow(object_posterior)
+		# unpack samples
+		H = object_posterior[i, "H"]
+		A_t, A_b = object_posterior[i, "A_t"], object_posterior[i, "A_b"]
+		h_hole = object_posterior[i, "h_hole"]
+		h₀ = object_posterior[i, "h₀"]
+		
 		# characterize A(h)
 		hs = range(
-			0.0, object_posterior[i, "H"], length=N
+			0.0, H, length=N
 		)
-		Aₒs = [object_posterior[i, "As[$n]"] for n in 1:N]
+		rₒs = sqrt.([object_posterior[i, "As[$n]"] for n in 1:N] ./ π)
 
 		# for computing residual
-		A_of_object = linear_interpolation(hs, Aₒs, extrapolation_bc=Line())
+		r_of_object = linear_interpolation(hs, rₒs, extrapolation_bc=Line())
 		
 		# compute residuals
 		for j = 1:nrow(object_true_area)
 			hᵢ, aᵢ = object_true_area[j, "h [cm]"], object_true_area[j, "area [cm²]"]
-			âᵢ = A_of_object(hᵢ)
-			residuals[i, j] += abs(aᵢ - âᵢ)
+			r̂ᵢ = r_of_object(hᵢ)
+			residuals[i, j] += abs(sqrt(aᵢ/π) - r̂ᵢ)
 		end
 
 		# plot inferred area of the object
-		lines!(Aₒs, hs, label="model", color=(theme_colors[8], 0.1))
-
+		fig_ia = lines!(rₒs, hs, label="model", color=(theme_colors[8], 0.1))
+		lines!(-rₒs, hs, label="model", color=(theme_colors[8], 0.1))
+		
 		# plot area of tank for reference
-		lines!(
-			[object_posterior[i, "A_b"], object_posterior[i, "A_t"]], 
-			[0, object_posterior[i, "H"]], 
-			color=("gray", 0.1)
+		r_tank = sqrt.([A_b, A_t] ./ π)
+		lines!(r_tank, [0, H], color=("gray", 0.1))
+		lines!(-r_tank, [0, H], color=("gray", 0.1))
+		lines!([-r_tank[2], r_tank[2]], [H, H], color=("gray", 0.1))
+		lines!([-r_tank[1], r_tank[1]], [0, 0], color=("gray", 0.1))
+	end
+	
+	# plot hₒ and h₀
+	for i in 1:nrow(object_posterior)
+		H = object_posterior[i, "H"]
+		A_t, A_b = object_posterior[i, "A_t"], object_posterior[i, "A_b"]
+		h_hole = object_posterior[i, "h_hole"]
+		h₀ = object_posterior[i, "h₀"]
+		
+		# initial water level and hole height
+		r_of_tank(h) = sqrt((h / H * A_t + (1 - h / H) * A_b) / π)
+		scatter!(
+			[r_of_tank(h_hole)], [h_hole], 
+			marker=:hline, color="blue"
 		)
-		lines!(
-			[0.0, object_posterior[i, "A_t"]], 
-			[object_posterior[i, "H"], object_posterior[i, "H"]], 
-			color=("gray", 0.1)
+		scatter!(
+			[r_of_tank(h₀)], [h₀], 
+			marker=:hline, color="blue"
+		)
+		if i == 1
+			text!(
+				[r_of_tank(h_hole) * 1.08], [h_hole], 
+				text=rich("h", subscript("o")),
+				align=(:left, :center)
+			)
+			text!(
+				[r_of_tank(h₀) * 1.08], [h₀], 
+				text=rich("h", subscript("0")),
+				align=(:left, :center)
+			)
+		end
+	end
+
+	if viz_measurements
+	# measured area
+		fig_ma = scatterlines!(
+			sqrt.(object_true_area[:, "area [cm²]"] / π), 
+			object_true_area[:, "h [cm]"], markersize=10,
+			label="measurment", color=colors["data"]
+		)
+		scatterlines!(
+			-sqrt.(object_true_area[:, "area [cm²]"] / π), 
+			object_true_area[:, "h [cm]"], markersize=10,
+			label="measurment", color=colors["data"]
 		)
 	end
 
-	# measured area
-	scatter!(object_true_area[:, "area [cm²]"], object_true_area[:, "h [cm]"],
-			label="measurment", color=colors["data"])
-
-	xlims!(0, 1.05 * tank_measurements.A_t)
-	ylims!(0, tank_measurements.H * 1.05)
-
-	# plot H and h0
-	scatter!([mean(object_posterior[:, "H"])], [0], marker=:vline, color="gray")
-	scatter!([mean(object_posterior[:, "h_hole"])], [0], marker=:vline, color="gray")
+	my_xlim = 1.2 * sqrt(tank_measurements.A_t / π)
+	xlims!(-my_xlim, 1.25 * my_xlim)
+	ylims!(-1, tank_measurements.H * 1.05)
 
 	if show_legend
-		axislegend(#"γ=$γ; N=$N", 
-			unique=true, position=(0.8, 0.8), titlefont="normal", labelsize=16)
+		# axislegend(#"γ=$γ; N=$N", 
+		# 	unique=true, position=(0.8, 0.8), titlefont="normal", labelsize=16)
+		Legend(fig[1, 2], [fig_ma, fig_ia], ["measured", "posterior"])
+		colgap!(fig.layout, 1, Relative(-0.2))
 	end
 
 	println("mean residual: ", mean(residuals))
@@ -1498,8 +1543,10 @@ function viz_inferred_area(
 	return fig
 end
 
-# ╔═╡ b43f9f58-94fd-4c92-8e91-9a6b86cfc041
-viz_inferred_area(object_posterior, object_true_area, γ, N, savename="posterior_area")
+# ╔═╡ 40157899-dffb-4e3a-b5ca-be3c23a465ae
+viz_inferred_radius(
+	object_posterior, object_true_area, γ, N, savename="posterior_area"
+)
 
 # ╔═╡ bd95428d-1077-4417-bfca-0c5da7378af2
 md"### prior"
@@ -1512,7 +1559,7 @@ begin
 	
 	object_prior = DataFrame(
 		sample(object_tank_model_prior, NUTS(0.65), MCMCSerial(), 
-			n_MC_sample, 3; progress=true
+			n_MC_sample, 5; progress=true
 		)
 	)
 	
@@ -1520,10 +1567,10 @@ begin
 end
 
 # ╔═╡ 8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
-viz_inferred_area(object_prior, object_true_area, γ, N, savename="prior_area", show_legend=false)
+viz_inferred_radius(object_prior, object_true_area, γ, N, savename="prior_area", show_legend=false, viz_measurements=false)
 
 # ╔═╡ 71471b2e-34b1-412c-871f-fa4c35e01c23
-md"# hat function idea"
+md"# linear regression = using tent basis functions"
 
 # ╔═╡ 8ba8d6c6-39ee-491a-afc7-5f7582435ef3
 ϕ(x, Δh) = max(0.0, 1 - abs(x / Δh))
@@ -1671,8 +1718,8 @@ end
 # ╠═1aca6b92-7754-4cb3-b9e8-5d486e3bfcf8
 # ╠═3c9a219f-74ef-45fb-83e7-c497e0bee362
 # ╠═e1264f57-f675-4f37-b4db-313cfc52ab8e
-# ╠═a127225a-5b79-4074-a16b-cecd11030800
-# ╠═b43f9f58-94fd-4c92-8e91-9a6b86cfc041
+# ╠═7127fc35-a0af-4463-9448-a948f229fd47
+# ╠═40157899-dffb-4e3a-b5ca-be3c23a465ae
 # ╟─bd95428d-1077-4417-bfca-0c5da7378af2
 # ╠═65d81268-9ff2-4a18-b0ce-4b105740dc8b
 # ╠═8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
