@@ -778,7 +778,6 @@ function viz_fit(
 	ts = range(0, 1.05 * maximum(data[:, "t [s]"]), length=500)
 	tspan = (0.0,  maximum(ts) * 1.05)
 	
-
 	# sample posterior models
 	mar = 0.0 # mean absolute residual
 	for i in sample(1:nrow(posterior), n_sample)
@@ -787,15 +786,15 @@ function viz_fit(
 			  	    (1 - h / posterior[i, "h_max"]) * posterior[i, "a_b"]
 
 		# area of object
-		if "As[1]" in names(posterior)
-			N = sum(contains.(names(posterior), "As"))
+		if "rs[1]" in names(posterior)
+			N = sum(contains.(names(posterior), "rs"))
 			
-			Aₒs = [posterior[i, "As[$n]"] for n in 1:N]
+			rₒs = [posterior[i, "rs[$n]"] for n in 1:N]
 			hs = range(
-				posterior[i, "hₒ"], posterior[i, "h₀"], length=N
+				0.0, 0.999 * posterior[i, "h_max"], length=N
 			)
 			
-			A_of_h_object = linear_interpolation(hs, Aₒs)
+			A_of_h_object = linear_interpolation(hs, π * rₒs .^ 2)
 		else
 			A_of_h_object(h) = 0.0
 		end
@@ -1407,14 +1406,11 @@ end
 	return nothing
 end
 
-# ╔═╡ d2d96ec0-80d2-4d10-8175-1948853dfa6a
-π * (length_measurements.w_t/2) ^ 2
-
 # ╔═╡ da44647a-36e4-4116-9698-df1cb059c2b7
 md"### posterior"
 
 # ╔═╡ fb3ece76-f85c-41e1-a332-12c71d9d3cc0
-N = 6  # number of points to infer area on
+N = 10  # number of points to infer area on
 
 # ╔═╡ 1aca6b92-7754-4cb3-b9e8-5d486e3bfcf8
 begin
@@ -1569,7 +1565,7 @@ md"### prior"
 # ╔═╡ 65d81268-9ff2-4a18-b0ce-4b105740dc8b
 begin
 	object_tank_model_prior = forward_model_object(
-		data_w_object, train_posterior, N, tank_measurements, prior_only=true
+		data_w_object, train_posterior, N, length_measurements, prior_only=true
 	)
 	
 	object_prior = DataFrame(
@@ -1582,7 +1578,7 @@ begin
 end
 
 # ╔═╡ 8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
-viz_inferred_radius(object_prior, object_true_area, N, savename="prior_area", show_legend=false, viz_measurements=false)
+viz_inferred_radius(object_prior, object_true_area, N, length_measurements, savename="prior_area", show_legend=false, viz_measurements=false)
 
 # ╔═╡ Cell order:
 # ╠═faf59350-8d67-11ee-0bdd-2510e986118b
@@ -1711,7 +1707,6 @@ viz_inferred_radius(object_prior, object_true_area, N, savename="prior_area", sh
 # ╟─b23dc763-d91f-4d66-94d2-dcf96cb07f54
 # ╠═8897acea-5efb-47a6-83a2-0c70fccfdb46
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
-# ╠═d2d96ec0-80d2-4d10-8175-1948853dfa6a
 # ╟─da44647a-36e4-4116-9698-df1cb059c2b7
 # ╠═fb3ece76-f85c-41e1-a332-12c71d9d3cc0
 # ╠═1aca6b92-7754-4cb3-b9e8-5d486e3bfcf8
