@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.40
+# v0.19.43
 
 using Markdown
 using InteractiveUtils
@@ -57,11 +57,11 @@ we characterize the area of the liquid holding tank, as a function of height $h$
 md"📏 length-measurements"
 
 # ╔═╡ cccf3dfb-8b3c-45e8-bb1c-e9579afc7e1a
-@kwdef struct LengthMeasurements
-	# top and bottom base
-	l_t::Float64
-	w_t::Float64
-	p_t::Float64
+@kwdef struct LengthMeasurements # units: cm
+	# top and bottom base, rounded rectangles
+	l_t::Float64 # length
+	w_t::Float64 # width
+ 	p_t::Float64 # perimeter
 	
 	l_b::Float64
 	w_b::Float64
@@ -618,6 +618,22 @@ begin
 	)
 end
 
+# ╔═╡ b04ad0dc-10b5-433e-abc3-e87b4aa4f7eb
+md"compute tank areas"
+
+# ╔═╡ 2a973d9c-8b33-4c67-8177-73fd826c8dac
+function compute_tank_area!(data::DataFrame)
+	for tb in ["_t", "_b"]
+		data[:, "a" * tb] = [
+			rounded_rectangle_area(data[i, "l"*tb], data[i, "w"*tb], data[i, "p"*tb])
+			for i = 1:nrow(data)
+		]
+	end
+end
+
+# ╔═╡ c31a2d3f-902b-4be9-a64c-b04cb83ffaa4
+compute_tank_area!(train_posterior)
+
 # ╔═╡ 2ee1ca40-141f-40ad-b4c1-a2e025f69f95
 md"make sure never $h_0>H$."
 
@@ -631,26 +647,27 @@ md"""
 
 # ╔═╡ 7979b889-4782-45be-9a4f-91375f22f26f
 params_to_title = Dict(
-					"A_b" => rich("a", subscript("b"), " [cm²]"), 
-					"A_t" => rich("a", subscript("t"), " [cm²]"),
-					"r_hole" => rich("r", subscript("o"), " [cm]"),
+					"h_max" => rich("h", subscript("max"), " [cm²]"), 
+					"a_b" => rich("a", subscript("b"), " [cm²]"), 
+					"a_t" => rich("a", subscript("t"), " [cm²]"),
+					"rₒ" => rich("r", subscript("o"), " [cm]"),
 					"c" => "c",
-					"h_hole" => rich("h", subscript("o"), " [cm]"),
+					"hₒ" => rich("h", subscript("o"), " [cm]"),
 					"h₀" => rich("h", subscript("0"), " [cm]"),
-					"σ_ℓ" => rich("σ", subscript("ℓ"), " [cm]"),
+					"σₗ" => rich("σ", subscript("ℓ"), " [cm]"),
 					"H" => rich("h", subscript("max"), " [cm]"), 
 					"σ" => "σ [cm]"
 )
 
 # ╔═╡ 73d702b9-cdc0-4ce9-802d-89443c8412ab
 params_to_units = Dict(
-	"A_b" => "cm²", "A_t" => "cm²", "r_hole" => "cm", "c" => "",
-	"h_hole" => "cm", "h₀" => "cm", "H" => "cm", "σ" => "cm"
+	"a_b" => "cm²", "a_t" => "cm²", "rₒ" => "cm", "c" => "",
+	"hₒ" => "cm", "h₀" => "cm", "h_max" => "cm", "σ" => "cm"
 )
 
 # ╔═╡ 5bb0b72a-8c77-4fcb-bbde-d144986d9c1e
 function viz_posterior(posterior::DataFrame, params::Matrix{String},
-			           tm::TankMeasurements, h₀_obs::Float64
+			           lm::LengthMeasurements, h₀_obs::Float64
 )
 	fig = Figure(size=(800, 400))
 	axs = [Axis(fig[i, j]) for i = 1:2, j = 1:4]
@@ -682,14 +699,21 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			else
 				hideydecorations!(axs[i, j], grid=false)
 			end
-			
-			if ! (p in ["h₀", "c", "σ_ℓ", "σ"])
-				p_obs = getfield(tm, Symbol(p))
+
+			p_obs = nothing
+			if ! (p in ["h₀", "c", "σ", "a_t", "a_b"])
+				p_obs = getfield(lm, Symbol(p))
 				# plot measured value
+			elseif p == "h₀"
+				p_obs = h₀_obs
+			elseif p == "a_t"
+				p_obs = rounded_rectangle_area(lm.l_t, lm.w_t, lm.p_t)
+			elseif p == "a_b"
+				p_obs = rounded_rectangle_area(lm.l_b, lm.w_b, lm.p_b)
+			end
+			if ! isnothing(p_obs)
 				vlines!(axs[i, j], p_obs, linestyle=:dash, color=Cycled(4), 
 						label="measurement")
-			elseif p == "h₀"
-				vlines!(axs[i, j], h₀_obs, linestyle=:dash, color=Cycled(4), label="true value")
 			end
 			ylims!(axs[i, j], 0, nothing)
 
@@ -700,7 +724,7 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 
 			μ, σ = mean(posterior[:, p]), std(posterior[:, p])
 			Label(fig[i, j], justification=:left,
-				@sprintf("μ: %.2f %s\nσ: %.2f %s", μ, params_to_units[p], σ, params_to_units[p]), font=:regular, fontsize=11.0,
+				@sprintf("mean: %.2f %s\nSTD: %.2f %s", μ, params_to_units[p], σ, params_to_units[p]), font=:regular, fontsize=11.0,
 				tellwidth=false, tellheight=false, 
 				halign=p in ["A_b", "h₀"] ? 0.025 : 0.99, 
 				valign=0.9
@@ -715,8 +739,8 @@ end
 # ╔═╡ ded5b462-06dd-43a4-93b0-c52ad87174eb
 viz_posterior(
 	train_posterior,
-	["A_b" "A_t" "H" "r_hole"; "h_hole" "h₀" "σ" "c"],
-	tank_measurements, 
+	["a_b" "a_t" "h_max" "rₒ"; "hₒ" "h₀" "σ" "c"],
+	length_measurements, 
 	train_data[1, "h [cm]"]
 )
 
@@ -738,10 +762,11 @@ function mean_abs_residual(data::DataFrame, sim_data::DataFrame)
 end
 
 # ╔═╡ 2ab35999-3615-4f5c-8d89-36d77802fe9b
-function viz_fit(posterior::DataFrame, data::DataFrame; 
-				savename::Union{String, Nothing}=nothing, 
-				n_sample::Int=100, only_ic::Bool=false,
-				n_data_end_omit::Int=0
+function viz_fit(
+	posterior::DataFrame, data::DataFrame; 
+	savename::Union{String, Nothing}=nothing, 
+	n_sample::Int=100, only_ic::Bool=false,
+	n_data_end_omit::Int=0
 )
 	fig = Figure()
 	ax = Axis(
@@ -758,8 +783,8 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 	mar = 0.0 # mean absolute residual
 	for i in sample(1:nrow(posterior), n_sample)
 		# area of tank
-		A_of_h_tank = h -> h / posterior[i, "H"] * posterior[i, "A_t"] + 
-			  	    (1 - h / posterior[i, "H"]) * posterior[i, "A_b"]
+		a_of_h_tank = h -> h / posterior[i, "h_max"] * posterior[i, "a_t"] + 
+			  	    (1 - h / posterior[i, "h_max"]) * posterior[i, "a_b"]
 
 		# area of object
 		if "As[1]" in names(posterior)
@@ -767,7 +792,7 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 			
 			Aₒs = [posterior[i, "As[$n]"] for n in 1:N]
 			hs = range(
-				posterior[i, "h_hole"], posterior[i, "h₀"], length=N
+				posterior[i, "hₒ"], posterior[i, "h₀"], length=N
 			)
 			
 			A_of_h_object = linear_interpolation(hs, Aₒs)
@@ -776,10 +801,10 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 		end
 		
 		params = (
-			  r_hole=posterior[i, "r_hole"],
+			  rₒ=posterior[i, "rₒ"],
 			  c=posterior[i, "c"],
-			  h_hole=posterior[i, "h_hole"],
-			  A_of_h=h -> A_of_h_tank(h) - A_of_h_object(h)
+			  hₒ=posterior[i, "hₒ"],
+			  A_of_h=h -> a_of_h_tank(h) - A_of_h_object(h)
 			)
 
 		# set up, solve ODE
@@ -796,7 +821,7 @@ function viz_fit(posterior::DataFrame, data::DataFrame;
 		mar += mean_abs_residual(data, sim_data)
 
 		# h hole
-		hlines!(ax, posterior[i, "h_hole"], color=("gray", 0.1), linestyle=:dash)
+		hlines!(ax, posterior[i, "hₒ"], color=("gray", 0.1), linestyle=:dash)
 	end
 	mar /= n_sample
 	println("mean abs residual: [cm] ", mar)
@@ -859,7 +884,7 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 	for i in sample(1:nrow(posterior), n_sample)
 		# check for first instance when the liquid level
 		#  is the same as the height of the hole in the base
-		condition(h, t, integrator) = h[1] - posterior[i, "h_hole"]
+		condition(h, t, integrator) = h[1] - posterior[i, "hₒ"]
 		
 		# retrive the emptying time [t] when h(t) = h_hole
 		function affect!(integrator)
@@ -868,20 +893,18 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		cb = ContinuousCallback(condition, affect!)
 
 		params = (
-			  r_hole=posterior[i, "r_hole"],
+			  rₒ=posterior[i, "rₒ"],
 			  c=posterior[i, "c"],
-			  h_hole=posterior[i, "h_hole"],
-			  A_of_h=h -> h > posterior[i, "H"] ? 
-			  	error("h > H") : 
-			   	h / posterior[i, "H"] * posterior[i, "A_t"] + 
-			  	    (1 - h / posterior[i, "H"]) * posterior[i, "A_b"]
+			  hₒ=posterior[i, "hₒ"],
+			  A_of_h= h -> h / posterior[i, "h_max"] * posterior[i, "a_t"] + 
+			  	    (1 - h / posterior[i, "h_max"]) * posterior[i, "a_b"]
 		)
 
 		# sample an initial condtion
 		h₀_obs = test_data[1, "h [cm]"]
 		h₀_distn = Truncated(
 			Normal(h₀_obs, posterior[i, "σ"]),
-			0.0, posterior[i, "H"]
+			0.0, posterior[i, "h_max"]
 		)
 		h₀ = rand(h₀_distn)
 
@@ -897,7 +920,7 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		lines!(ax, sim_data[:, "timestamp"], sim_data[:, "value1"], 
 			label="model", color=(colors["model"], 0.1))
 		# h hole
-		hlines!(ax, posterior[i, "h_hole"], color=("gray", 0.1), 
+		hlines!(ax, posterior[i, "hₒ"], color=("gray", 0.1), 
 			linestyle=:dash)
 	end
 	mar /= n_sample
@@ -936,7 +959,7 @@ md"## visualize prior too"
 
 # ╔═╡ 38a03e22-d596-4227-a9de-3ef54dc7256e
 begin
-	train_model_prior = forward_model(train_data, tank_measurements, prior_only=true)
+	train_model_prior = forward_model(train_data, length_measurements, prior_only=true)
 	
 	train_prior = DataFrame(
 		sample(
@@ -944,6 +967,8 @@ begin
 			NUTS(0.65), MCMCSerial(), n_MC_sample, n_chains; progress=true
 		)
 	)
+	
+	compute_tank_area!(train_prior)
 end
 
 # ╔═╡ 2148cbb2-b41f-4df3-ab5c-55a89eff7bf1
@@ -960,7 +985,7 @@ function compute_mean_cov(posterior_data::DataFrame, var_list::Array{String})
 end
 
 # ╔═╡ aa9c9d45-bb7c-4eee-af87-6fbc01df271d
-var_list = ["A_b", "A_t", "H", "r_hole", "h_hole", "c", "σ"]
+var_list = ["a_t", "a_b", "h_max", "rₒ", "hₒ", "c", "σ"]
 
 # ╔═╡ bb0a7df4-7e84-472a-ab00-e3dd801daf8e
 μ_train, Σ_train = compute_mean_cov(train_posterior, var_list)
@@ -1129,13 +1154,13 @@ in practice, couldn't do this. just a check to see if this has any hope...
 # ╔═╡ b59fa654-6946-4687-b14b-c2ef1f766f5c
 object_params = (
 		# area of the hole
-		r_hole = tank_measurements.r_hole,
+		rₒ = length_measurements.rₒ,
 		# fudge factor
 		c = c_opt,
 		# height of the hole
-		h_hole = tank_measurements.h_hole,
+		hₒ = length_measurements.hₒ,
 		# area as a function of h"
-		A_of_h = h -> A_of_h(h, tank_measurements) - A_of_object(h)
+		A_of_h = h -> A_of_h(h, tank_geometry) - A_of_object(h)
 	)
 
 # ╔═╡ b12963ae-bf7d-4ef7-b1a8-e2d1e24f9b4b
@@ -1172,7 +1197,7 @@ A_o(h) = A(h) + \dfrac{c\pi r_{\rm hole}^2 \sqrt{2g [h(t)-h_{\rm hole}]}}{dh/dt}
 begin
 	# fitting to data past drainage introduces spurious curvature
 	data_w_object_spline_fit = filter(
-		row -> row["h [cm]"] >= tank_measurements.h_hole + 1.0, data_w_object
+		row -> row["h [cm]"] >= length_measurements.hₒ + 1.0, data_w_object
 	)
 	
 	h_of_t_object = Spline1D(
@@ -1218,13 +1243,13 @@ function viz_spline_fit(data_w_object::DataFrame, h_of_t_object::Spline1D, h_hol
 end
 
 # ╔═╡ 29ccc89b-f76a-44fa-8a89-e3ca10742ba1
-viz_spline_fit(data_w_object, h_of_t_object, tank_measurements.h_hole)
+viz_spline_fit(data_w_object, h_of_t_object, length_measurements.hₒ)
 
 # ╔═╡ 29d3cc8f-780b-449a-87ba-8d543ad2473b
 function classical_soln_A_object(
 	h_of_t_object::Spline1D,
 	c_opt::Float64,
-	tank_measurements::TankMeasurements
+	length_measurements::LengthMeasurements
 )
 	ts = range(0.0, 1000.0, length=150)
 
@@ -1236,10 +1261,9 @@ function classical_soln_A_object(
 	hs = h_of_t_object.(ts)
 
 	# inferred area in tank
-	A_tank = hs / tank_measurements.H * tank_measurements.A_t .+ 
-		(1 .- hs / tank_measurements.H) * tank_measurements.A_b
-	Aₒ = A_tank .+ π * tank_measurements.r_hole ^ 2 * c_opt * 
-			sqrt.(2 * g * (hs .- tank_measurements.h_hole)) ./ h′
+	A_tank = [A_of_h(hᵢ, TankGeometry(length_measurements)) for hᵢ in hs]
+	Aₒ = A_tank .+ π * length_measurements.rₒ ^ 2 * c_opt * 
+			sqrt.(2 * g * (hs .- length_measurements.hₒ)) ./ h′
 	
 	inferred_object_data = DataFrame("h [cm]" => hs, "Aₒ [cm²]" => Aₒ)
 	
@@ -1250,7 +1274,7 @@ function classical_soln_A_object(
 end
 
 # ╔═╡ 0a48e016-2fba-47cc-a212-47b4a3324b20
-classical_Aₒ = classical_soln_A_object(h_of_t_object, c_opt, tank_measurements)
+classical_Aₒ = classical_soln_A_object(h_of_t_object, c_opt, length_measurements)
 
 # ╔═╡ 5feb46c0-3888-4586-8b12-f990d4d38912
 begin
@@ -1290,8 +1314,10 @@ begin
 	x_i = range(0.0, 5.0, length=10)
 	y_i = x_i .^ 2 .+ 3.0 .+ 3 * sin.(x_i) .+ exp.(x_i)
 	
-	itp = interpolate(x_i, y_i, FritschButlandMonotonicInterpolation())
-	x_d = range(0.0, 5.0, length=100)
+	itp = extrapolate(
+		interpolate(x_i, y_i, FritschButlandMonotonicInterpolation()), Line()
+	)
+	x_d = range(0.0, 5.2, length=100)
 	local fig = Figure()
 	local ax = Axis(fig[1, 1])
 	lines!(x_d, itp.(x_d))
@@ -1303,7 +1329,7 @@ end
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
 @model function forward_model_object(
 	data_w_object::DataFrame, train_posterior::DataFrame, 
-	N::Int, tm::TankMeasurements;
+	N::Int, lm::LengthMeasurements;
 	prior_only::Bool=false
 )
 	#=
@@ -1314,29 +1340,30 @@ end
 	
 	# sample param vector from prior
 	θ ~ MvNormal(μ_pr, Σ_pr)
-	A_b    = θ[1] # hard-coded based on var_list: warning!
-	A_t    = θ[2]
-	H      = θ[3]
-	r_hole = θ[4]
-	h_hole = θ[5]
+	a_t    = θ[1] # hard-coded based on var_list: warning!
+	a_b    = θ[2]
+	h_max  = θ[3]
+	rₒ     = θ[4]
+	hₒ     = θ[5]
 	c      = θ[6]
 	σ      = θ[7]
-	
+
 	# initial liquid level
 	h₀_obs = data_w_object[1, "h [cm]"]
 	h₀ ~ Truncated(
-		Normal(h₀_obs, σ), 0, H
+		Normal(h₀_obs, σ), 0, h_max
 	)
 
 	# tank geometry
-	A_of_tank(h) = h / H * A_t + (1 - h / H) * A_b
-	r_max(h) = 
+	a_of_tank(h) = h / h_max * a_t + (1 - h / h_max) * a_b
+	# max r possible
+	r_max(h) = (h / h_max * lm.w_t + (1 - h / h_max) * lm.w_b) / 2
 
 	# solid geometry
-	hs = range(0.0, 0.999 * H, length=N)
+	hs = range(0.0, 0.999 * h_max, length=N)
 	rs = Vector{Float64}(undef, N)
 	for i = 1:N
-		rs[i] ~ Uniform(0.0, A_of_tank(hs[i]))
+		rs[i] ~ Uniform(0.0, r_max(hs[i]))
 	end
 
 	# for prior, do not show the algo the data :)
@@ -1347,14 +1374,16 @@ end
 	#=
 	set up dynamic model for h(t)
 	=#
-	A_of_object = interpolate(hs, As, FritschButlandMonotonicInterpolation())
-
+	a_of_object = extrapolate(
+		interpolate(hs, π * rs.^2, FritschButlandMonotonicInterpolation()), Interpolations.Flat()
+	)
+	
 	# parameter for ODE solver
 	params = (
-			  r_hole=r_hole,
+			  rₒ=rₒ,
 			  c=c,
-			  h_hole=h_hole,
-			  A_of_h=h ->  A_of_tank(h) - A_of_object(h)
+			  hₒ=hₒ,
+			  A_of_h=h ->  a_of_tank(h) - a_of_object(h)
 			)
 
 	# checks before simulation
@@ -1378,6 +1407,9 @@ end
 	return nothing
 end
 
+# ╔═╡ d2d96ec0-80d2-4d10-8175-1948853dfa6a
+π * (length_measurements.w_t/2) ^ 2
+
 # ╔═╡ da44647a-36e4-4116-9698-df1cb059c2b7
 md"### posterior"
 
@@ -1389,20 +1421,19 @@ begin
 	nb_data_object_omit = 2 # surface tension prevents flow
 	
 	object_tank_model = forward_model_object(
-		data_w_object[1:end-nb_data_object_omit, :], train_posterior, N, tank_measurements
+		data_w_object[1:end-nb_data_object_omit, :], train_posterior, N, length_measurements
 	)
 	
 	object_posterior = DataFrame(
 		sample(object_tank_model, NUTS(0.65), MCMCSerial(), 
 			n_MC_sample, n_chains, progress=true
-			# n_MC_sample, 3; progress=true
 		)
 	)
 	rename!(object_posterior, ["θ[$i]" => var_list[i] for i = 1:length(var_list)]...)
 end
 
 # ╔═╡ 3c9a219f-74ef-45fb-83e7-c497e0bee362
-@assert all(object_posterior[:, "h₀"] .< object_posterior[:, "H"])
+@assert all(object_posterior[:, "h₀"] .< object_posterior[:, "h_max"])
 
 # ╔═╡ e1264f57-f675-4f37-b4db-313cfc52ab8e
 viz_fit(object_posterior, data_w_object, savename="posterior_object", n_data_end_omit=nb_data_object_omit)
@@ -1411,7 +1442,8 @@ viz_fit(object_posterior, data_w_object, savename="posterior_object", n_data_end
 function viz_inferred_radius(
 	object_posterior::DataFrame, 
 	object_true_area::DataFrame, 
-	N::Int;
+	N::Int,
+	length_measurements::LengthMeasurements;
 	savename::Union{Nothing, String}=nothing,
 	show_legend::Bool=true,
 	viz_measurements::Bool=true
@@ -1419,7 +1451,7 @@ function viz_inferred_radius(
 	fig = Figure()
 	ax = Axis(
 		fig[1, 1], 
-		xlabel="radius, √(α/π) [cm]",
+		xlabel="radius, r [cm]",
 		ylabel="height, h [cm]",
 		aspect=DataAspect()
 	)
@@ -1428,70 +1460,69 @@ function viz_inferred_radius(
 	fig_ia = nothing, nothing
 	for i in 1:nrow(object_posterior)
 		# unpack samples
-		H = object_posterior[i, "H"]
-		A_t, A_b = object_posterior[i, "A_t"], object_posterior[i, "A_b"]
-		h_hole = object_posterior[i, "h_hole"]
+		h_max = object_posterior[i, "h_max"]
+		a_t, a_b = object_posterior[i, "a_t"], object_posterior[i, "a_b"]
+		hₒ = object_posterior[i, "hₒ"]
 		h₀ = object_posterior[i, "h₀"]
 		
 		# characterize A(h) and r(h)
 		hs = range(
-			0.0, H, length=N
+			0.0, h_max, length=N
 		)
-		Aₒs = [object_posterior[i, "As[$n]"] for n in 1:N]
-		Aₒ_of_object = interpolate(hs, Aₒs, FritschButlandMonotonicInterpolation())
-		r_of_object = h -> sqrt(Aₒ_of_object(h) / π)
+		rₒs = [object_posterior[i, "rs[$n]"] for n in 1:N]
+		rₒ_object = interpolate(hs, rₒs, FritschButlandMonotonicInterpolation())
 		
 		# compute residuals
 		for j = 1:nrow(object_true_area)
 			hᵢ, aᵢ = object_true_area[j, "h [cm]"], object_true_area[j, "area [cm²]"]
-			r̂ᵢ = r_of_object(hᵢ)
+			r̂ᵢ = rₒ_object(hᵢ)
 			residuals[i, j] += abs(sqrt(aᵢ/π) - r̂ᵢ)
 		end
 
 		# plot inferred area of the object
-		hs_dense = range(0.0, H, length=100)
-		rs_dense = r_of_object.(hs_dense)
+		hs_dense = range(0.0, h_max, length=100)
+		rs_dense = rₒ_object.(hs_dense)
 		fig_ia = lines!(rs_dense, hs_dense, label="model", color=(theme_colors[8], 0.1))
 		lines!(-rs_dense, hs_dense, label="model", color=(theme_colors[8], 0.1))
-		
-		# plot area of tank for reference
-		r_tank = sqrt.([A_b, A_t] ./ π)
-		lines!(r_tank, [0, H], color=("gray", 0.1))
-		lines!(-r_tank, [0, H], color=("gray", 0.1))
-		lines!([-r_tank[2], r_tank[2]], [H, H], color=("gray", 0.1))
-		lines!([-r_tank[1], r_tank[1]], [0, 0], color=("gray", 0.1))
 	end
 	
+	# plot area of tank for reference
+	r_tank = [length_measurements.w_b/2, length_measurements.w_t/2]
+	lines!(r_tank, [0, length_measurements.h_max], color="black")
+	lines!(-r_tank, [0, length_measurements.h_max], color="black")
+	lines!([-r_tank[2], r_tank[2]], [length_measurements.h_max, length_measurements.h_max], color="black")
+	lines!([-r_tank[1], r_tank[1]], [0, 0], color="black")
+	
 	# plot hₒ and h₀
-	for i in 1:nrow(object_posterior)
-		H = object_posterior[i, "H"]
-		A_t, A_b = object_posterior[i, "A_t"], object_posterior[i, "A_b"]
-		h_hole = object_posterior[i, "h_hole"]
-		h₀ = object_posterior[i, "h₀"]
+	# for i in 1:nrow(object_posterior)
+	# 	h_max = object_posterior[i, "h_max"]
+	# 	a_t, a_b = object_posterior[i, "a_t"], object_posterior[i, "a_b"]
+	# 	hₒ = object_posterior[i, "hₒ"]
+	# 	h₀ = object_posterior[i, "h₀"]
 		
-		# initial water level and hole height
-		r_of_tank(h) = sqrt((h / H * A_t + (1 - h / H) * A_b) / π)
-		scatter!(
-			[r_of_tank(h_hole)], [h_hole], 
-			marker=:hline, color="blue"
-		)
-		scatter!(
-			[r_of_tank(h₀)], [h₀], 
-			marker=:hline, color="blue"
-		)
-		if i == 1
-			text!(
-				[r_of_tank(h_hole) * 1.08], [h_hole], 
-				text=rich("h", subscript("o")),
-				align=(:left, :center)
-			)
-			text!(
-				[r_of_tank(h₀) * 1.08], [h₀], 
-				text=rich("h", subscript("0")),
-				align=(:left, :center)
-			)
-		end
-	end
+	# 	# initial water level and hole height
+	# 	r_of_tank(h) = sqrt((h / h_max * a_t + (1 - h / h_max) * a_b) / π)
+	# 	scatter!(
+	# 		[r_of_tank(h_hole)], [h_hole], 
+	# 		marker=:hline, color="blue"
+	# 	)
+	# 	scatter!(
+	# 		[r_of_tank(h₀)], [h₀], 
+	# 		marker=:hline, color="blue"
+	# 	)
+	# 	if i == 1
+	# 		text!(
+	# 			[r_of_tank(h_hole) * 1.08], [h_hole], 
+	# 			text=rich("h", subscript("o")),
+	# 			align=(:left, :center)
+	# 		)
+	# 		text!(
+	# 			[r_of_tank(h₀) * 1.08], [h₀], 
+	# 			text=rich("h", subscript("0")),
+	# 			align=(:left, :center)
+	# 		)
+	# 	end
+	# end
 
 	if viz_measurements
 	# measured area
@@ -1507,9 +1538,9 @@ function viz_inferred_radius(
 		)
 	end
 
-	my_xlim = 1.2 * sqrt(tank_measurements.A_t / π)
+	my_xlim = 1.2 * length_measurements.w_t
 	xlims!(-my_xlim, 1.25 * my_xlim)
-	ylims!(-1, tank_measurements.H * 1.05)
+	ylims!(-1, length_measurements.h_max * 1.05)
 
 	if show_legend
 		# axislegend(#"γ=$γ; N=$N", 
@@ -1529,7 +1560,7 @@ end
 
 # ╔═╡ 40157899-dffb-4e3a-b5ca-be3c23a465ae
 viz_inferred_radius(
-	object_posterior, object_true_area, N, savename="posterior_area"
+	object_posterior, object_true_area, N, length_measurements, savename="posterior_area"
 )
 
 # ╔═╡ bd95428d-1077-4417-bfca-0c5da7378af2
@@ -1620,6 +1651,9 @@ viz_inferred_radius(object_prior, object_true_area, N, savename="prior_area", sh
 # ╠═0bc7df52-4ac9-42ac-9094-ecaf3c27da31
 # ╠═8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
 # ╠═8082559e-a5b0-41a8-b8ed-aec3b09e5b2b
+# ╟─b04ad0dc-10b5-433e-abc3-e87b4aa4f7eb
+# ╠═2a973d9c-8b33-4c67-8177-73fd826c8dac
+# ╠═c31a2d3f-902b-4be9-a64c-b04cb83ffaa4
 # ╟─2ee1ca40-141f-40ad-b4c1-a2e025f69f95
 # ╠═c2d877b5-d309-4868-925d-dab8d7d23403
 # ╟─c239deed-8291-45aa-95cf-94df26e0136d
@@ -1677,6 +1711,7 @@ viz_inferred_radius(object_prior, object_true_area, N, savename="prior_area", sh
 # ╟─b23dc763-d91f-4d66-94d2-dcf96cb07f54
 # ╠═8897acea-5efb-47a6-83a2-0c70fccfdb46
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
+# ╠═d2d96ec0-80d2-4d10-8175-1948853dfa6a
 # ╟─da44647a-36e4-4116-9698-df1cb059c2b7
 # ╠═fb3ece76-f85c-41e1-a332-12c71d9d3cc0
 # ╠═1aca6b92-7754-4cb3-b9e8-5d486e3bfcf8
