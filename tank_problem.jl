@@ -53,76 +53,104 @@ md"""
 we characterize the area of the liquid holding tank, as a function of height $h$, from a helicopter view. the cross-sectional area we model as a [rounded rectangle](https://mathworld.wolfram.com/RoundedRectangle.html). see notes in `tank_geometry/cory_measurements.txt`.
 """
 
-# ╔═╡ c976bc08-97b2-45c0-b1ff-1819e7290a68
-struct TankMeasurements
-	# top, bottom areas (cm²)
-	A_t::Float64
-	A_b::Float64
+# ╔═╡ 76624080-150a-4783-b675-794365dcecee
+md"📏 length-measurements"
+
+# ╔═╡ cccf3dfb-8b3c-45e8-bb1c-e9579afc7e1a
+@kwdef struct LengthMeasurements
+	# top and bottom base
+	l_t::Float64
+	w_t::Float64
+	p_t::Float64
 	
-	# height (cm)
-	H::Float64
+	l_b::Float64
+	w_b::Float64
+	p_b::Float64
 
-	# radius of hole
-	r_hole::Float64
-
-	# height of hole
-    h_hole::Float64
+	# height
+	h_max::Float64
+	
+	# orifice height and radius
+	hₒ::Float64
+	rₒ::Float64
 end
 
-# ╔═╡ 20fa4266-be80-4d8e-b1d0-155a40a1241f
-begin
-	# height of tank (along slant) [cm]
-	H★ = 28.6
+# ╔═╡ 0e485727-495c-444d-9fb4-f20bdaac2676
+length_measurements = LengthMeasurements(
+	# top cross-section
+	14.6, 9.0, 44.3,
+	# bottom cross-section
+	13.4, 7.8, 40.1,
+	# measured height of tank [cm]
+	28.6,
+	# height of orifice, cm
+	0.9,
+	# radius of orifice, cm
+	5 / 64 * 2.54 / 2 # in diam -> cm diam -> radius
+)
 
-	# measurements of top cross-section
-	L_t = 14.6 #cm
-	W_t = 9.0  # cm
-	p_t = 44.3 # perimeter, cm
-	
-	# measurements of bottom cross-section
-	L_b = 13.4 # cm
-	W_b = 7.8  # cm
-	p_b = 40.1 # perimeter, cm
-	
-	# height of tank (from perpendicular) [cm]
-	local δ = (L_t - L_b) / 2 # overhang
-	H = sqrt(H★ ^ 2 - δ ^ 2)
-	@show H
-
+# ╔═╡ 06673583-6631-4561-a7c4-66232d9d7fd7
+function rounded_rectangle_area(l, w, p; verbose::Bool=false)
 	# solve for the r consistent with a rounded rectangle [cm]
 	#  https://mathworld.wolfram.com/RoundedRectangle.html
-	local r(p, L, W) = (p / 2 - (L + W)) / (π - 4)
-	r_b = r(p_b, L_b, W_b)
-	r_t = r(p_b, L_b, W_b)
-	@show r_b, r_t
-
-	# finally, calculate areas.
-	my_A(L, W, r) = (L - 2 * r) * (W - 2 * r) + 2 * r * (L + W - 4 * r) + π * r ^ 2
-	A_b = my_A(L_b, W_b, r_b)
-	A_t = my_A(L_t, W_t, r_t)
-	@show A_b, A_t
-
-	# hole in tank (radius, area, height)
-	r_hole = 5 / 64 * 2.54 / 2 # cm
-	@show r_hole
-    a_hole = π * r_hole ^ 2    # cm²
-    h_hole = 0.9 # cm
-
-	tank_measurements = TankMeasurements(
-		A_t, A_b, H, r_hole, h_hole
-	)
+	r = (p / 2 - (l + w)) / (π - 4)
+	if verbose
+		@show r
+	end
+	return (l - 2 * r) * (w - 2 * r) + # main rectangle
+		2 * r * (l + w - 4 * r) + # four strips
+		π * r ^ 2 # four circles
 end
+
+# ╔═╡ 9c33755b-5f82-4cc5-9742-ca7d52f0cc3c
+rounded_rectangle_area(
+	length_measurements.l_t,
+	length_measurements.w_t,
+	length_measurements.p_t,
+	verbose=true
+)
+
+# ╔═╡ edd07812-4fee-4cc5-b914-160a7824b5e1
+rounded_rectangle_area(
+	length_measurements.l_b,
+	length_measurements.w_b,
+	length_measurements.p_b,
+	verbose=true
+)
+
+# ╔═╡ 89cd4845-4cee-4ddf-b324-dcd2ac3224ca
+begin
+	struct TankGeometry
+		a_t::Float64
+		a_b::Float64
+		h_max::Float64
+		hₒ::Float64
+		rₒ::Float64
+	end
+	
+	function TankGeometry(lm::LengthMeasurements)
+		return TankGeometry(
+			rounded_rectangle_area(lm.l_t, lm.w_t, lm.p_t),
+			rounded_rectangle_area(lm.l_b, lm.w_b, lm.p_b),
+			lm.h_max, lm.hₒ, lm.rₒ
+		)
+	end
+end
+
+# ╔═╡ a391cd0a-f752-4efd-92de-43e7cec656d4
+tank_geometry = TankGeometry(length_measurements)
 
 # ╔═╡ 48d7273e-a48b-49fd-991b-6e29f64a0760
 """
 cross-sectional area of water from helicopter view, as a function of liquid level, h.
 """
-function A_of_h(h::Float64, tm::TankMeasurements)
+function A_of_h(h::Float64, tg::TankGeometry)
 	# check for over/underflow
-	h < 0.0  ? error("tank underflow!") : nothing
-	h > tm.H ? error("tank overflow!")  : nothing
+	h < 0.0      ? error("tank underflow!") : nothing
+	h > tg.h_max ? error("tank overflow!")  : nothing
 	# linearly interpolate top and bottom areas
-	return h / tm.H * tm.A_t + (1 - h / tm.H) * tm.A_b
+	θ = h / tg.h_max
+	return θ * tg.a_t + (1 - θ) * tg.a_b
 end
 
 # ╔═╡ 9a7e5903-69be-4e0a-8514-3e05feedfed5
@@ -133,10 +161,10 @@ begin
 		xlabel="water height, h [cm]", 
 		ylabel="cross-sectional area, A(h) [cm²]"
 	)
-	lines!(range(0, H), 
-		[A_of_h(hᵢ, tank_measurements) for hᵢ in range(0, tank_measurements.H)]
+	lines!(range(0, tank_geometry.h_max), 
+		[A_of_h(hᵢ, tank_geometry) for hᵢ in range(0, tank_geometry.h_max)]
 	)
-	vlines!(tank_measurements.H, linestyle=:dash, color="gray")
+	vlines!(tank_geometry.h_max, linestyle=:dash, color="gray")
 	xlims!(0, nothing)
 	ylims!(0, nothing)
 	fig
@@ -153,24 +181,10 @@ read in data characterizing the calibration curve of the liquid level sensor.
 begin
 	calibration_data = CSV.read("calibration_curve.csv", DataFrame)
 	sort!(calibration_data, "level sensor reading")
-	rename!(calibration_data, "h [cm]" => "h★ [cm]")
 end
-
-# ╔═╡ 6d48d04b-0786-4d15-a07b-8941805a5b09
-md"we correct for the slant, though slight, in the tank, which makes the level strip slanted. this function maps the slanted h★ to the height h perpendicular to the ground.
-"
-
-# ╔═╡ 9af216b7-4bf2-42fb-bd95-5b2040d019a7
-h★_to_h(h★) = H * h★ / H★
 
 # ╔═╡ 6ebe0cb0-ba35-411c-9a7a-a8b6eecf326f
 md"compute the true liquid level."
-
-# ╔═╡ 385442da-f101-4ddf-8293-46d71d6a48fc
-begin
-	calibration_data[:, "h [cm]"] = h★_to_h.(calibration_data[:, "h★ [cm]"])
-	calibration_data
-end
 
 # ╔═╡ ef43e50a-5af8-4733-88a4-cd159d173034
 md"fit spline to calibration data to construct calibration curve."
@@ -341,16 +355,16 @@ md"""
 
 # ╔═╡ c6a263eb-cb45-4ee7-9c02-549c89298652
 function f!(dh, h, params, t) # use in-place to prevent ODE error
-	if h[1] <= params.h_hole
+	if h[1] <= params.hₒ
 		dh[1] = 0.0
 		return 0.0
 	end
 	# for unphysical stuff
-	if (params.r_hole < 0.0) || (params.c < 0.0)
+	if (params.rₒ < 0.0) || (params.c < 0.0)
 		dh[1] = 1.0 # bogus but controlled growth so this won't count.
 	else
-		dh[1] = - π * params.r_hole ^ 2 * params.c * 
-			sqrt(2 * g * (h[1] .- params.h_hole)) / params.A_of_h(h[1])
+		dh[1] = - π * params.rₒ ^ 2 * params.c * 
+			sqrt(2 * g * (h[1] .- params.hₒ)) / params.A_of_h(h[1])
 	end
 end
 
@@ -371,16 +385,16 @@ md"""
 """
 
 # ╔═╡ 66815e8e-09d9-4b43-9f45-9379b3d34f78
-function loss(data::DataFrame, c::Float64, tm::TankMeasurements)	
+function loss(data::DataFrame, c::Float64, tg::TankGeometry)	
 	params = (
-		# area of the hole
-		r_hole = tm.r_hole,
+		# radius of the hole
+		rₒ = tg.rₒ,
 		# fudge factor
 		c = c, 
 		# height of the hole
-		h_hole = tm.h_hole,
+		hₒ = tg.hₒ,
 		# area as a function of h
-		A_of_h = h -> A_of_h(h, tm)
+		A_of_h = h -> A_of_h(h, tg)
 	)
 
 	h_of_t = simulate(
@@ -402,27 +416,27 @@ end
 md"maximum likelihood estimate of $c$"
 
 # ╔═╡ 0b75c073-f167-4553-b746-539a14cfcf25
-loss(train_data, 0.4, tank_measurements)
+loss(train_data, 0.4, tank_geometry)
 
 # ╔═╡ 4ed31219-9ce0-4f1b-8152-0002e64649ad
-function compute_mle(data::DataFrame, tm::TankMeasurements)
-	res = optimize(c -> loss(data, c, tm), 0.2, 0.9)
+function compute_mle(data::DataFrame, tg::TankGeometry)
+	res = optimize(c -> loss(data, c, tg), 0.2, 0.9)
 	return Optim.minimizer(res)
 end
 
 # ╔═╡ 0763f1f3-dfee-4d1f-a934-bf387f9c80ff
-c_opt = compute_mle(train_data, tank_measurements)
+c_opt = compute_mle(train_data, tank_geometry)
 
 # ╔═╡ c57c808a-297c-4887-bf20-5ad0207d055e
 params = (
-	# area of the hole
-	r_hole = tank_measurements.r_hole,
+	# radius of the hole
+	rₒ = tank_geometry.rₒ,
 	# fudge factor
 	c = c_opt,
 	# height of the hole
-	h_hole = tank_measurements.h_hole,
+	hₒ = tank_geometry.hₒ,
 	# area as a function of h
-	A_of_h = h -> A_of_h(h, tank_measurements)
+	A_of_h = h -> A_of_h(h, tank_geometry)
 )
 
 # ╔═╡ d3307918-1fdb-4f87-bb92-67330d22e58b
@@ -506,85 +520,71 @@ md"""
 # ╔═╡ 58eff13c-44b5-4f19-8a42-cf9907ac9515
 @bind n_MC_sample Select([25, 50, 100, 250], default=100)
 
+# ╔═╡ 68c9d88a-99b7-49be-9ac4-1e06c694c1a6
+@bind n_chains Select([3, 5], default=3)
+
 # ╔═╡ 8a21fa0f-d3c3-4aa2-8b8b-74001d921c4a
 md"""
 ## infer model parameters for object-free experiment (training)
 """
 
 # ╔═╡ c5754b4b-b576-4257-95d2-8888bbd063ec
-const σ_ℓ = 0.1 # cm [gives precision of our length measurements via tape]
+const σₗ = 0.1 # cm [gives precision of our length measurements via tape]
 
 # ╔═╡ 0bc7df52-4ac9-42ac-9094-ecaf3c27da31
-const σ_drill = 0.001 # cm [precision of our drill]
+const σᵣ = 0.001 # cm [precision of our drill]
 
 # ╔═╡ 8f5b8859-6b8c-4f2a-af3a-b13c2d33fe2a
 @model function forward_model(
 	data::DataFrame, 
-	tm::TankMeasurements; 
+	lm::LengthMeasurements;
 	prior_only::Bool=false
 )
 	σs_trunc = 2.0 
 	#=
 	prior distributions
 	=#
-	# bottom, top tank area measurements
-	# std of product of two Guassians
-	#   https://ccrma.stanford.edu/~jos/sasp/Product_Two_Gaussian_PDFs.html
-	A_b ~ Normal(tm.A_b, σ_ℓ / sqrt(2)) # cm²
-	A_t ~ Normal(tm.A_t, σ_ℓ / sqrt(2)) # cm²
+	# length-measurements
+	l_t ~ Normal(lm.l_t, σₗ)
+	w_t ~ Normal(lm.w_t, σₗ)
+	p_t ~ Normal(lm.p_t, σₗ)
 
-	# height of tank
-	H ~ Truncated(
-		Normal(tm.H, σ_ℓ),
-		tm.H - σs_trunc * σ_ℓ, tm.H + σs_trunc * σ_ℓ
-	) # cm
+	l_b ~ Normal(lm.l_b, σₗ)
+	w_b ~ Normal(lm.w_b, σₗ)
+	p_b ~ Normal(lm.p_b, σₗ)
 
-	# radius of the hole. std 2%
-	r_hole ~ Truncated(
-		Normal(tm.r_hole, σ_drill),
-		tm.r_hole - σs_trunc * σ_drill, tm.r_hole + σs_trunc * σ_drill
-	) # cm
+	h_max ~ Normal(lm.h_max, σₗ)
 
-	# discharge coefficient. Wikipedia says 0.65 for water.
+	hₒ ~ Normal(lm.hₒ, σₗ)
+	rₒ ~ Normal(lm.rₒ, σᵣ)
+
+	a_t = rounded_rectangle_area(l_t, w_t, p_t)
+	a_b = rounded_rectangle_area(l_b, w_b, p_b)
+
+	# discharge coefficient
 	c ~ Truncated(Normal(0.65, 0.25), 0.0, 1.0) # unitless
-
-	# height of the hole
-	h_hole ~ Truncated(
-		Normal(tm.h_hole, σ_ℓ),
-		tm.h_hole - σs_trunc * σ_ℓ, tm.h_hole + σs_trunc * σ_ℓ
-	) # cm
 	
-	# defines variance of liquid level sensor
-	#   (treated as an unknown and inferred)
+	# measurement noise
 	σ ~ Uniform(0.0, 0.5) # cm
 
 	# initial liquid level
 	h₀_obs = data[1, "h [cm]"] # cm
 	h₀ ~ Truncated(
 		Normal(h₀_obs, σ),
-		0.0, H
+		0.0, h_max
 	)
 
 	# do not use the rest of the data if doing prior only.
 	if prior_only
 		return
 	end
-
-	#=
-	set up dynamic model for h(t)
-	=#
-	function my_A_of_h(h)
-		if h < 0.0 error("h < 0") end
-		if h > H error("h > H") end
-		return h / H * A_t + (1 - h / H) * A_b
-	end
 	
 	# parameters for ODE solver
 	params = (
-			  r_hole=r_hole,
+			  rₒ=rₒ,
 			  c=c,
-			  h_hole=h_hole,
-			  A_of_h=my_A_of_h
+			  hₒ=hₒ,
+			  A_of_h=h -> h / h_max * a_t + (1 - h / h_max) * a_b
 			)
 	
 	# set up and solve ODE
@@ -607,13 +607,13 @@ begin
 	nb_data_train_omit = 3 # surface tension prevents flow
 	
 	train_model = forward_model(
-		train_data[1:end-nb_data_train_omit, :], tank_measurements
+		train_data[1:end-nb_data_train_omit, :], length_measurements
 	)
 	
 	train_posterior = DataFrame(
 		sample(
 			train_model, 
-			NUTS(0.65), MCMCSerial(), n_MC_sample, 3; progress=true
+			NUTS(0.65), MCMCSerial(), n_MC_sample, n_chains; progress=true
 		)
 	)
 end
@@ -622,7 +622,7 @@ end
 md"make sure never $h_0>H$."
 
 # ╔═╡ c2d877b5-d309-4868-925d-dab8d7d23403
-@assert all(train_posterior[:, "H"] .>= train_posterior[:, "h₀"])
+@assert all(train_posterior[:, "h_max"] .>= train_posterior[:, "h₀"])
 
 # ╔═╡ c239deed-8291-45aa-95cf-94df26e0136d
 md"""
@@ -941,7 +941,7 @@ begin
 	train_prior = DataFrame(
 		sample(
 			train_model_prior, 
-			NUTS(0.65), MCMCSerial(), n_MC_sample, 3; progress=true
+			NUTS(0.65), MCMCSerial(), n_MC_sample, n_chains; progress=true
 		)
 	)
 end
@@ -1281,27 +1281,29 @@ end
 md"## Bayesian inference
 
 ### forward model
+
+play with interpolator used to represent the $\alpha(h)$ function.
 "
 
-# ╔═╡ 31ed6b59-4071-41f0-b351-e0bcc0864a30
-function L_matrix(N::Int)
-	L = zeros(N, N)
-	for i = 1:N
-		L[i, i] = 1
-		if i < N
-			L[i + 1, i] = -1
-		end
-	end
-	return L
+# ╔═╡ 8897acea-5efb-47a6-83a2-0c70fccfdb46
+begin
+	x_i = range(0.0, 5.0, length=10)
+	y_i = x_i .^ 2 .+ 3.0 .+ 3 * sin.(x_i) .+ exp.(x_i)
+	
+	itp = interpolate(x_i, y_i, FritschButlandMonotonicInterpolation())
+	x_d = range(0.0, 5.0, length=100)
+	local fig = Figure()
+	local ax = Axis(fig[1, 1])
+	lines!(x_d, itp.(x_d))
+	scatter!(x_i, y_i)
+	fig
+	# sitp = Interpolations.scale(itp, x_i)
 end
-
-# ╔═╡ e9ec8114-9fc1-44f1-8dbf-c9650e6b5248
-L_matrix(5)
 
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
 @model function forward_model_object(
 	data_w_object::DataFrame, train_posterior::DataFrame, 
-	γ::Float64, N::Int, tm::TankMeasurements;
+	N::Int, tm::TankMeasurements;
 	prior_only::Bool=false
 )
 	#=
@@ -1320,47 +1322,32 @@ L_matrix(5)
 	c      = θ[6]
 	σ      = θ[7]
 	
-	
 	# initial liquid level
 	h₀_obs = data_w_object[1, "h [cm]"]
 	h₀ ~ Truncated(
 		Normal(h₀_obs, σ), 0, H
 	)
-	# Truncated(
-	# 	Normal(h₀_obs, σ),
-	# 	h₀_obs - 4 * σ, 
-	# 	H
-	# )
 
-	function A_of_tank(h)
-		h < 0 ? error("h < 0") : nothing
-		# h > H ? error("h > H") : nothing
-		return h / H * A_t + (1 - h / H) * A_b
-	end
+	# tank geometry
+	A_of_tank(h) = h / H * A_t + (1 - h / H) * A_b
+	r_max(h) = 
 
-	# Random distribution of obstacle area grid at points N 
-	# corresponding h's for the unknown A's
+	# solid geometry
 	hs = range(0.0, 0.999 * H, length=N)
-	
-	As = Vector{Real}(undef, N)
-	As[1] ~ Uniform(0.0, A_b)
-	for i in 2:N
-		As[i] ~ Truncated(
-						  As[i - 1] + Normal(0.0, γ), 
-						  0.0, 
-						  A_of_tank(hs[i])
-						 )
+	rs = Vector{Float64}(undef, N)
+	for i = 1:N
+		rs[i] ~ Uniform(0.0, A_of_tank(hs[i]))
 	end
 
 	# for prior, do not show the algo the data :)
 	if prior_only
-		return
+		return nothing
 	end
 
 	#=
 	set up dynamic model for h(t)
 	=#
-	A_of_object = linear_interpolation(hs, As, extrapolation_bc=Line())
+	A_of_object = interpolate(hs, As, FritschButlandMonotonicInterpolation())
 
 	# parameter for ODE solver
 	params = (
@@ -1395,22 +1382,19 @@ end
 md"### posterior"
 
 # ╔═╡ fb3ece76-f85c-41e1-a332-12c71d9d3cc0
-begin
-	γ = 10.0 # smoothness param
-	N = 20  # number of points to infer area on
-end
+N = 6  # number of points to infer area on
 
 # ╔═╡ 1aca6b92-7754-4cb3-b9e8-5d486e3bfcf8
 begin
 	nb_data_object_omit = 2 # surface tension prevents flow
 	
 	object_tank_model = forward_model_object(
-		data_w_object[1:end-nb_data_object_omit, :], train_posterior, γ, N, tank_measurements
+		data_w_object[1:end-nb_data_object_omit, :], train_posterior, N, tank_measurements
 	)
 	
 	object_posterior = DataFrame(
 		sample(object_tank_model, NUTS(0.65), MCMCSerial(), 
-			n_MC_sample, 5, progress=true
+			n_MC_sample, n_chains, progress=true
 			# n_MC_sample, 3; progress=true
 		)
 	)
@@ -1427,7 +1411,6 @@ viz_fit(object_posterior, data_w_object, savename="posterior_object", n_data_end
 function viz_inferred_radius(
 	object_posterior::DataFrame, 
 	object_true_area::DataFrame, 
-	γ::Float64, 
 	N::Int;
 	savename::Union{Nothing, String}=nothing,
 	show_legend::Bool=true,
@@ -1450,14 +1433,13 @@ function viz_inferred_radius(
 		h_hole = object_posterior[i, "h_hole"]
 		h₀ = object_posterior[i, "h₀"]
 		
-		# characterize A(h)
+		# characterize A(h) and r(h)
 		hs = range(
 			0.0, H, length=N
 		)
-		rₒs = sqrt.([object_posterior[i, "As[$n]"] for n in 1:N] ./ π)
-
-		# for computing residual
-		r_of_object = linear_interpolation(hs, rₒs, extrapolation_bc=Line())
+		Aₒs = [object_posterior[i, "As[$n]"] for n in 1:N]
+		Aₒ_of_object = interpolate(hs, Aₒs, FritschButlandMonotonicInterpolation())
+		r_of_object = h -> sqrt(Aₒ_of_object(h) / π)
 		
 		# compute residuals
 		for j = 1:nrow(object_true_area)
@@ -1467,8 +1449,10 @@ function viz_inferred_radius(
 		end
 
 		# plot inferred area of the object
-		fig_ia = lines!(rₒs, hs, label="model", color=(theme_colors[8], 0.1))
-		lines!(-rₒs, hs, label="model", color=(theme_colors[8], 0.1))
+		hs_dense = range(0.0, H, length=100)
+		rs_dense = r_of_object.(hs_dense)
+		fig_ia = lines!(rs_dense, hs_dense, label="model", color=(theme_colors[8], 0.1))
+		lines!(-rs_dense, hs_dense, label="model", color=(theme_colors[8], 0.1))
 		
 		# plot area of tank for reference
 		r_tank = sqrt.([A_b, A_t] ./ π)
@@ -1545,7 +1529,7 @@ end
 
 # ╔═╡ 40157899-dffb-4e3a-b5ca-be3c23a465ae
 viz_inferred_radius(
-	object_posterior, object_true_area, γ, N, savename="posterior_area"
+	object_posterior, object_true_area, N, savename="posterior_area"
 )
 
 # ╔═╡ bd95428d-1077-4417-bfca-0c5da7378af2
@@ -1554,12 +1538,12 @@ md"### prior"
 # ╔═╡ 65d81268-9ff2-4a18-b0ce-4b105740dc8b
 begin
 	object_tank_model_prior = forward_model_object(
-		data_w_object, train_posterior, γ, N, tank_measurements, prior_only=true
+		data_w_object, train_posterior, N, tank_measurements, prior_only=true
 	)
 	
 	object_prior = DataFrame(
 		sample(object_tank_model_prior, NUTS(0.65), MCMCSerial(), 
-			n_MC_sample, 5; progress=true
+			n_MC_sample, n_chains; progress=true
 		)
 	)
 	
@@ -1567,46 +1551,26 @@ begin
 end
 
 # ╔═╡ 8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
-viz_inferred_radius(object_prior, object_true_area, γ, N, savename="prior_area", show_legend=false, viz_measurements=false)
-
-# ╔═╡ 71471b2e-34b1-412c-871f-fa4c35e01c23
-md"# linear regression = using tent basis functions"
-
-# ╔═╡ 8ba8d6c6-39ee-491a-afc7-5f7582435ef3
-ϕ(x, Δh) = max(0.0, 1 - abs(x / Δh))
-
-# ╔═╡ 7f49bea4-fa7d-4d1a-9908-246288be125b
-begin
-	Δh = 0.5
-	toy_α = [1.0, 2.0, 2.0, 5.0, 0.0]
-	n = length(toy_α) - 1
-	function my_α(h)
-		return sum(ϕ(h - i * Δh, Δh) * toy_α[i+1] for i =0:n)
-	end
-
-	fig = Figure()
-	ax = Axis(fig[1, 1])
-	scatter!([Δh * i for i = 0:n], toy_α)
-	hs = range(0.0, 2.0, length=150)
-	lines!(hs, my_α.(hs))
-	fig
-end
+viz_inferred_radius(object_prior, object_true_area, N, savename="prior_area", show_legend=false, viz_measurements=false)
 
 # ╔═╡ Cell order:
 # ╠═faf59350-8d67-11ee-0bdd-2510e986118b
 # ╠═4391f124-cbef-46e5-8462-e4e5126f5b38
 # ╠═245836a9-6b44-4639-9209-e7ad9035e293
 # ╟─7752316d-9dd0-4403-aa08-22c977ff3727
-# ╠═c976bc08-97b2-45c0-b1ff-1819e7290a68
-# ╠═20fa4266-be80-4d8e-b1d0-155a40a1241f
+# ╟─76624080-150a-4783-b675-794365dcecee
+# ╠═cccf3dfb-8b3c-45e8-bb1c-e9579afc7e1a
+# ╠═0e485727-495c-444d-9fb4-f20bdaac2676
+# ╠═06673583-6631-4561-a7c4-66232d9d7fd7
+# ╠═9c33755b-5f82-4cc5-9742-ca7d52f0cc3c
+# ╠═edd07812-4fee-4cc5-b914-160a7824b5e1
+# ╠═89cd4845-4cee-4ddf-b324-dcd2ac3224ca
+# ╠═a391cd0a-f752-4efd-92de-43e7cec656d4
 # ╠═48d7273e-a48b-49fd-991b-6e29f64a0760
 # ╠═9a7e5903-69be-4e0a-8514-3e05feedfed5
 # ╟─418525b7-c358-41da-b865-5df3feb15855
 # ╠═a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
-# ╟─6d48d04b-0786-4d15-a07b-8941805a5b09
-# ╠═9af216b7-4bf2-42fb-bd95-5b2040d019a7
 # ╟─6ebe0cb0-ba35-411c-9a7a-a8b6eecf326f
-# ╠═385442da-f101-4ddf-8293-46d71d6a48fc
 # ╟─ef43e50a-5af8-4733-88a4-cd159d173034
 # ╠═9dabad13-cfa4-4e06-950d-f7c7d96c1147
 # ╟─e040094c-7511-4831-b94a-1c1185868202
@@ -1650,6 +1614,7 @@ end
 # ╠═b7e27b45-78d4-41b5-9770-9632057413c6
 # ╟─a1a10e2f-1b78-4b93-9295-7c0055e32692
 # ╠═58eff13c-44b5-4f19-8a42-cf9907ac9515
+# ╠═68c9d88a-99b7-49be-9ac4-1e06c694c1a6
 # ╟─8a21fa0f-d3c3-4aa2-8b8b-74001d921c4a
 # ╠═c5754b4b-b576-4257-95d2-8888bbd063ec
 # ╠═0bc7df52-4ac9-42ac-9094-ecaf3c27da31
@@ -1710,8 +1675,7 @@ end
 # ╠═0a48e016-2fba-47cc-a212-47b4a3324b20
 # ╠═5feb46c0-3888-4586-8b12-f990d4d38912
 # ╟─b23dc763-d91f-4d66-94d2-dcf96cb07f54
-# ╠═31ed6b59-4071-41f0-b351-e0bcc0864a30
-# ╠═e9ec8114-9fc1-44f1-8dbf-c9650e6b5248
+# ╠═8897acea-5efb-47a6-83a2-0c70fccfdb46
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
 # ╟─da44647a-36e4-4116-9698-df1cb059c2b7
 # ╠═fb3ece76-f85c-41e1-a332-12c71d9d3cc0
@@ -1723,6 +1687,3 @@ end
 # ╟─bd95428d-1077-4417-bfca-0c5da7378af2
 # ╠═65d81268-9ff2-4a18-b0ce-4b105740dc8b
 # ╠═8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
-# ╟─71471b2e-34b1-412c-871f-fa4c35e01c23
-# ╠═8ba8d6c6-39ee-491a-afc7-5f7582435ef3
-# ╠═7f49bea4-fa7d-4d1a-9908-246288be125b
