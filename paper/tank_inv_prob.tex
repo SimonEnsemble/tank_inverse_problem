@@ -174,12 +174,13 @@ While impossible to infer the precise 3D geometry of the tank, one can theoretic
 
 \subsection{Our contribution}
 Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to solve the following inverse problem of reconstruction with quantified uncertainty: infer the shape of an exogenous, heavy solid contained in a draining tank from measurements of its liquid level over time.
-(Because the solid displaces liquid in the tank, the rate of decrease of the liquid level while draining provides information about the cross-sectional area of the solid at the height of the liquid.
-As the liquid level drops, the liquid ``scans'' the object's cross-sectional area as a function of its height.)
+(Because the solid displaces liquid in the draining tank, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at the height of the liquid.
+As the tank drains, the liquid ``scans'' the object's cross-sectional area as a function of its height.)
 To test our ability to reconstruct the shape of the object in the tank, we conduct tank drainage experiments with water and collect water level time series data with a level sensing strip. First, we build and calibrate (i.e., determine the posterior distribution of the parameters of) (i) a forward model governing the dynamics of the water level in our draining tank and (ii) a probabilistic model of measurement noise from our level sensor.
-For this task, we take length-measurements of the tank and orifice geometry and collect water level time series data from a drainage experiment in our tank devoid of an exogenous solid. 
-Second, we conduct a drainage experiment with a tank containing an exogenous solid (a bottle), then leverage this water level time series data and our calibrated forward model to infer the area of the solid in the tank as a function of height, with quantified uncertainty.
-We compare the posterior distribution of the solid's cross-sectional area as a function of height with our (held-out) measurement of it.
+For this task, we take length-measurements of the tank and orifice geometry and collect water level time series data from a tank drainage experiment without an exogenous solid. 
+Second, we conduct a tank drainage experiment with an exogenous solid in the tank. We then leverage this water level time series data and our calibrated forward model to obtain a posterior distribution over the area of the solid in the tank as a function of height.
+Comparing with our [more] direct (via a tape measure) measurements of the solid's area as a function of height, the inferred area exhibits a mean residual of xx and falls within the credible interval xx.
+{\color{red} FINISH with results} 
 %
 %Because this reconstruction problem is unstable \cite{groetsch1993inverse}, 
 %We employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to predict the object's area as a function of height \emph{with quantified uncertainty}.
