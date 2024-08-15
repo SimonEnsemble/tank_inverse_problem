@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.43
+# v0.19.40
 
 using Markdown
 using InteractiveUtils
@@ -20,20 +20,27 @@ begin
     using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions, Optim, Dierckx, MakieThemes, Printf
 end
 
+# ╔═╡ 68df601b-39b3-456b-bb42-d321e92286c8
+using Colors
+
 # ╔═╡ 4391f124-cbef-46e5-8462-e4e5126f5b38
 begin
 	# see https://makieorg.github.io/MakieThemes.jl/dev/themes/ggthemr
-	gg_theme = :fresh 
+	gg_theme = :flat 
 	set_theme!(ggthemr(gg_theme))
 	
 	figsize = (0.9 * 500, 0.9 * 380)
 	
 	update_theme!(
+		backgroundcolor="white",
 		fontsize=20, 
 		linewidth=4,
 		markersize=14,
 		# titlefont=AlgebraOfGraphics.firasans("Light"),
-		size=figsize
+		size=figsize,
+		Axis=(; backgroundcolor=
+			(MakieThemes.GGThemr.ColorTheme[:flat][:background], 0.5)
+		)
 	)
 
 	theme_colors = MakieThemes.GGThemr.ColorTheme[gg_theme][:swatch]
@@ -42,6 +49,9 @@ begin
 		theme_colors[1:4])
 	)
 end
+
+# ╔═╡ 6e1e65a9-822a-4370-812c-808a50c935f7
+parse.(Color, values(colors))
 
 # ╔═╡ 245836a9-6b44-4639-9209-e7ad9035e293
 TableOfContents()
@@ -157,7 +167,7 @@ end
 begin
 	local fig = Figure()
 	local ax = Axis(
-		fig[1, 1], 
+		fig[1, 1],
 		xlabel="water height, h [cm]", 
 		ylabel="cross-sectional area, A(h) [cm²]"
 	)
@@ -686,7 +696,7 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			end
 
 			# vizualize the distribution
-			hist!(axs[i, j], posterior[:, p], color=Cycled(5))
+			hist!(axs[i, j], posterior[:, p], color=colors["distn"])
 		
 			# plot equal-tailed 80% interval
 			lo, hi = quantile(posterior[:, p], [0.1, 0.9])
@@ -765,7 +775,7 @@ end
 function viz_fit(
 	posterior::DataFrame, data::DataFrame; 
 	savename::Union{String, Nothing}=nothing, 
-	n_sample::Int=100, only_ic::Bool=false,
+	n_sample::Int=50, only_ic::Bool=false,
 	n_data_end_omit::Int=0
 )
 	fig = Figure()
@@ -786,15 +796,21 @@ function viz_fit(
 			  	    (1 - h / posterior[i, "h_max"]) * posterior[i, "a_b"]
 
 		# area of object
-		if "rs[1]" in names(posterior)
-			N = sum(contains.(names(posterior), "rs"))
+		if "sqrt_a_obj[1]" in names(posterior)
+			N = sum(contains.(names(posterior), "sqrt_a_obj"))
 			
-			rₒs = [posterior[i, "rs[$n]"] for n in 1:N]
+			sqrt_a_obj = [posterior[i, "sqrt_a_obj[$n]"] for n in 1:N]
 			hs = range(
 				0.0, 0.999 * posterior[i, "h_max"], length=N
 			)
 			
-			A_of_h_object = linear_interpolation(hs, π * rₒs .^ 2)
+			A_of_h_object = extrapolate(
+				interpolate(
+					hs, sqrt_a_obj .^ 2,
+					FritschButlandMonotonicInterpolation()
+				),
+				Interpolations.Flat()
+			)
 		else
 			A_of_h_object(h) = 0.0
 		end
@@ -1328,7 +1344,7 @@ end
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
 @model function forward_model_object(
 	data_w_object::DataFrame, train_posterior::DataFrame, 
-	N::Int, lm::LengthMeasurements;
+	N::Int, lm::LengthMeasurements, γ::Float64;
 	prior_only::Bool=false
 )
 	#=
@@ -1355,14 +1371,16 @@ end
 
 	# tank geometry
 	a_of_tank(h) = h / h_max * a_t + (1 - h / h_max) * a_b
-	# max r possible
-	r_max(h) = (h / h_max * lm.w_t + (1 - h / h_max) * lm.w_b) / 2
 
 	# solid geometry
 	hs = range(0.0, 0.999 * h_max, length=N)
-	rs = Vector{Float64}(undef, N)
-	for i = 1:N
-		rs[i] ~ Uniform(0.0, r_max(hs[i]))
+	sqrt_a_obj = Vector{Float64}(undef, N)
+	sqrt_a_obj[1] ~ Uniform(0.0, sqrt(a_b))
+	for i = 2:N
+		sqrt_a_obj[i] ~ Truncated(
+			Normal(sqrt_a_obj[i - 1], γ),
+			0.0, sqrt(a_of_tank(hs[i]))
+		)
 	end
 
 	# for prior, do not show the algo the data :)
@@ -1374,7 +1392,7 @@ end
 	set up dynamic model for h(t)
 	=#
 	a_of_object = extrapolate(
-		interpolate(hs, π * rs.^2, FritschButlandMonotonicInterpolation()), Interpolations.Flat()
+		interpolate(hs, sqrt_a_obj .^ 2, FritschButlandMonotonicInterpolation()), Interpolations.Flat()
 	)
 	
 	# parameter for ODE solver
@@ -1414,10 +1432,11 @@ N = 10  # number of points to infer area on
 
 # ╔═╡ 1aca6b92-7754-4cb3-b9e8-5d486e3bfcf8
 begin
+	γ = 1.0 # smoothness param
 	nb_data_object_omit = 2 # surface tension prevents flow
 	
 	object_tank_model = forward_model_object(
-		data_w_object[1:end-nb_data_object_omit, :], train_posterior, N, length_measurements
+		data_w_object[1:end-nb_data_object_omit, :], train_posterior, N, length_measurements, γ
 	)
 	
 	object_posterior = DataFrame(
@@ -1438,23 +1457,25 @@ viz_fit(object_posterior, data_w_object, savename="posterior_object", n_data_end
 function viz_inferred_radius(
 	object_posterior::DataFrame, 
 	object_true_area::DataFrame, 
-	N::Int,
 	length_measurements::LengthMeasurements;
 	savename::Union{Nothing, String}=nothing,
 	show_legend::Bool=true,
-	viz_measurements::Bool=true
+	viz_measurements::Bool=true,
+	n_sample::Int=50
 )
+	N = sum(contains.(names(object_posterior), "sqrt_a_obj"))
+	
 	fig = Figure()
 	ax = Axis(
 		fig[1, 1], 
-		xlabel="radius, r [cm]",
+		xlabel="√(area), √(α) [cm]",
 		ylabel="height, h [cm]",
 		aspect=DataAspect()
 	)
 
 	residuals = zeros(nrow(object_posterior), nrow(object_true_area))
 	fig_ia = nothing, nothing
-	for i in 1:nrow(object_posterior)
+	for i in sample(1:nrow(object_posterior), n_sample)
 		# unpack samples
 		h_max = object_posterior[i, "h_max"]
 		a_t, a_b = object_posterior[i, "a_t"], object_posterior[i, "a_b"]
@@ -1465,84 +1486,82 @@ function viz_inferred_radius(
 		hs = range(
 			0.0, h_max, length=N
 		)
-		rₒs = [object_posterior[i, "rs[$n]"] for n in 1:N]
-		rₒ_object = interpolate(hs, rₒs, FritschButlandMonotonicInterpolation())
+		sqrt_a_obj = [object_posterior[i, "sqrt_a_obj[$n]"] for n in 1:N]
+		a_of_object = extrapolate(
+			interpolate(hs, sqrt_a_obj .^ 2, FritschButlandMonotonicInterpolation()), Interpolations.Flat()
+		)
 		
 		# compute residuals
 		for j = 1:nrow(object_true_area)
 			hᵢ, aᵢ = object_true_area[j, "h [cm]"], object_true_area[j, "area [cm²]"]
-			r̂ᵢ = rₒ_object(hᵢ)
-			residuals[i, j] += abs(sqrt(aᵢ/π) - r̂ᵢ)
+			r̂ᵢ = sqrt(a_of_object(hᵢ))
+			residuals[i, j] += abs(sqrt(aᵢ) - r̂ᵢ)
 		end
 
 		# plot inferred area of the object
 		hs_dense = range(0.0, h_max, length=100)
-		rs_dense = rₒ_object.(hs_dense)
-		fig_ia = lines!(rs_dense, hs_dense, label="model", color=(theme_colors[8], 0.1))
-		lines!(-rs_dense, hs_dense, label="model", color=(theme_colors[8], 0.1))
-	end
-	
-	# plot area of tank for reference
-	r_tank = [length_measurements.w_b/2, length_measurements.w_t/2]
-	lines!(r_tank, [0, length_measurements.h_max], color="black")
-	lines!(-r_tank, [0, length_measurements.h_max], color="black")
-	lines!([-r_tank[2], r_tank[2]], [length_measurements.h_max, length_measurements.h_max], color="black")
-	lines!([-r_tank[1], r_tank[1]], [0, 0], color="black")
-	
-	# plot hₒ and h₀
-	# for i in 1:nrow(object_posterior)
-	# 	h_max = object_posterior[i, "h_max"]
-	# 	a_t, a_b = object_posterior[i, "a_t"], object_posterior[i, "a_b"]
-	# 	hₒ = object_posterior[i, "hₒ"]
-	# 	h₀ = object_posterior[i, "h₀"]
+		sqrt_a_obj_dense = sqrt.(a_of_object.(hs_dense))
+		fig_ia = lines!(
+			sqrt_a_obj_dense, hs_dense, label="model", color=(theme_colors[8], 0.1)
+		)
+		lines!(
+			-sqrt_a_obj_dense, hs_dense, label="model", color=(theme_colors[8], 0.1)
+		)
 		
-	# 	# initial water level and hole height
-	# 	r_of_tank(h) = sqrt((h / h_max * a_t + (1 - h / h_max) * a_b) / π)
-	# 	scatter!(
-	# 		[r_of_tank(h_hole)], [h_hole], 
-	# 		marker=:hline, color="blue"
-	# 	)
-	# 	scatter!(
-	# 		[r_of_tank(h₀)], [h₀], 
-	# 		marker=:hline, color="blue"
-	# 	)
-	# 	if i == 1
-	# 		text!(
-	# 			[r_of_tank(h_hole) * 1.08], [h_hole], 
-	# 			text=rich("h", subscript("o")),
-	# 			align=(:left, :center)
-	# 		)
-	# 		text!(
-	# 			[r_of_tank(h₀) * 1.08], [h₀], 
-	# 			text=rich("h", subscript("0")),
-	# 			align=(:left, :center)
-	# 		)
-	# 	end
-	# end
+		# plot area of tank for reference
+		r_tank = sqrt.([a_b, a_t])
+		lines!(r_tank, [0, length_measurements.h_max], color="gray")
+		lines!(-r_tank, [0, length_measurements.h_max], color="gray")
+		lines!([-r_tank[2], r_tank[2]], [length_measurements.h_max, length_measurements.h_max], color="gray")
+		lines!([-r_tank[1], r_tank[1]], [0, 0], color="gray")
+	end
+
+	# plot hₒ and h₀
+	hₒ = mean(object_posterior[:, "hₒ"])
+	h₀ = mean(object_posterior[:, "h₀"])
+	a_t = mean(object_posterior[:, "a_t"])
+	a_b = mean(object_posterior[:, "a_b"])
+	h_max = mean(object_posterior[:, "h_max"])
+	sqrt_a_of_h(h) = sqrt(h / h_max * a_t + (1 - h / h_max) * a_b)
+	
+	lines!([sqrt_a_of_h(hₒ), 1.1 * sqrt_a_of_h(hₒ)], [hₒ, hₒ],
+		color="blue", label="hₒ"
+	)
+	text!([sqrt_a_of_h(hₒ)*1.1], [hₒ], 
+		text=rich("h", subscript("o")), align=(:left, :center)
+	)
+
+	
+	lines!([-sqrt_a_of_h(h₀), sqrt_a_of_h(h₀)], [h₀, h₀],
+		color="blue", label="h₀", linestyle=:dash
+	)
+	text!([sqrt_a_of_h(h₀)*1.1], [h₀], 
+		text=rich("h", subscript("0")), align=(:left, :center)
+	)
 
 	if viz_measurements
-	# measured area
+		# measured area
 		fig_ma = scatterlines!(
-			sqrt.(object_true_area[:, "area [cm²]"] / π), 
+			sqrt.(object_true_area[:, "area [cm²]"]), 
 			object_true_area[:, "h [cm]"], markersize=10,
 			label="measurment", color=colors["data"]
 		)
 		scatterlines!(
-			-sqrt.(object_true_area[:, "area [cm²]"] / π), 
+			-sqrt.(object_true_area[:, "area [cm²]"]), 
 			object_true_area[:, "h [cm]"], markersize=10,
 			label="measurment", color=colors["data"]
 		)
 	end
 
-	my_xlim = 1.2 * length_measurements.w_t
-	xlims!(-my_xlim, 1.25 * my_xlim)
+	my_xlim = 1.35 * sqrt(mean(object_posterior[:, "a_t"]))
+	xlims!(-my_xlim, my_xlim)
 	ylims!(-1, length_measurements.h_max * 1.05)
 
 	if show_legend
 		# axislegend(#"γ=$γ; N=$N", 
 		# 	unique=true, position=(0.8, 0.8), titlefont="normal", labelsize=16)
 		Legend(fig[1, 2], [fig_ma, fig_ia], ["measured", "posterior"])
-		colgap!(fig.layout, 1, Relative(-0.2))
+		colgap!(fig.layout, 1)
 	end
 
 	println("mean residual: ", mean(residuals))
@@ -1556,7 +1575,7 @@ end
 
 # ╔═╡ 40157899-dffb-4e3a-b5ca-be3c23a465ae
 viz_inferred_radius(
-	object_posterior, object_true_area, N, length_measurements, savename="posterior_area"
+	object_posterior, object_true_area, length_measurements, savename="posterior_area"
 )
 
 # ╔═╡ bd95428d-1077-4417-bfca-0c5da7378af2
@@ -1565,12 +1584,12 @@ md"### prior"
 # ╔═╡ 65d81268-9ff2-4a18-b0ce-4b105740dc8b
 begin
 	object_tank_model_prior = forward_model_object(
-		data_w_object, train_posterior, N, length_measurements, prior_only=true
+		data_w_object, train_posterior, N, length_measurements, γ, prior_only=true
 	)
 	
 	object_prior = DataFrame(
 		sample(object_tank_model_prior, NUTS(0.65), MCMCSerial(), 
-			n_MC_sample, n_chains; progress=true
+			n_MC_sample * 4, n_chains; progress=true
 		)
 	)
 	
@@ -1578,11 +1597,19 @@ begin
 end
 
 # ╔═╡ 8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
-viz_inferred_radius(object_prior, object_true_area, N, length_measurements, savename="prior_area", show_legend=false, viz_measurements=false)
+viz_inferred_radius(object_prior, object_true_area, length_measurements, savename="prior_area", show_legend=false, viz_measurements=false)
+
+# ╔═╡ 6d4b0c74-4228-41e4-a8d0-98e0d71333b9
+hist(object_prior[:, "sqrt_a_obj[1]"]) # check prior
+
+# ╔═╡ 67b3c66c-b3eb-438f-96e4-c09e117cde87
+lines(object_prior[:, "sqrt_a_obj[1]"])
 
 # ╔═╡ Cell order:
 # ╠═faf59350-8d67-11ee-0bdd-2510e986118b
 # ╠═4391f124-cbef-46e5-8462-e4e5126f5b38
+# ╠═68df601b-39b3-456b-bb42-d321e92286c8
+# ╠═6e1e65a9-822a-4370-812c-808a50c935f7
 # ╠═245836a9-6b44-4639-9209-e7ad9035e293
 # ╟─7752316d-9dd0-4403-aa08-22c977ff3727
 # ╟─76624080-150a-4783-b675-794365dcecee
@@ -1717,3 +1744,5 @@ viz_inferred_radius(object_prior, object_true_area, N, length_measurements, save
 # ╟─bd95428d-1077-4417-bfca-0c5da7378af2
 # ╠═65d81268-9ff2-4a18-b0ce-4b105740dc8b
 # ╠═8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
+# ╠═6d4b0c74-4228-41e4-a8d0-98e0d71333b9
+# ╠═67b3c66c-b3eb-438f-96e4-c09e117cde87
