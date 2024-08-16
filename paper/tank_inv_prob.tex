@@ -174,7 +174,7 @@ While impossible to infer the precise tank geometry, one can theoretically deter
 However, this inverse problem of reconstruction is unstable: small errors in the measured liquid level can cause large errors in the estimated area of the tank. \cite{groetsch1993inverse}
 
 \subsection{Our contribution}
-Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to solve the following inverse problem of reconstruction with quantified uncertainty: infer the shape of an exogenous, heavy solid (of unknown geometry) contained in a draining tank (of known geometry) from measurements of its liquid level over time.
+Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to solve the following inverse problem of reconstruction with quantified uncertainty: infer the shape of an exogenous, heavy, convex solid (of unknown geometry) contained in a draining tank (of known geometry) from measurements of its liquid level over time.
 (Because the solid displaces liquid in the draining tank, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at the height of the liquid.
 As the tank drains, the liquid ``scans'' the solid's cross-sectional area as a function of its height.)
 To test our ability to reconstruct the shape of the solid in the tank, we conduct tank drainage experiments with water and collect water level time series data with a level sensing strip. First, we build and calibrate (i.e., determine the posterior distribution of the parameters of) (i) a forward model governing the dynamics of the water level in our draining tank and (ii) a probabilistic model of measurement noise from our level sensor.
@@ -511,7 +511,7 @@ Comparing the prior and posterior distributions of water level trajectories in F
 
 \begin{figure}[!ht]
     \centering
-        \begin{subfigure}[b]{0.22\textwidth}
+        \begin{subfigure}[b]{0.225\textwidth}
     	\includegraphics[width=\textwidth]{../tank_geometry/naked_tank.pdf}
 	\caption{Experiment setup} \label{fig:naked_tank}
     \end{subfigure}
