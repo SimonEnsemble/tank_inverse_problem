@@ -174,7 +174,7 @@ While impossible to infer the precise tank geometry, one can theoretically deter
 However, this inverse problem of reconstruction is unstable: small errors in the measured liquid level can cause large errors in the estimated area of the tank. \cite{groetsch1993inverse}
 
 \subsection{Our contribution}
-Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to solve the following inverse problem of reconstruction with quantified uncertainty: infer the shape of an exogenous, heavy, convex solid (of unknown geometry) contained in a draining tank (of known geometry) from measurements of its liquid level over time.
+Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to solve the following inverse problem of reconstruction with quantified uncertainty: infer the shape of an exogenous, heavy solid (of unknown geometry) contained in a draining tank (of known geometry) from measurements of its liquid level over time.
 (Because the solid displaces liquid in the draining tank, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at the height of the liquid.
 As the tank drains, the liquid ``scans'' the solid's cross-sectional area as a function of its height.)
 To test our ability to reconstruct the shape of the solid in the tank, we conduct tank drainage experiments with water and collect water level time series data with a level sensing strip. First, we build and calibrate (i.e., determine the posterior distribution of the parameters of) (i) a forward model governing the dynamics of the water level in our draining tank and (ii) a probabilistic model of measurement noise from our level sensor.
@@ -214,7 +214,7 @@ A tank draining experiment constitutes:
 (3) at time $t=0$ [s], allowing the water to drain out (driven by gravity) through the orifice; and 
 (4) collecting time series data of the water level in the tank over time, $\{(t_i, h_{\text{obs}, i}) \}$, from a liquid level sensor communicating with an Arduino microcontroller. See Fig.~\ref{fig:photo_of_tank}.
 
-The exogenous [rigid] solid (i) is heavier than water, and thus remains stationary at the bottom of the tank; (ii) displaces water in the tank; and (iii) has a convex geometry so it cannot contain water itself. 
+The exogenous [rigid] solid (i) is heavier than water, and thus remains stationary at the bottom of the tank; (ii) displaces water in the tank; and (iii) has a sufficiently convex geometry (e.g. lacking an inward groove at the top) so it cannot contain water itself. 
 Let $\alpha(h)$ [cm$^2$] be the cross-sectional [parallel to the ground] area of this solid as a function of height $h$.
 
 \begin{figure}[h!]
@@ -691,7 +691,11 @@ Our forward model of the dynamics of the liquid level in an \emph{open-top} tank
 During Bayesian model calibration, a model discrepancy \cite{brynjarsdottir2014learning,kennedy2001bayesian} function could capture any bias---i.e., a difference between the true dynamics of the liquid level in the tank and the model $h(t; h_0^*,  \boldsymbol \alpha^*, \boldsymbol \theta^*)$ with the true/best-fit (indicated by $*$) initial water level, solid geometry, and parameters.
 % In other words, we assume our forward model is capable of capturing the true liquid level dynamics in the tank without bias.
 Finally, another interesting inverse problem pertaining to a draining tank is time reversal: infer the initial water level from measurement(s) of the water level at later times.
-Another interesting route to indirectly reconstruct the shape of a solid is through heat transfer models and temperature measurements \cite{alifanov2012inverse} (eg. \cite{zhou2017shape,chen2011inverse,wang2018boundary}).  
+
+\paragraph{Other geometric inverse problems.}
+Examples of other geometric inverse problems, where the unknown is a geometric shape \cite{ameur2004level,burger2001level}, include inferring the shape and location of cracks in a solid \cite{nishimura1991boundary}, fouling on the inner wall of a pipe \cite{chen2011inverse}, mines underground \cite{delbary2007inverse,lopez2003detection}, and scattering objects underwater \cite{buchanan2004marine}
+ from boundary measurements; and inferring the shape of obstacles in blood vessels from flow measurements \cite{aguayo2021distributed,nolte2022inverse}.
+
 
 
 % 
@@ -699,7 +703,7 @@ Another interesting route to indirectly reconstruct the shape of a solid is thro
 
 \enlargethispage{20pt}
 
-\ack{CMS acknowledges Intel for funding. GF acknowledges ARMI for funding. Thanks Brian Wood for helpful discussions about the possibility to infer the precise shape of the solid in the tank by tilting it and Adrian Henle for comments on the text.}
+\ack{CMS acknowledges Intel for funding. GF acknowledges ARMI for funding. Thanks Brian Wood for helpful discussions about the possibility to infer the precise shape of the solid in the tank by tilting it and Adrian Henle for feedback on our manuscript.}
 
 
 \vskip2pc
