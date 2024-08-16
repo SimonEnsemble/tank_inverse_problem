@@ -116,7 +116,7 @@ In our experimental setup, a tank
 drains of water through a small orifice in its side while a liquid level sensor collects time series data of the water level. 
 First, we calibrate and test a forward model of the water level dynamics using data from two tank drainage experiments without an exogenous solid. 
 Second, we conduct a drainage experiment with the tank containing an exogenous solid, then leverage the calibrated forward model and data to infer (i.e., obtain a posterior distribution for) the are of the solid inside the tank as a function of height.
-Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, inside of an opaque tank giving access to liquid level measurements. 
+Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, inside of an opaque tank. 
 \newline
 
 \begin{center}
@@ -170,7 +170,7 @@ The discharge coefficient \cite{teoman2022discharge,hicks2014determining,blasone
 
 
 As opposed to the \emph{forward problem} of using a dynamic model to predict the trajectory of the liquid level in a draining tank of a given geometry, Groetsch \cite{groetsch1993inverse,groetsch1999inverse} framed an \emph{inverse problem} \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse}: reconstruct the shape of the tank from the liquid level in it over time as it drains. 
-While impossible to infer the precise 3D geometry of the tank, one can theoretically determine the cross-sectional area of the tank as a function of height from the liquid level as a function of time. (Intuitively, the rate of decrease of the liquid level is indicative of the cross-sectional area of the tank at that height; wider [say, cylindrical] tanks drain more slowly.)
+While impossible to infer the precise tank geometry, one can theoretically determine the cross-sectional area of the tank as a function of height from the liquid level as a function of time. (Intuitively, the rate of decrease of the liquid level is indicative of the cross-sectional area of the tank at that height; wider [say, cylindrical] tanks drain more slowly.)
 However, this inverse problem of reconstruction is unstable: small errors in the measured liquid level can cause large errors in the estimated area of the tank. \cite{groetsch1993inverse}
 
 \subsection{Our contribution}
@@ -214,7 +214,7 @@ A tank draining experiment constitutes:
 (3) at time $t=0$ [s], allowing the water to drain out (driven by gravity) through the orifice; and 
 (4) collecting time series data of the water level in the tank over time, $\{(t_i, h_{\text{obs}, i}) \}$, from a liquid level sensor communicating with an Arduino microcontroller. See Fig.~\ref{fig:photo_of_tank}.
 
-The exogenous solid (i) is heavier than water, and thus remains stationary at the bottom of the tank, and (ii) displaces water in the tank.
+The exogenous [rigid] solid (i) is heavier than water, and thus remains stationary at the bottom of the tank; (ii) displaces water in the tank; and (iii) has a convex geometry so it cannot contain water itself. 
 Let $\alpha(h)$ [cm$^2$] be the cross-sectional [parallel to the ground] area of this solid as a function of height $h$.
 
 \begin{figure}[h!]
@@ -269,13 +269,13 @@ The volume $V$ [cm$^3$] of water in the tank at time $t$, when the water height 
 \begin{equation}
 	V(h(t))=\int_0^{h(t)} \left[a(y) - \alpha(y) \right] dy. \label{eq:volume}
 \end{equation}
-The integrand is the cross-sectional area of water in the tank at height $y$; subtraction of the area of the solid $\alpha(y)$ from the area of the tank $a(h)$ accounts for the solid displacing water. (We neglect the small volume of water displaced by the level sensor.)
+The integrand is the cross-sectional area of water in the tank at height $y$; subtraction of the area of the solid $\alpha(y)$ from the area of the tank $a(h)$ accounts for the solid displacing water. (We neglect the small volume of water displaced by the level sensor.) Herein lies the assumption that the solid has a convex geometry, preventing it from retaining water as the tank drains.
 
 \paragraph{Conservation of mass.}
-A mass balance on the draining tank [as the control volume] at time $t \geq 0$ equates the rate of decrease of water in the tank [g/s] with the outflow rate [g/s].
- Treating the water as incompressible (constant density: $\rho$ [g/cm$^3$]) and using expression~\ref{eq:outletflow} for the outflow term, the mass balance is:
+% A mass balance on the draining tank [as the control volume] at time $t \geq 0$ equates the rate of decrease of water in the tank [g/s] with the outflow rate [g/s].
+Treating the water as incompressible (constant density: $\rho$ [g/cm$^3$]) and using expression~\ref{eq:outletflow} for the outflow, a mass balance on the draining tank for $t\geq 0$ gives:
 \begin{equation}
-	\overbrace{\diff{}{t} \Bigl( \rho V(h(t)) \Bigr )}^{\text{rate of accumulation}}= - \overbrace{\rho c \pi r_o^2 \sqrt{2 g(h(t)-h_o)}}^{\text{outflow rate}}. \label{eq:massbalance}
+	\overbrace{\diff{}{t} \Bigl( \rho V(h(t)) \Bigr )}^{\text{rate of accumulation}}= - \overbrace{\rho c \pi r_o^2 \sqrt{2 g(h(t)-h_o)}}^{\text{rate of outflow}}. \label{eq:massbalance}
 \end{equation}
 Differentiating $V(h(t))$ in eqn.~\ref{eq:volume} and using the chain rule \cite{debook} to rewrite the accumulation term gives our forward model for $h(t)$:
 %\begin{empheq}[box=\mybox]{align}
@@ -340,7 +340,7 @@ Once the data \thedata are obtained, the likelihood is viewed as a function of $
 % The key idea is: if the data were likely (unlikely) to be obtained under proposed values for the inputs and parameters, then the 
 
 \section{Bayesian statistical inversion (BSI)} \label{sec:bsi}
-Here, we outline Bayesian statistical inversion (BSI)  \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian}, a tool for solving inverse problems while incorporating prior information and quantifying uncertainty. 
+Here, we outline Bayesian statistical inversion (BSI)  \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian,allmaras2013estimating}, a tool for solving inverse problems while incorporating prior information and quantifying uncertainty. 
 Later, we employ BSI to, using water level time series data from tank drainage experiments,  
 (1, parameter inference) calibrate our forward and measurement models and 
 (2, reconstruction) infer the shape of a solid in the tank.
@@ -527,8 +527,8 @@ Comparing the prior and posterior distributions of water level trajectories in F
     
      \begin{subfigure}[b]{\textwidth}
      \center
-    	\includegraphics[width=0.72\textwidth]{../posterior_train_theta.pdf}
-	\includegraphics[width=0.34\textwidth]{../posterior_cov_matrix.pdf}
+    	\includegraphics[width=0.75\textwidth]{../posterior_train_theta.pdf}
+	\includegraphics[width=0.375\textwidth]{../posterior_cov_matrix.pdf}
 	\caption{Posterior distribution} \label{fig:posterior_train_theta}
     \end{subfigure}
     \caption{
@@ -644,18 +644,17 @@ As a posterior predictive check, Fig.~\ref{fig:posterior_object} displays sample
     \end{subfigure}
      \begin{subfigure}[b]{0.49\textwidth}
     	\includegraphics[width=\textwidth]{../prior_area.pdf}
-	\caption{Prior dist'n of $\alpha(h)$} \label{fig:prior_area}
+	\caption{Prior distribution} \label{fig:prior_area}
     \end{subfigure}
     
      \begin{subfigure}[b]{0.49\textwidth}
     	\includegraphics[width=\textwidth]{../posterior_object.pdf}
-	\caption{Data $\{(t_i, h_i)\}$ and posterior dist'n of $h(t)$} \label{fig:posterior_object}
+	\caption{Data \& posterior distribution} \label{fig:posterior_object}
     \end{subfigure}
     \begin{subfigure}[b]{0.49\textwidth}
     	\includegraphics[width=\textwidth]{../posterior_area.pdf}
-	\caption{Posterior dist'n of $\alpha(h)$} \label{fig:posterior_area}
+	\caption{Posterior distribution} \label{fig:posterior_area}
     \end{subfigure}
-
     \caption{
       \textbf{Reconstructing the shape of an exogenous solid in the draining tank.} 
       (a) We fill our tank, containing a heavy glass bottle, with water, then, at $t=0$, allow it to drain through the orifice in its side.
@@ -673,8 +672,8 @@ Then, we exploited our Bayesian-calibrated forward model to reconstruct the shap
 Essentially, the water ``scanned'' the area of the solid as a function of its height as the tank drained. 
 The posterior distribution of the bottle's area as a function of height agreed reasonably well with our [more] direct measurements of its area but exhibited a little bias. 
 % In conclusion, a forward model of the dynamics of the liquid level in a draining tank containing an exogenous solid, a probabilistic measurement model of the liquid level sensor, and liquid level time series data during the process of draining together allow us to reconstruct the area of the exogenous solid as a function of height with quantified uncertainty via Bayesian statistical inversion. 
-Our methodology herein could be employed throughout engineering and the applied sciences to infer the shape of an exogenous solid inside of an opaque liquid-holding tank, provided we have access to liquid level measurements.
-In a similar manner, one could infer the height and/or porosity of small, heavy solid particles (e.g. gravel, sand) packed into a liquid holding tank as well.
+Our methodology herein could be employed throughout engineering and the applied sciences to infer the shape of an exogenous solid inside of an opaque or underground \cite{gephart2010short} liquid-holding tank, provided we have access to liquid level measurements.
+In a similar manner, one could infer the height and/or porosity of small, heavy solid particles (e.g. gravel, sand) packed into a liquid holding tank as well \cite{guellouz2020estimation}.
 
 \paragraph{Can we infer the precise geometry of a solid in an opaque, draining tank?}
 We inhibited our ambition to reconstruct the shape of an exogenous solid inside a draining tank from its liquid level over time by settling for its area as a function of height; determination of the precise geometry of the solid is impossible because the dynamics of $h(t)$ depend solely on the area of the solid as a function of height (see eqn.~\ref{eq:forward_model})---and, there are multiple non-congruent solids with an identical area as a function of height. We speculate that, by conducting multiple tank-draining experiments with the tank tilted and held at different angles, we may be able to reconstruct the precise geometry of the solid in the tank. The key idea is that two non-congruent solids with an identical area as a function of height may exhibit different areas as a function of height when tilted; thus, they can be distinguished by tilting the tank. A complication is that gravity could cause the shape to rotate when the tank is tilted. 
@@ -683,14 +682,16 @@ We inhibited our ambition to reconstruct the shape of an exogenous solid inside 
 \paragraph{Remarks.} (1) We could have calibrated our forward and measurement models using data from a tank drainage experiment where the tank \emph{did} contain an exogenous solid, provided the area of the solid as a function of height were known with some certainty. (2) If we knew the solid's shape belonged to a certain category (eg.\ a right circular cone), we could have parameterized its area as a function of height with fewer variables (eg.\ radius of base and height). 
 
 \paragraph{Extensions.}
-Our forward model of the dynamics of the liquid level in an \emph{open-top} tank, containing a solid, draining of liquid through a \emph{small} orifice in its side \emph{without} additional input/output of liquid could be extended to handle 
+Our forward model of the dynamics of the liquid level in an \emph{open-top} tank, containing a \emph{solid}, draining of liquid through a \emph{small} orifice in its side \emph{without} additional input/output of liquid could be extended to handle 
 (a) closed tanks, where the air pressure in the headspace is not constant during draining; 
 (b) larger orifices, where Torricelli's law does not hold and perhaps the liquid at the top does not remain flat (necessitating modeling of flow streamlines as in Refs.~\cite{mathew2014numerical,sakri2017numerical});
-(c) additional inputs/outputs of liquid by adding source/sink terms, and/or
-(d) Mariotte's bottle \cite{kirevs2006mariotte}.
+(c) additional inputs/outputs of liquid by adding source/sink terms; 
+(d) Mariotte's bottle \cite{kirevs2006mariotte}; and/or
+(e) a flexible object impacted by hydrostatic pressure such as a balloon \cite{muller2004rubber}. 
 During Bayesian model calibration, a model discrepancy \cite{brynjarsdottir2014learning,kennedy2001bayesian} function could capture any bias---i.e., a difference between the true dynamics of the liquid level in the tank and the model $h(t; h_0^*,  \boldsymbol \alpha^*, \boldsymbol \theta^*)$ with the true/best-fit (indicated by $*$) initial water level, solid geometry, and parameters.
 % In other words, we assume our forward model is capable of capturing the true liquid level dynamics in the tank without bias.
 Finally, another interesting inverse problem pertaining to a draining tank is time reversal: infer the initial water level from measurement(s) of the water level at later times.
+Another interesting route to indirectly reconstruct the shape of a solid is through heat transfer models and temperature measurements \cite{alifanov2012inverse} (eg. \cite{zhou2017shape,chen2011inverse,wang2018boundary}).  
 
 
 % 
@@ -698,7 +699,7 @@ Finally, another interesting inverse problem pertaining to a draining tank is ti
 
 \enlargethispage{20pt}
 
-\ack{CMS acknowledges Intel for funding. GF acknowledges ARMI for funding. Thanks Brian Wood for helpful discussions about the possibility to infer the precise shape of the solid in the tank by tilting it.}
+\ack{CMS acknowledges Intel for funding. GF acknowledges ARMI for funding. Thanks Brian Wood for helpful discussions about the possibility to infer the precise shape of the solid in the tank by tilting it and Adrian Henle for comments on the text.}
 
 
 \vskip2pc
