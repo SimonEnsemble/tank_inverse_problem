@@ -79,7 +79,7 @@ parbox=false
 %%%% Article title to be placed here
 % \title{Bayesian inference of the shape of an object inside of a gravity-drained tank}
 %\title{Inferring the shape of a solid inside a gravity-drained tank from liquid level time series data}
-\title{Inferring the shape of a solid inside a liquid-holding tank from its liquid level as it drains}
+\title{Inferring the shape of a solid inside a draining tank from its liquid level dynamics}
 
 
 \author{%%%% Author details
@@ -105,18 +105,18 @@ Cory M. Simon$^{1}$
 %%%% Abstract text to be placed here %%%%%%%%%%%%
 \begin{abstract}
 In engineering, we often encounter an open-top, liquid-holding tank draining via gravity-driven flow through a small orifice in its side. 
-Torricelli's law and a mass balance give a differential equation model governing the dynamics of the liquid level in the tank. 
-Herein, we leverage this forward model to tackle an inverse problem of reconstruction: infer the shape of an exogenous, heavy solid inside of a tank from measurements of the liquid level in the tank as it drains over time. 
-(Because the solid displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the object at that height; 
+Torricelli's law and a mass balance give a differential equation model governing the dynamics of the liquid level in such a draining tank. 
+Herein, we leverage this forward model to tackle an inverse problem of reconstruction: infer the shape of an exogenous, heavy solid inside a draining tank from measurements of its liquid level over time. 
+(Because the solid displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at that height; 
 as the liquid level drops, it ``scans'' the area of the solid as a function of height.) 
 To quantify uncertainty, we employ Bayesian statistical inversion to obtain a posterior distribution over the solid's cross-sectional area as a function of height. 
 
-In our experimental setup, an open-top tank
+In our experimental setup, a tank
 % (an inverted, truncated cone with a rounded rectangle base) 
-drains of water through a small orifice in its side, while a liquid level sensor collects time series data of the water level. 
-First, we calibrate and test a forward model of the water level dynamics using data from two drainage experiments with a tank devoid of an exogenous solid. 
-Second, we conduct a drainage experiment with a tank containing an exogenous solid, then leverage the calibrated forward model and data to infer (i.e., obtain a posterior distribution for) the shape of the solid inside the tank with quantified uncertainty.
-Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, inside of an opaque tank that gives access to liquid level measurements. 
+drains of water through a small orifice in its side while a liquid level sensor collects time series data of the water level. 
+First, we calibrate and test a forward model of the water level dynamics using data from two tank drainage experiments without an exogenous solid. 
+Second, we conduct a drainage experiment with the tank containing an exogenous solid, then leverage the calibrated forward model and data to infer (i.e., obtain a posterior distribution for) the are of the solid inside the tank as a function of height.
+Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, inside of an opaque tank giving access to liquid level measurements. 
 \newline
 
 \begin{center}
@@ -137,7 +137,7 @@ Our approach may be practically useful to infer the shape of an unknown solid, o
 %%%%%%%%%% Insert the texts which can accomdate on firstpage in the tag "fmtext" %%%%%
 
 \section{Introduction}
-Throughout engineering and the applied sciences, we encounter a liquid-holding tank, draining via gravity-driven flow through a small orifice (hereafter, a \emph{draining tank}).
+Throughout engineering and the applied sciences, we may encounter an open-top tank, draining of liquid via gravity-driven flow through a small orifice (a \emph{draining tank}).
 Mathematical models of the dynamics of the liquid level in a draining tank are useful for designing the tank and orifice geometry, predicting emptying times, forecasting outlet flow rates, controlling the liquid level by manipulating an input stream, and inferring the liquid level from the outlet flow rate \cite{d2021torricelli,seborg2016process,groetsch1993inverse,groetsch1999inverse}.
 
 \begin{mytcbox}[label=box:waterclocks, breakable]{Ancient water clocks}
@@ -157,30 +157,31 @@ Evangelista Torricelli (1608-1647) made a fundamental observation for mathematic
 % TODO: check that he didn't know g!
 Today, we recover Torricelli's observation from Daniel Bernoulli's (1700–1782) equation \cite{welty2020fundamentals}, a mechanical energy balance applied to the steady, plug flow of an incompressible, inviscid fluid through the small orifice, neglecting frictional forces. This gives \emph{Torricelli's law}: $v=\sqrt{2 g \Delta h}$, with $g$ the acceleration due to gravity. \cite{d2021torricelli,teoman2022discharge}
 
-Applying a mass balance and Torricelli's law to a draining tank, we obtain a first-order, [generally] nonlinear differential equation governing the liquid level in the tank over time \cite{groetsch1993inverse,seborg2016process,debook}.
-The geometry of the tank affects the dynamics of the liquid level through its cross-sectional area (parallel to the ground) as a function of height.
+Application of a mass balance to a draining tank with Torricelli's law gives a first-order, [generally] nonlinear differential equation governing the liquid level in the tank over time \cite{groetsch1993inverse,seborg2016process,debook}.
+The geometry of the tank affects the dynamics of the liquid level through its cross-sectional area as a function of height.
 The cross-sectional area of the orifice affects the emptying time; theoretically, it gives the volumetric flow rate out of the tank from Torricelli's law. 
 % TODO: a name for cross-sectional area parallel to the ground?
 However, a \emph{discharge coefficient} \cite{de2000pin,blasone2015discharge,wadhwa2021study,liu2008drainage} must be introduced into the model for agreement with experimentally-measured volumetric outflow rates \cite{farmer1992physical,driver1998torricelli,brady2009siphons,rother2024modelling,paldy1963apparatus,ivanov2014testing,williams2021vessel,pavesi2019investigating,planinvsivc2011holes,saleta2005experimental,lopac2015water,powell2012carrying}.
 The discharge coefficient \cite{teoman2022discharge,hicks2014determining,blasone2015discharge,lienhard1984velocity,wadhwa2021study}
 (i) is defined as the ratio of the observed outlet volumetric flow rate to that predicted by Torricelli's law and the area of the orifice \cite{hicks2014determining};
-(ii) accounts for (a) the vena contracta of the liquid jet (the cross-sectional area of the liquid jet issuing from the orifice is smaller than that of the orifice, owing to fluid streamlines in the tank, near the orifice, non-perpendicular to the orifice area \cite{horsch2020simple}); (b) frictional losses across the orifice, and (c) non-uniformity of the velocity profile; and
+(ii) accounts for (a) the vena contracta of the liquid jet (the cross-sectional area of the liquid jet issuing from the orifice is smaller than that of the orifice, owing to fluid streamlines in the tank, near the orifice, non-perpendicular to the orifice area \cite{horsch2020simple}), (b) frictional losses across the orifice, and (c) non-uniformity of the velocity profile; and
 (iii) depends on the rheology of the liquid, the geometry of the orifice, and, for laminar flow, the Reynolds number \cite{teoman2022discharge}. 
 %  and (ii) depends on the rheology of the fluid and the geometry of the orifice. 
 
 
-As opposed to the \emph{forward problem} of using a dynamic model to predict the trajectory of the liquid level in a draining tank when given the tank geometry, Groetsch \cite{groetsch1993inverse,groetsch1999inverse} framed an \emph{inverse problem} \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse}: reconstruct the shape of the tank from the liquid level over time as it drains. 
-While impossible to infer the precise 3D geometry of the tank, one can theoretically determine the cross-sectional area of the tank as a function of height from the liquid level as a function of time. However, this inverse problem is unstable: small errors in the measured liquid level can cause large errors in the estimated area of the tank. \cite{groetsch1993inverse}
+As opposed to the \emph{forward problem} of using a dynamic model to predict the trajectory of the liquid level in a draining tank of a given geometry, Groetsch \cite{groetsch1993inverse,groetsch1999inverse} framed an \emph{inverse problem} \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse}: reconstruct the shape of the tank from the liquid level in it over time as it drains. 
+While impossible to infer the precise 3D geometry of the tank, one can theoretically determine the cross-sectional area of the tank as a function of height from the liquid level as a function of time. (Intuitively, the rate of decrease of the liquid level is indicative of the cross-sectional area of the tank at that height; wider [say, cylindrical] tanks drain more slowly.)
+However, this inverse problem of reconstruction is unstable: small errors in the measured liquid level can cause large errors in the estimated area of the tank. \cite{groetsch1993inverse}
 
 \subsection{Our contribution}
-Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to solve the following inverse problem of reconstruction with quantified uncertainty: infer the shape of an exogenous, heavy solid contained in a draining tank from measurements of its liquid level over time.
+Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to solve the following inverse problem of reconstruction with quantified uncertainty: infer the shape of an exogenous, heavy solid (of unknown geometry) contained in a draining tank (of known geometry) from measurements of its liquid level over time.
 (Because the solid displaces liquid in the draining tank, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at the height of the liquid.
-As the tank drains, the liquid ``scans'' the object's cross-sectional area as a function of its height.)
-To test our ability to reconstruct the shape of the object in the tank, we conduct tank drainage experiments with water and collect water level time series data with a level sensing strip. First, we build and calibrate (i.e., determine the posterior distribution of the parameters of) (i) a forward model governing the dynamics of the water level in our draining tank and (ii) a probabilistic model of measurement noise from our level sensor.
+As the tank drains, the liquid ``scans'' the solid's cross-sectional area as a function of its height.)
+To test our ability to reconstruct the shape of the solid in the tank, we conduct tank drainage experiments with water and collect water level time series data with a level sensing strip. First, we build and calibrate (i.e., determine the posterior distribution of the parameters of) (i) a forward model governing the dynamics of the water level in our draining tank and (ii) a probabilistic model of measurement noise from our level sensor.
 For this task, we take length-measurements of the tank and orifice geometry and collect water level time series data from a tank drainage experiment without an exogenous solid. 
-Second, we conduct a tank drainage experiment with an exogenous solid in the tank. We then leverage this water level time series data and our calibrated forward model to obtain a posterior distribution over the area of the solid in the tank as a function of height.
-Comparing with our [more] direct (via a tape measure) measurements of the solid's area as a function of height, the inferred area exhibits a mean residual of xx and falls within the credible interval xx.
-{\color{red} FINISH with results} 
+Second, we conduct a tank drainage experiment with an exogenous solid in the tank (a bottle). We then leverage this water level time series data and our calibrated forward model to obtain a posterior distribution over the area of the solid in the tank as a function of height.
+Comparing with our [more] direct (via a tape measure), held-out measurements of the solid's area as a function of height, the inferred area traces out the shape of the bottle reasonably well (mean residual radius: 0.35\,cm; mean bottle radius 3.2\,cm). 
+
 %
 %Because this reconstruction problem is unstable \cite{groetsch1993inverse}, 
 %We employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to predict the object's area as a function of height \emph{with quantified uncertainty}.
@@ -213,18 +214,20 @@ A tank draining experiment constitutes:
 (3) at time $t=0$ [s], allowing the water to drain out (driven by gravity) through the orifice; and 
 (4) collecting time series data of the water level in the tank over time, $\{(t_i, h_{\text{obs}, i}) \}$, from a liquid level sensor communicating with an Arduino microcontroller. See Fig.~\ref{fig:photo_of_tank}.
 
-The exogenous solid (i) is heavier than water, thus remains stationary at the bottom of the tank throughout the draining process and (ii) displaces water in the tank.
+The exogenous solid (i) is heavier than water, and thus remains stationary at the bottom of the tank, and (ii) displaces water in the tank.
 Let $\alpha(h)$ [cm$^2$] be the cross-sectional [parallel to the ground] area of this solid as a function of height $h$.
 
 \begin{figure}[h!]
 \begin{center}
-	%\includegraphics[width=0.3\textwidth]{../tank_geometry/photo_of_tank.png}
+	% \includegraphics[width=0.3\textwidth]{../tank_geometry/photo_of_tank.png}
 	\caption{\textbf{Setup for tank drainage experiments.}
 	We fill our open-top tank (perhaps, containing an exogenous solid) with water, then allow it to drain via gravity-driven flow out of a small hole in its side, near its bottom. A liquid level strip measures the water level in the tank over time, giving time series data.
 	}
 	\label{fig:photo_of_tank}
 \end{center}
 \end{figure}
+
+{\color{red} new photo}
 
 \paragraph{The liquid level sensor.}
 We place an eTape\texttrademark\xspace liquid level strip vertically inside the tank, immersed in the water. 
@@ -236,7 +239,7 @@ To map the reading from the level sensor [0-1023 integer values] to the liquid l
 The [deterministic] \emph{forward model} predicts the water level $h(t)$ [m] in our draining tank over time $t$ [s], given the \emph{inputs} $\alpha(h)$ and $h_0$ and \emph{parameters} $a_t$, $a_b$, $h_{\text{max}}$, $r_o$, $h_o$, and the discharge coefficient $c$. 
 The probabilistic \emph{measurement model} characterizes the noise contaminating a water level measurement $h_{\text{obs}}$ made by our sensor.
 After time series data \thedata are collected from a tank drainage experiment, the forward and measurement models give the \emph{likelihood function}: the probability density of the data \thedata conditioned upon proposed functions/values for the inputs/parameters. 
-When any of the inputs/parameters are uncertain, the likelihood function quantifies the support that the data \thedata lend for each possible set of inputs/parameters.
+When any of the inputs/parameters are uncertain (in an inverse problem), the likelihood function quantifies the support that the data \thedata lend for each possible set of inputs/parameters.
 
 \subsection{Forward model}
 Here, we mathematically model the height of water in our draining tank as a function of time, $h(t)$. (We assume the water at the top of the tank remains flat---allowed by a slow outflow rate). 
@@ -250,7 +253,7 @@ We model the velocity $v$ [cm/s] of the jet of water flowing out of the orifice 
 \begin{equation}
 	v(h(t)) =  \sqrt{2 g(h(t)-h_o)}, \label{eq:Torricelli}
 \end{equation} where $g$ [cm/s$^2$] is the acceleration due to gravity. Torricelli's law follows from Bernoulli's equation \cite{welty2020fundamentals}, a mechanical energy balance on the flow through the orifice, treating (i) the flow as steady, plug, and absent of frictional forces and (ii) the water as inviscid and incompressible.
-Torricelli's law matches (i) the gain in kinetic energy, $(\Delta m) v^2/2$, when a small mass $\Delta m$ of water is ejected from the orifice with (ii) the loss of gravitational potential energy, $(\Delta m)g(h-h_o)$, from the concomitant removal of a small slice of water (of the same mass) from the top of the body of water in the tank. \cite{groetsch1993inverse,driver1998torricelli,williams2021vessel}
+Torricelli's law matches (i) the gain in kinetic energy, $(\Delta m) v^2/2$, when a small mass $\Delta m$ of water is ejected from the orifice, with (ii) the loss of gravitational potential energy, $(\Delta m)g(h-h_o)$, from the concomitant removal of a small slice of water of mass $\Delta m$ from the top of the body of water in the tank. \cite{groetsch1993inverse,driver1998torricelli,williams2021vessel}
 
 \paragraph{Volumetric outflow rate.}
 %If Torricelli's law held and the cross-sectional area of the liquid jet out of the tank were the same as the cross-sectional area of the orifice ($\pi r_o^2$), the volumetric flow rate out of the tank would be $v\pi r_o^2$.
@@ -259,7 +262,7 @@ Invoking Torricelli's law, we model the volumetric flow rate out of the tank at 
 	c \pi r_o^2 \sqrt{2 g(h(t)-h_o)}, \label{eq:outletflow}
 \end{equation}
 with $c\in(0,1)$ the [dimensionless] discharge coefficient---a ``fudge factor'' to account for the vena contracta in the water jet, non-plug flow through the orifice, and frictional losses as the water flows through the orifice \cite{horsch2020simple,teoman2022discharge,hicks2014determining,blasone2015discharge,lienhard1984velocity,wadhwa2021study}. 
-Note, $c=1$ corresponds with ideality of a water jet whose cross-sectional area is equal to that of the orifice ($\pi r_o^2$), plug flow, and zero frictional losses.
+Note, $c=1$ corresponds with an ideal water jet with cross-sectional area equal to that of the orifice ($\pi r_o^2$), plug flow, and zero frictional losses.
 
 \paragraph{Volume of water in the tank.} 
 The volume $V$ [cm$^3$] of water in the tank at time $t$, when the water height is $h(t)$, follows from the method of cross-sections in calculus \cite{debook}:
@@ -285,26 +288,26 @@ Given the geometry of the tank and solid through $a(h)$ and $\alpha(h)$, the dis
 % I.e., this \emph{forward} model makes predictions of the system output $h(t)$ (an \emph{effect}) when given the parameters and initial condition (the \emph{cause} of the effect).
 
 \vspace{-\baselineskip}
-\subparagraph{A regime of model invalidity.} If the radius of the orifice $r_o$ is small, surface tension may prevent water from flowing out of the orifice when $h- h_o$ is small yet positive. In this regime, Torricelli's law and thus our forward model do not hold.
+\subparagraph{A regime of model invalidity.} If the radius of the orifice $r_o$ is small, surface tension of the water may stop flow out of the orifice when $h- h_o$ is positive (but small). In this regime, Torricelli's law and thus our forward model do not hold.
 
 \vspace{-\baselineskip}
 \subparagraph{Parameterizing the object's area as a function of height.}
-We parameterize the area of the object inside the tank as a function of height, $\alpha(h)$, with a list of $n+1$ discrete evaluations of $\alpha(h)$ on a uniform grid of points on its domain:
+We parameterize the area of the solid inside the tank as a function of height, $\alpha(h)$, with a list of $n+1$ discrete evaluations of $\alpha(h)$ on a uniform grid of points on its domain:
 \begin{equation}
 	\boldsymbol \alpha := [\alpha_0, \alpha_1, ... \alpha_n] \label{eq:alpha}
 \end{equation}
-where $\alpha_i :=\alpha(i \Delta h)$ for $i \in \{0, ..., n\}$, $\Delta h = h_{\text{max}}/n$. Then, we construct the function $\alpha(h)$ for $h\in [0, h_{\text{max}}]$ via linear interpolation of the function values in $\boldsymbol \alpha$. 
-From another perspective, we express the solid's area as a function of height as:
-\begin{equation}
-	\alpha(h; \boldsymbol \alpha) = \sum_{i=0}^n \alpha_i \phi(h-i \Delta h) \label{eq:alpha_basis}
-\end{equation} where $\phi(x)= \max(0, 1-\lvert x \rvert / (\Delta h)) $ is a triangle ``tent'' basis function \cite{hat_functions}.
+where $\alpha_i :=\alpha(i \Delta h) \in [0, a(i\Delta h)] $ for $i \in \{0, ..., n\}$, $\Delta h = h_{\text{max}}/n$. Then, we construct the function $\alpha(h)$ for $h\in [0, h_{\text{max}}]$ via piecewise, monotonic, cubic interpolation \cite{fritsch1984method} of the function values in $\boldsymbol \alpha$. (\emph{Monotonic} interpolation prevents the unphysical outcome of $\alpha(h) > a(h)$ for any $h$.) 
+%From another perspective, we express the solid's area as a function of height as:
+%\begin{equation}
+%	\alpha(h; \boldsymbol \alpha) = \sum_{i=0}^n \alpha_i \phi(h-i \Delta h) \label{eq:alpha_basis}
+%\end{equation} where $\phi(x)= \max(0, 1-\lvert x \rvert / (\Delta h)) $ is a triangle ``tent'' basis function \cite{hat_functions}.
 
 \vspace{-\baselineskip}
 \subparagraph{Inputs, output, and model parameters.} 
 We
 %In the language of inverse problems \cite{groetsch1999inverse,waqar2023tutorial}, we 
 consider the solid's area $\boldsymbol \alpha$ and initial water level $h_0$ as \emph{inputs} (causal factors) to the system and the water level as a function of time $h(t)$ as the \emph{output} (effect) of the system.
-The \emph{model parameters} $\boldsymbol \theta \in \mathbb{R}^6$ characterize the geometry of the tank and orifice and the rheology of water embedded in $c$:
+The \emph{model parameters} $\boldsymbol \theta \in \mathbb{R}^6$ characterize the geometry of the tank and orifice and, loosely, the rheology of water (embedded in $c$):
 \begin{equation}
 	\boldsymbol \theta := [h_{\text{max}}, a_b, a_t, r_o, h_o, c]. \label{eq:theta}
 \end{equation}
@@ -313,14 +316,14 @@ Hereafter, we write the forward model as \themodel to indicate the dependence of
 
 \subsection{Measurement model}
 Suppose at time $t$ our water level sensor measures the height of water in the tank, providing a data point $(t, h_{\text{obs}})$ (obs for ``observation''). 
-To model [unobservable] noise corrupting the measurement, we treat the measured water level $h_{\text{obs}}$ as a realization of a random variable $H_{\text{obs}}$
+To model [unobservable] noise corrupting the measurement, we treat the measured water level $h_{\text{obs}}$ as a realization of a random variable
 \begin{equation}
 	H_{\text{obs}} = \themodelnomath + \Psi,
 \end{equation}
 with the Gaussian-distributed random variable $\Psi \overset{\text{iid}}{\sim} \mathcal{N}(0, \sigma^2)$ the noise, additive to the model output and, among multiple measurements, independent and identically-distributed (iid). 
 Then, the probability density governing the measured liquid level is a Gaussian with mean equal to the model output \themodel and variance $\sigma^2$:
 \begin{equation}
-	H_{\text{obs}} \mid h_0, \boldsymbol \alpha, \boldsymbol  \theta, \sigma^2 \sim \mathcal{N}(\themodelnomath, \sigma^2). \label{eq:H_obs_distn}
+	H_{\text{obs}} \mid h_0, \boldsymbol \alpha, \boldsymbol  \theta, \sigma^2\overset{\text{iid}}{\sim} \mathcal{N}(\themodelnomath, \sigma^2). \label{eq:H_obs_distn}
 \end{equation} We are explicit that $H_{\text{obs}}$ is conditioned upon the inputs, parameters, and noise variance.
 % Sources of this noise are: imprecision of the liquid level strip, our calibration curve for the liquid level strip, vibrations
 
@@ -328,12 +331,12 @@ Then, the probability density governing the measured liquid level is a Gaussian 
 % TODO expand 
 
 \subsection{Likelihood function}
-The likelihood is the $N$-dimensional probability density of observing $\mathbf{h}_\text{obs}:=(h_{\text{obs},1}, ..., h_{\text{obs},N})$ in time series data \thedata (each measurement time $t_i$ specified) given the inputs $h_0$ and $\boldsymbol \alpha$, model parameters $\boldsymbol \theta$, and measurement noise variance $\sigma^2$. 
-Based on eqn.~\ref{eq:H_obs_distn} and the iid assumption, the likelihood density is:
+The likelihood is the $N$-dimensional probability density of observing $\mathbf{h}_\text{obs}:=(h_{\text{obs},1}, ..., h_{\text{obs},N})$ in time series data \thedata (with each measurement time $t_i$ set) given the inputs $h_0$ and $\boldsymbol \alpha$, model parameters $\boldsymbol \theta$, and noise variance $\sigma^2$. 
+Based on eqn.~\ref{eq:H_obs_distn}, the likelihood density is:
 \begin{equation}
  \pi_{\text{like}}(\thedatanomath \mid h_0,\boldsymbol  \alpha, \boldsymbol \theta, \sigma^2 ) = \prod_{i=1}^N \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left[-\frac{1}{2}\left(\frac{h_{\text{obs}, i} - h(t_i; h_0, \boldsymbol\alpha, \boldsymbol\theta)}{\sigma} \right)^2 \right]. \label{eq:like}
 \end{equation}
-Once the data \thedata are obtained, the likelihood is viewed as a function of $h_0$, $\boldsymbol \alpha$, $\boldsymbol \theta$, and $\sigma^2$. The likelihood function scores the consistency between (i) the model predictions of the water level over time, with proposed values for the inputs and parameters, and (ii) the water level time series data. Hence, the likelihood function quantifies the support the data lend for each possible set of values for the inputs and parameters. 
+Once the data \thedata are obtained, the likelihood is viewed as a function of $h_0$, $\boldsymbol \alpha$, $\boldsymbol \theta$, and $\sigma^2$. The likelihood function scores the consistency between (i) the model predictions of the water level over time, with proposed values for the inputs and parameters, and (ii) the water level time series data. Hence, the likelihood function quantifies the support the data lend for each possible set of values for the inputs and parameters \cite{van2021bayesian}. 
 % The key idea is: if the data were likely (unlikely) to be obtained under proposed values for the inputs and parameters, then the 
 
 \section{Bayesian statistical inversion (BSI)} \label{sec:bsi}
@@ -343,16 +346,16 @@ Later, we employ BSI to, using water level time series data from tank drainage e
 (2, reconstruction) infer the shape of a solid in the tank.
 
 Under BSI, we treat the uncertain input(s) and/or parameters of a tank drainage experiment as random variables and model their probability distributions.
-The probability density over input/parameter space expresses our knowledge and beliefs about the inputs/parameters: 
-(i) the region containing the bulk of it is where the inputs/parameters most likely lie, and (ii) its degree of spread (concentration) quantifies our uncertainty (certainty) about the inputs/parameters. 
+The probability density over input/parameter space expresses our knowledge and beliefs about the inputs/parameters, namely 
+(i) they most likely lie in the region containing the bulk of the density and (ii) the spread (concentration) of the density quantifies our uncertainty (certainty) about them. 
 
 %A may summarize the state of our knowledge and beliefs about an input/parameter through the moments of its probability distribution (e.g., mean and variance) with the other inputs/parameters marginalized out. 
 
-BSI proceeds in three stages:
+The BSI approach to inverse problems with draining tanks follows three stages:
 
 \vspace{-\baselineskip}
 \paragraph{(1) specify the prior.}
-Before we allow the tank to drain and observe water level time series data, we must express our knowledge and [to an extent, subjective] beliefs about the inputs and parameters through a \emph{prior} probability density $\pi_{\text{pr}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2)$.
+Before we allow the tank to drain and observe water level time series data, we express our knowledge and [to an extent, subjective] beliefs about the inputs and parameters through a \emph{prior} probability density $\pi_{\text{pr}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2)$.
 The [marginal] prior density on an input/parameter can range from 
 (i) diffuse (eg.\ a uniform distribution) if we lack knowledge about it---adopting the principle of indifference---to 
 (ii) informative (eg.\ a Gaussian with a small variance) if we possess a [noisy] measurement of it. 
@@ -361,7 +364,7 @@ The [marginal] prior density on an input/parameter can range from
 \vspace{-\baselineskip}
 \paragraph{(2) gather data and construct the likelihood.}
 Next, we conduct a tank drainage experiment (perhaps, containing an exogenous solid) to collect water level time series data, \thedata. 
-When considered against the forward and measurement models, these data provide new information about the inputs and parameters. Specifically, the likelihood function $\pi_{\text{like}}(\thedatanomath \mid h_0,\boldsymbol  \alpha, \boldsymbol \theta, \sigma^2 )$ quantifies the support the data lends for different inputs and parameters.
+When considered against the forward and measurement models, these data provide new information about the inputs and parameters. Specifically, the likelihood function $\pi_{\text{like}}(\thedatanomath \mid h_0,\boldsymbol  \alpha, \boldsymbol \theta, \sigma^2 )$ quantifies the support the data lend for different inputs and parameters.
 
 \vspace{-\baselineskip}
 \paragraph{(3) update the prior to a posterior.}
@@ -381,7 +384,7 @@ Thus, the posterior represents the raw, uncertainty-quantifying solution to the 
 Note, uncertainty (entropy) remains in the posterior because
  (i) our measurements are noisy and 
  (ii) perhaps, even noiseless data cannot fully constrain a subset of the parameters/inputs.
-(The normalizing factor for the posterior, the \emph{evidence} or \emph{marginal likelihood} is a high-dimensional integral that can, in principle, be computed from the likelihood and prior.)
+(The normalizing factor for the posterior, the \emph{evidence}, is a high-dimensional integral that can, in principle, be computed from the likelihood and prior.)
 
 
 %The posterior may be 
@@ -391,7 +394,7 @@ Note, uncertainty (entropy) remains in the posterior because
 
 \vspace{-\baselineskip}
 \subparagraph{Sampling from the posterior distribution.} 
-We conduct Markov chain Monte Carlo (MCMC) simulations \cite{robert1999monte} to sample inputs/parameters $(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 )$ from the posterior density $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$. 
+We conduct Markov chain Monte Carlo (MCMC) simulations \cite{robert1999monte,van2021bayesian} to sample inputs/parameters $(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 )$ from the posterior density $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$. 
 From samples \thesamples from the posterior, we may draw empirical posterior distributions, compute credible intervals, and plot samples of liquid level trajectories when paired with the forward model.
 Specifically, we use the No-U-Turn Sampler (NUTS) \cite{hoffman2014no} implemented in the probabilistic programming language \cite{gordon2014probabilistic} \texttt{Turing.jl} \cite{ge2018turing}.
 A key advantage of MCMC samplers is that we can circumvent computing the evidence. 
@@ -404,10 +407,10 @@ We now employ BSI to, using water level time series data from tank drainage expe
 
 \subsection{Phase I: Bayesian calibration of the forward and measurement models}
 \label{sec:phaseI}
-Our objective is to calibrate then test our forward and measurement models.
-The model parameters $\boldsymbol \Theta$ and measurement noise variance $\Sigma^2$ are highly uncertain at this point. 
+Our objective now is to calibrate then test our forward and measurement models.
+At this point, the model parameters $\boldsymbol \Theta$ and measurement noise variance $\Sigma^2$ are highly uncertain.
 To gather information about $\boldsymbol \Theta$ and $\Sigma^2$, we (a) take length-measurements of the tank and orifice geometry and (b) collect water level time series data from a tank drainage experiment devoid of a solid (certainly, $\boldsymbol \alpha = \mathbf{0}$).
-The \emph{calibrated model} constitutes eqns.~\ref{eq:forward_model} and \ref{eq:H_obs_distn} with the resulting posterior distribution of $\boldsymbol \Theta$ and $\Sigma^2$. We test the calibrated model by judging its capability to predict the liquid level trajectory in a replicate tank drainage experiment.
+The \emph{calibrated model} constitutes eqns.~\ref{eq:forward_model} and \ref{eq:H_obs_distn} with the resulting posterior distribution of $\boldsymbol \Theta$ and $\Sigma^2$. We test the calibrated model for its capability to predict the liquid level trajectory in a replicate tank drainage experiment.
 
 % The key idea is that our length-measurements of the tank and orifice geometry and water level time series data from a drainage experiment in a tank without an object provide information about the parameters and measurement noise variance. 
 %Hopefully, the calibrated model will allow us to accuracy solve the reconstruction problem in Phase II. 
@@ -422,16 +425,24 @@ With certainty, the tank does not contain an exogenous solid. See Fig.~\ref{fig:
 We express our knowledge and beliefs about the inputs and parameters, before allowing the tank to drain and observing water level time series data, by constructing a prior density $\pi_{\text{pr}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2)$ variable-by-variable (assuming independence). 
 \vspace{-\baselineskip}
 \subparagraph{Tank geometry.} We use a measuring tape to make length-measurements of the dimensions of the tank.
-Our estimates for the area of the rounded rectangle forming the top and bottom of the tank are $a_{t, \text{obs}}=129.9$\,cm and $a_{b, \text{obs}}=103.0$\,cm. Our measured tank height is $h_{\text{max, obs}}=28.6$\,cm.
-%We impose the prior distribution, 
-Informed by our [noisy and imprecise] measurements, we impose Gaussian prior distributions:
+Specifically, we measure the length, width, and perimeter of the rounded rectangle forming the top and bottom of the tank,
+$l_{t, \text{obs}}=14.6$\,cm, $w_{t, \text{obs}}=9.0$\,cm, $p_{t, \text{obs}}=44.3$\,cm,
+$l_{b, \text{obs}}=13.4$\,cm, $w_{b, \text{obs}}=7.8$\,cm, and $p_{b, \text{obs}}=40.1$\,cm, and the height of the tank $h_{\text{max}, \text{obs}}=28.6$\,cm.
+Informed by these [noisy and imprecise] measurements, we impose Gaussian prior distributions:
 \begin{align}
-A_t &\sim \mathcal{N}(a_{t, \text{obs}}, \sigma_\ell^2/2) \label{eq:A_t_prior} \\
-A_b &\sim \mathcal{N}(a_{b, \text{obs}}, \sigma_\ell^2/2) \\
+L_{t,b} &\sim \mathcal{N}(l_{t.b, \text{obs}}, \sigma_\ell^2) \\
+W_{t,b} &\sim \mathcal{N}(w_{t,b, \text{obs}}, \sigma_\ell^2) \\
+P_{t,b} &\sim \mathcal{N}(p_{t,b, \text{obs}}, \sigma_\ell^2) \\
 H_{\text{max}} &\sim \mathcal{N}(h_{\text{max}, \text{obs}}, \sigma_\ell^2)
 \end{align}
 where $\sigma_\ell=0.1$\,cm is the [assumed] standard deviation of our length-measurements, based on the markings on our measurement tape. 
-(The factor of $1/2$ in the variance for $A_t$ and $A_b$ arises from the variance of a product of Gaussian random variables \cite{bromiley2003products}.)
+For the area of the rounded rectangle forming the top and bottom of the tank,
+we (i) solve for the radius of the circles at the four corners $R_{t/b}$ consistent with these measurements using $P_{t,b}=2(\pi R_{t,b} + L_{t,b}+W_{t,b}-4R_{t,b})$) then (ii) compute the area \cite{rounded_rect} using
+\begin{equation}
+	A_{t,b}= (L_{t,b}-2R_{t,b})(W_{t,b}-2R_{t,b})+ 2R_{t,b} (L_{t,b}+W_{t,b} -4R_{t,b}) + \pi R_{t,b}^2.
+\end{equation}
+The prior distributions of $A_t$ and $A_b$ follow accordingly. 
+(This gives point estimates $a_{t, \text{obs}}=129.9$\,cm and $a_{b, \text{obs}}=103.0$\,cm.)
 
 \vspace{-\baselineskip}
 \subparagraph{Orifice height and geometry.} 
@@ -447,7 +458,7 @@ where $\sigma_d= 0.001$\,cm expresses uncertainty in the bit radius and its tran
 
 \vspace{-\baselineskip}
 \subparagraph{Exogenous solid geometry.}
-With certainty, no solid object resides in the tank, so $\boldsymbol \alpha=\mathbf{0}$ with certainty. Technically, this is a Dirac delta prior density on $\mathbf{A}$, $\pi_{\text{pr}}(\boldsymbol \alpha)=\delta(\boldsymbol \alpha - \mathbf{0})$. 
+With certainty, no solid resides in the tank, so $\boldsymbol \alpha=\mathbf{0}$. Technically, this is a Dirac delta prior density on $\mathbf{A}$, $\pi_{\text{pr}}(\boldsymbol \alpha)=\delta(\boldsymbol \alpha - \mathbf{0})$. 
 
 
 % TODO mention truncations
@@ -470,8 +481,8 @@ We impose a uniform prior on the standard deviation of the noise emanating from 
 \vspace{-\baselineskip}
 \subparagraph{Initial water level.} We impose an informative prior distribution on the initial water level based on the initial reading of the water level sensor:
 \begin{equation}
-	H_0 \mid \Sigma=\sigma \sim \mathcal{N}(h_{0, \text{obs}}, \sigma^2),
-\end{equation} where $\sigma^2$ is the uncertain variance of the noise from the level sensor in our measurement model.
+	H_0 \mid \Sigma=\sigma \sim \mathcal{N}(h_{0, \text{obs}}, \sigma^2).
+\end{equation} 
 
 \paragraph{Visualization of the prior.}
 Together with the forward model in eqn.~\ref{eq:forward_model}, $\pi_{\text{pr}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2)$ gives a prior distribution over water level trajectories in the tank, \themodel. 
@@ -481,8 +492,8 @@ Fig~\ref{fig:prior_train} shows samples of functions \themodel from the prior, w
 Fig.~\ref{fig:posterior_train} shows the resulting water level time series data \thedata.
 
 \subsubsection{Posterior distribution}
-The posterior distribution $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$ follows from our prior and likelihood function we construct from the data \thedata (see eqn.~\ref{eq:post}). 
-We employ NUTS to obtain samples \thesamples from the posterior distribution ($N_s=750$ over three independent chains). 
+The posterior distribution $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$ follows from our prior and likelihood function constructed from the data \thedata (see eqn.~\ref{eq:post}). 
+We employ NUTS to draw $N_s=1000$ samples \thesamples from the posterior over three independent chains. 
 
 %TODO how many samples
 
@@ -494,9 +505,9 @@ The bottom panel shows the covariance matrix of the parameters and input.
 
 %The information that the data from this tank-draining experiment provided about $C$ and $\Sigma$ will be useful for the reconstruction inverse problem of inferring the shape of an object inside the tank from water level time series data. (We assume the object does not affect the discharge coefficient nor noise in the liquid level sensor.)
 
-\paragraph{Posterior predictive check.} Fig.~\ref{fig:posterior_train} shows water level trajectories \themodel with $(\thevars)$ sampled from the posterior distribution, in . 
-The posterior trajectories agree reasonably with the measured water levels over time (mean absolute residual: 0.26\,cm). 
-Comparing the prior and posterior distributions of water level trajectories in Fig.~\ref{fig:prior_train} and Fig.~\ref{fig:posterior_train}, the much lower variance in the posterior indicates the large amount of information the water level time series data provided about the parameter vector and initial water level.
+\paragraph{Posterior predictive check.} 
+Water level trajectories \themodel, with $(\thevars)$ sampled from the posterior distribution, in Fig.~\ref{fig:posterior_train} agree reasonably with the measured water levels over time (mean absolute residual: 0.26\,cm). 
+Comparing the prior and posterior distributions of water level trajectories in Fig.~\ref{fig:prior_train} and Fig.~\ref{fig:posterior_train}, the reduced variance in the trajectories reflects information about the parameter vector gained from the water level time series data.
 
 \begin{figure}[!ht]
     \centering
@@ -523,25 +534,25 @@ Comparing the prior and posterior distributions of water level trajectories in F
     \caption{
       \textbf{Model calibration.}
       (a) We fill our tank (devoid of an exogenous solid) with water, then, at $t=0$, allow it to drain through the orifice in its side. A level sensor measures the water level.     
-      (b) Samples of water level trajectories \themodel from the prior density $\pi_{\text{pr}}(\thevars)$.
-      (c) Time series data \thedata from the tank drainage experiment and samples of water level trajectories \themodel from the posterior $\pi_{\text{post}}(\thevars \mid \thedatanomath)$.
-      (d) Visualizing the posterior $\pi_{\text{post}}(\thevars \mid \thedatanomath)$. Top: marginals. Bottom: covariance matrix.      
+      (b) Samples of water level trajectories from the prior.
+      (c) Time series data from the tank drainage experiment and samples of water level trajectories from the posterior.
+       (d) Visualizing the posterior. Top: marginals. Bottom: covariance matrix.      
       }
 \end{figure}
 
 \paragraph{The calibrated model.} The forward and measurement models in eqn.~\ref{eq:forward_model} and \ref{eq:H_obs_distn} together with the posterior distribution $\pi_{\text{post}}(\boldsymbol \theta, \boldsymbol \sigma^2 \mid \thedatanomath)$ (with $h_0$ marginalized out and $\boldsymbol \alpha=\mathbf{0}$) constitute the \emph{calibrated model}.
 %The calibrated model will be useful for solving the reconstruction problem in phase II, because the presence of an object inside the tank presumably does not affect the parameter vector $\boldsymbol \theta$ nor the measurement noise variance $\sigma^2$ of the level sensor.
-We approximate this posterior distribution as a multi-variate Gaussian distribution
+We approximate the posterior as a multi-variate Gaussian
 \begin{equation}
 	\begin{bmatrix} \boldsymbol \Theta \\ \Sigma \end{bmatrix} \mid \thedatanomath \sim \mathcal{N}(\mathbf{m}, \mathbf{C}) \label{eq:post_theta_sigma}
 \end{equation}
 with mean $\mathbf{m}$ and covariance matrix $\mathbf{C}$ computed from our MCMC samples $(\boldsymbol \theta_i, \sigma_i)_{i=1}^{N_s}$ from the posterior. 
 (See Fig.~\ref{fig:posterior_train_theta} for the means of each parameter in $\mathbf{m}$ and the covariance matrix $\mathbf{C}$.)
 
-\subsubsection{A replicate experiment for testing the calibrated model}
+\subsubsection{Testing the calibrated model with a replicate experiment}
 Finally, we test our calibrated model for its capability to predict the dynamics of the water level in our draining tank in a new, replicate experiment (also, without an exogenous solid, so $\boldsymbol \alpha=\mathbf{0}$) with measured initial water level $h_{0, \text{obs}}=26.49$\,cm. 
-We sample water level trajectories \themodel predicted by the calibrated model by (1) sampling a $\boldsymbol \theta$ and $\sigma$ from the empirical posterior distribution, (2) sampling an initial water level from $H_0 \mid \Sigma=\sigma \sim \mathcal{N}(h_{0, \text{obs}}, \sigma^2)$, then (3) numerically solving the forward model to obtain \themodel.
-Fig.~\ref{fig:test} compares the water level time series data collected from the replicate experiment, \thedata, with the trajectories \themodel predicted by the calibrated model. The predictions by the calibrated model agree well with the experimental data (mean absolute residual: 0.28\,cm). 
+We sample water level trajectories \themodel predicted by the calibrated model by (1) sampling a $\boldsymbol \theta$ and $\sigma$ from the posterior distribution, (2) sampling an initial water level from $H_0 \mid \Sigma=\sigma \sim \mathcal{N}(h_{0, \text{obs}}, \sigma^2)$, then (3) numerically solving the forward model to obtain \themodel.
+Fig.~\ref{fig:test} shows the water level time series data collected from the replicate experiment, \thedata, agree well with the trajectories \themodel predicted by the calibrated model (mean absolute residual: 0.28\,cm). 
 (For kicks, we also show the distribution of predicted tank-emptying times.)
 
 \begin{figure}[h!]
@@ -554,25 +565,26 @@ Fig.~\ref{fig:test} compares the water level time series data collected from the
       } \label{fig:test}
 \end{figure}
 
-\subsection{Phase II: Bayesian inference of the shape of an object inside the tank} \label{sec:phaseII}
+\subsection{Phase II: Bayesian inference of the shape of a solid inside the tank} \label{sec:phaseII}
 Finally, we exploit our calibrated model to infer the shape of an exogenous, stationary, heavy solid inside of our draining tank from water level time series data.
-Our objective is to obtain the posterior distribution of $\mathbf{A}$ characterizing the cross-sectional area of the object as a function of height, $\alpha(h; \mathbf{A})$.
+Our objective is to obtain the posterior distribution of $\mathbf{A}$ characterizing the cross-sectional area of the solid as a function of height, $\alpha(h; \mathbf{A})$.
 
 \subsection{Experimental setup}
 We set up a tank drainage experiment by:
-(i) placing a solid object---a large glass bottle (filled with water so it sinks)---inside of the tank, which remains stationary;
-(ii) fill the tank to an initial water level (measured by the level strip) of $h_{0, \text{obs}}=26.49$\,cm. 
+(i) placing a solid object---a large, capped, glass bottle filled with water [so it sinks]---inside of the tank, which remains stationary;
+(ii) filling the tank to an initial water level (measured by the level strip) of $h_{0, \text{obs}}=26.49$\,cm. 
 See Fig.~\ref{fig:tank_w_bottle}.
 
 
 \subsection{Prior distributions}
+Before allowing the tank to drain, we express our prior knowledge and beliefs about the inputs and parameters. 
 %Our prior distribution for (i) the initial water level $H_0$ is informed by the initial water level measurement; (ii) the parameter vector $\boldsymbol \Theta$ and measurement noise variance $\Sigma^2$ is informed by the model calibration phase; and (iii) the object area $\mathbf{A}$ (a) is diffuse, to entertain a large range of possible object shapes in the tank, and (b) promotes a smooth function $\alpha(h)$. Fig.~\ref{fig:prior_area} displays samples from the prior distribution for the object shape vector $\mathbf{A}$. 
 % Below, we express our knowledge and beliefs about the inputs and parameters, before allowing the tank to train and collecting water level time series data, by constructing a prior probability density $\pi_{\text{pr}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2)$. 
 
 % \vspace{-\baselineskip}
 \subparagraph{The parameter vector and measurement noise variance.}
-Adopting ``yesterday's posterior is today's prior'' \cite{calvetti2010subjective}, 
-our multi-variate Gaussian posterior distribution of the parameter vector $\boldsymbol \Theta$ and noise variance $\Sigma^2$ from (eqn.~\ref{eq:post_theta_sigma}) model calibration now serves as our prior distribution.
+Adopting the adage ``yesterday's posterior is today's prior'' \cite{calvetti2010subjective}, 
+our multi-variate Gaussian posterior distribution of the parameter vector $\boldsymbol \Theta$ and noise variance $\Sigma^2$ in eqn.~\ref{eq:post_theta_sigma} from model calibration now serves as our prior distribution.
 Thereby, we exploit our \emph{calibrated} model for this reconstruction problem.
 (We assume the solid in the tank does not affect the discharge coefficient.)
 
@@ -584,21 +596,26 @@ Thereby, we exploit our \emph{calibrated} model for this reconstruction problem.
 
 \vspace{-\baselineskip}
 \subparagraph{Shape of the exogenous solid.}
-We adopt the principle of indifference and impose a relatively diffuse prior over the area of the exogenous solid as a function of height, but impose smoothness to counter instability in this inverse problem \cite{groetsch1993inverse}. By imposing a relatively diffuse prior on the solid's shape, we allow the water level time series data to ``speak for itself'' about the solid's shape.
-Specifically, we impose a uniform distribution on the area of the bottom base of the solid, $A_0$ (the random variable representing $\alpha(0)$)
+We adopt the principle of indifference and impose a diffuse prior over the size of the solid in the tank, but impose smoothness on the cross-sectional area of the solid as a function of height to counter instability in the solution to this inverse problem \cite{groetsch1993inverse}. 
+By imposing a diffuse prior on the solid's size, we allow the water level time series data to ``speak for itself'' about the solid's size.
+Specifically, we impose a uniform distribution on the square root of the area of the bottom base of the solid, $A_0$ (the random variable representing $\alpha(0)$)
 \begin{equation}
-	A_0 \mid A_b=a_b \sim \mathcal{U}(0, a_b).
+	\sqrt{A_0} \mid A_b=a_b \sim \mathcal{U}(0, \sqrt{a_b}).
 \end{equation}
-spanning from zero (lack of an exogenous solid) to the area of the bottom base of the tank (largest solid that can fit) $a_b$. 
-For the smoothness prior \cite{calvetti2018inverse}, we sequentially correlate the solid's area's at the sequence of heights: 
+Ie., we believe 
+(i) the area of the solid's bottom base can span from zero (corresponding to the lack of an exogenous solid) to the area of tank's bottom base $a_b$ (corresponding to the largest solid that can fit in the tank) and
+(ii) the effective radius of the solid is uniformly distributed.
+For the smoothness prior \cite{calvetti2018inverse}, we sequentially correlate the solid's effective radius at the sequence of heights: 
 \begin{equation}
- A_i - A_{i-1} \sim \mathcal{N}(0, \gamma^2) \text{ for } i \in \{1, ..., n\}.
+ \sqrt{A_i} - \sqrt{A_{i-1}} \sim \mathcal{N}(0, \gamma^2) \text{ for } i \in \{1, ..., n\}.
 \end{equation} 
-The zero mean Gaussian distribution on the difference in the area of the object at two adjacent heights means we expect the function $\alpha(h)$ to be locally flat and change slowly. 
-The variance hyperparameter $\gamma^2$ controls the degree to which we promote smoothness in $\alpha(h)$ (smaller $\gamma^2$ gives more smoothness). 
+The zero mean Gaussian distribution on the difference in the effective radius of the solid at two adjacent heights means we expect the function $\sqrt{\alpha}(h)$ to be locally flat and change slowly. 
+The variance hyperparameter $\gamma^2$ controls the degree to which we promote smoothness in $\sqrt{\alpha}(h)$ (smaller $\gamma^2$ gives more smoothness). 
+Finally, for physicality, we also truncate each random variable $A_i$ so it falls within zero to the area of the tank at that height.
 
 \paragraph{Visualization of the prior.}
-Fig.~\ref{fig:prior_area} displays samples of our prior distribution on the solid's area as a function of height---by sampling $\mathbf{A}$ from the prior then constructing $\alpha(h)$ from eqn.~\ref{eq:alpha_basis}.
+Fig.~\ref{fig:prior_area} displays samples of our prior distribution on the solid's area as a function of height---by sampling a vector $\mathbf{A}$ from the prior then constructing $\alpha(h)$ from cubic monotonic interpolation. The square root of the area of the tank is shown for perspective. 
+Our prior distribution encodes a uniform distribution over the effective average radius of the solid in the tank, but promotes a smoothly changing area as a function of height. 
 %  This is a visualization of our beliefs about the shape of the object in the tank before water level time series data from the ``object scan'' are collected and considered against the forward model.
 
 \subsection{Water level time series data from a tank-drainage experiment}
@@ -609,9 +626,9 @@ Again, we employ NUTS to obtain samples from the posterior $\pi_{\text{post}}(h_
 %Via Bayes's theorem in , the posterior distribution $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$ follows from (i) prior probability density $\pi_{\text{pr}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2)$---informed for $H_0$, $\boldsymbol \Theta$, and $\Sigma^2$ and diffuse but smooth for $\mathbf{A}$---and (ii) tank drainage data \thedata, from which we construct the likelihood function in eqn.~\ref{eq:like}, the posterior distribution $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$ follows from Bayes's theorem in eqn.~\ref{eq:post}. 
 %We employ the MCMC sampler, NUTS, to obtain samples $\{(h_{0,i}, \boldsymbol \alpha_i, \boldsymbol \theta_i, \sigma^2_i\}$ from the posterior distribution. 
 
-Fig.~\ref{fig:posterior_area} shows posterior samples of the area of the solid as a function of height---the BSI solution to the reconstruction problem.
+Fig.~\ref{fig:posterior_area} shows posterior samples of the square root of the area of the solid as a function of height---the BSI solution to the reconstruction problem. 
 For comparison, also shown are (i) held-out, direct measurements of the bottle's area at different heights\footnote{We used a measuring tape to measure the circumference of the bottle at different heights, then converted to area assuming a circular cross-section.} and (ii) posterior samples of the tank's area as a function of height. First, the posterior of the solid's shape exhibits much lower variance than the prior in Fig.~\ref{fig:prior_area}---reflecting the information the water level time series data provided about the solid's shape. 
-Second, the posterior of the solid's shape agrees reasonably well with the measured area of the object (mean residual: 7.2\,cm$^2$), but some bias is present in $h\in[15, 20]$\,cm.
+Second, the posterior of the solid's shape agrees reasonably well with the measured area of the solid (mean residual radius: 0.35\,cm; mean bottle radius 3.2\,cm), but a little bias is present in $h\in[15, 20]$\,cm.
 Third, note the variance in the posterior over the solid's area in $h<h_o$ and $h>H$ is larger than in $h_o < h < H$. This reflects the impossibility for the water level data to provide information about the solid's area where the water was unable to ``scan'' the solid. 
 For $h<h_o$ and $h>H$, the smoothness prior restricts the variance of the predicted area---essentially, extrapolating. 
 
@@ -641,45 +658,47 @@ As a posterior predictive check, Fig.~\ref{fig:posterior_object} displays sample
 
     \caption{
       \textbf{Reconstructing the shape of an exogenous solid in the draining tank.} 
-      (a) We fill our tank, containing heavy glass bottle, with water, then, at $t=0$, allow it to drain through the orifice in its side.
-      (b) Samples of the solid's area as a function of height from the prior, along with the area of the tank (gray) for perspective. 
-      (c) Time series data \thedata from the tank drainage experiment and samples of water level trajectories \themodel from the posterior distribution $\pi_{\text{post}}(\thevars \mid \thedatanomath)$.
-      (d) Samples of the solid's (inferred) area as a function of height from the posterior distribution. Gray lines: posterior samples of the area of the tank. Points: held-out, direct measurements of the bottle's area at different heights.
+      (a) We fill our tank, containing a heavy glass bottle, with water, then, at $t=0$, allow it to drain through the orifice in its side.
+      (b) Samples of the square root of the solid's area as a function of height from the prior, along with the square root of the area of the tank (gray). 
+      (c) Time series data from the tank drainage experiment and samples of water level trajectories from the posterior.
+      (d) Samples of the square root of the solid's (inferred) area as a function of height from the posterior distribution compared with held-out, direct measurements.
       }
 \end{figure}
 
 \section{Conclusions and Discussion}
-First, we constructed, Bayesian-calibrated, and tested a forward model for the dynamics of the liquid level in a tank draining of water through a small orifice in its side.
+We demonstrated our ability to reconstruct, with quantified uncertainty, the cross-sectional area of an exogenous solid inside a draining tank from (i) a calibrated dynamic model of the liquid level in the tank and (ii) measurements of the liquid level in the tank over time.
+First, we constructed, Bayesian-calibrated, and tested a forward model for the dynamics of the liquid level in our tank draining of water.
 The calibrated model predicted the liquid level trajectory in our tank in a replicate experiment with a mean absolute residual of 0.28\,cm.
 Then, we exploited our Bayesian-calibrated forward model to reconstruct the shape of an exogenous, heavy solid (a bottle) inside our draining tank using water level time series data. 
 Essentially, the water ``scanned'' the area of the solid as a function of its height as the tank drained. 
-The posterior distribution of the bottle's area as a function of height agreed reasonably well with our measurements of its area (mean absolute residual of 7.2\,cm$^2$) but exhibited a little bias. 
+The posterior distribution of the bottle's area as a function of height agreed reasonably well with our [more] direct measurements of its area but exhibited a little bias. 
+% In conclusion, a forward model of the dynamics of the liquid level in a draining tank containing an exogenous solid, a probabilistic measurement model of the liquid level sensor, and liquid level time series data during the process of draining together allow us to reconstruct the area of the exogenous solid as a function of height with quantified uncertainty via Bayesian statistical inversion. 
+Our methodology herein could be employed throughout engineering and the applied sciences to infer the shape of an exogenous solid inside of an opaque liquid-holding tank, provided we have access to liquid level measurements.
+In a similar manner, one could infer the height and/or porosity of small, heavy solid particles (e.g. gravel, sand) packed into a liquid holding tank as well.
 
-In conclusion, a forward model of the dynamics of the liquid level in a draining tank containing an exogenous solid, a probabilistic measurement model of the liquid level sensor, and liquid level time series data during the process of draining together allow us to reconstruct the area of the exogenous solid as a function of height with quantified uncertainty via Bayesian statistical inversion. 
-Our methodology herein could be employed throughout engineering and the applied sciences to infer the shape of an exogenous solid inside of an opaque liquid-holding tank with access to liquid level measurements.
-More, one could infer the height or porosity of small, heavy solid particles (e.g. gravel, sand) packed into a liquid holding tank in a similar manner. 
+\paragraph{Can we infer the precise geometry of a solid in an opaque, draining tank?}
+We inhibited our ambition to reconstruct the shape of an exogenous solid inside a draining tank from its liquid level over time by settling for its area as a function of height; determination of the precise geometry of the solid is impossible because the dynamics of $h(t)$ depend solely on the area of the solid as a function of height (see eqn.~\ref{eq:forward_model})---and, there are multiple non-congruent solids with an identical area as a function of height. We speculate that, by conducting multiple tank-draining experiments with the tank tilted and held at different angles, we may be able to reconstruct the precise geometry of the solid in the tank. The key idea is that two non-congruent solids with an identical area as a function of height may exhibit different areas as a function of height when tilted; thus, they can be distinguished by tilting the tank. A complication is that gravity could cause the shape to rotate when the tank is tilted. 
+
 
 \paragraph{Remarks.} (1) We could have calibrated our forward and measurement models using data from a tank drainage experiment where the tank \emph{did} contain an exogenous solid, provided the area of the solid as a function of height were known with some certainty. (2) If we knew the solid's shape belonged to a certain category (eg.\ a right circular cone), we could have parameterized its area as a function of height with fewer variables (eg.\ radius of base and height). 
 
 \paragraph{Extensions.}
 Our forward model of the dynamics of the liquid level in an \emph{open-top} tank, containing a solid, draining of liquid through a \emph{small} orifice in its side \emph{without} additional input/output of liquid could be extended to handle 
 (a) closed tanks, where the air pressure in the headspace is not constant during draining; 
-(b) larger orifices, where Torricelli's law does not hold and perhaps the liquid at the top does not remain flat;
-and
-(c) additional inputs/outputs of liquid by adding source/sink terms.
-Note, (b) may necessitate modeling the flow streamlines inside the tank (as in Refs.~\cite{mathew2014numerical,sakri2017numerical}).
-More, during the Bayesian calibration phase, we could learn a model discrepancy \cite{brynjarsdottir2014learning,kennedy2001bayesian} function to capture any bias---i.e., a difference between the true dynamics of the liquid level in the tank and the model $h(t; h_0^*,  \boldsymbol \alpha^*, \boldsymbol \theta^*)$ with the true/best-fit (indicated by $*$) initial water level, solid geometry, and parameters.
+(b) larger orifices, where Torricelli's law does not hold and perhaps the liquid at the top does not remain flat (necessitating modeling of flow streamlines as in Refs.~\cite{mathew2014numerical,sakri2017numerical});
+(c) additional inputs/outputs of liquid by adding source/sink terms, and/or
+(d) Mariotte's bottle \cite{kirevs2006mariotte}.
+During Bayesian model calibration, a model discrepancy \cite{brynjarsdottir2014learning,kennedy2001bayesian} function could capture any bias---i.e., a difference between the true dynamics of the liquid level in the tank and the model $h(t; h_0^*,  \boldsymbol \alpha^*, \boldsymbol \theta^*)$ with the true/best-fit (indicated by $*$) initial water level, solid geometry, and parameters.
 % In other words, we assume our forward model is capable of capturing the true liquid level dynamics in the tank without bias.
 Finally, another interesting inverse problem pertaining to a draining tank is time reversal: infer the initial water level from measurement(s) of the water level at later times.
 
 
-
-% Mariotte's bottle \cite{kirevs2006mariotte}
+% 
 
 
 \enlargethispage{20pt}
 
-\ack{CMS acknowledges Intel. GF acknowledges ARMI for funding.}
+\ack{CMS acknowledges Intel for funding. GF acknowledges ARMI for funding. Thanks Brian Wood for helpful discussions about the possibility to infer the precise shape of the solid in the tank by tilting it.}
 
 
 \vskip2pc

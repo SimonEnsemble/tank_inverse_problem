@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.40
+# v0.19.43
 
 using Markdown
 using InteractiveUtils
@@ -17,11 +17,11 @@ end
 # ╔═╡ faf59350-8d67-11ee-0bdd-2510e986118b
 begin
     import Pkg; Pkg.activate()
-    using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions, Optim, Dierckx, MakieThemes, Printf
+    using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions, Optim, Dierckx, MakieThemes, Printf, Colors
 end
 
-# ╔═╡ 68df601b-39b3-456b-bb42-d321e92286c8
-using Colors
+# ╔═╡ a053a724-f16b-4e88-94af-6d0e0a96fed5
+using Random
 
 # ╔═╡ 4391f124-cbef-46e5-8462-e4e5126f5b38
 begin
@@ -46,12 +46,9 @@ begin
 	theme_colors = MakieThemes.GGThemr.ColorTheme[gg_theme][:swatch]
 	colors = Dict(zip(
 		["data", "model", "distn", "other"], 
-		theme_colors[1:4])
+		parse.(Color, theme_colors[1:4]))
 	)
 end
-
-# ╔═╡ 6e1e65a9-822a-4370-812c-808a50c935f7
-parse.(Color, values(colors))
 
 # ╔═╡ 245836a9-6b44-4639-9209-e7ad9035e293
 TableOfContents()
@@ -528,7 +525,7 @@ md"""
 """
 
 # ╔═╡ 58eff13c-44b5-4f19-8a42-cf9907ac9515
-@bind n_MC_sample Select([25, 50, 100, 250], default=100)
+@bind n_MC_sample Select([25, 50, 100, 250, 1000], default=1000)
 
 # ╔═╡ 68c9d88a-99b7-49be-9ac4-1e06c694c1a6
 @bind n_chains Select([3, 5], default=3)
@@ -734,7 +731,7 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 
 			μ, σ = mean(posterior[:, p]), std(posterior[:, p])
 			Label(fig[i, j], justification=:left,
-				@sprintf("mean: %.2f %s\nSTD: %.2f %s", μ, params_to_units[p], σ, params_to_units[p]), font=:regular, fontsize=11.0,
+				@sprintf("mean:\n\t%.2f %s\nSTD:\n\t%.2f %s", μ, params_to_units[p], σ, params_to_units[p]), font=:regular, fontsize=11.0,
 				tellwidth=false, tellheight=false, 
 				halign=p in ["A_b", "h₀"] ? 0.025 : 0.99, 
 				valign=0.9
@@ -1475,7 +1472,7 @@ function viz_inferred_radius(
 
 	residuals = zeros(nrow(object_posterior), nrow(object_true_area))
 	fig_ia = nothing, nothing
-	for i in sample(1:nrow(object_posterior), n_sample)
+	for i in shuffle(1:nrow(object_posterior))
 		# unpack samples
 		h_max = object_posterior[i, "h_max"]
 		a_t, a_b = object_posterior[i, "a_t"], object_posterior[i, "a_b"]
@@ -1494,26 +1491,28 @@ function viz_inferred_radius(
 		# compute residuals
 		for j = 1:nrow(object_true_area)
 			hᵢ, aᵢ = object_true_area[j, "h [cm]"], object_true_area[j, "area [cm²]"]
-			r̂ᵢ = sqrt(a_of_object(hᵢ))
-			residuals[i, j] += abs(sqrt(aᵢ) - r̂ᵢ)
+			r̂ᵢ = sqrt(a_of_object(hᵢ) / π)
+			residuals[i, j] += abs(sqrt(aᵢ / π) - r̂ᵢ)
 		end
 
-		# plot inferred area of the object
-		hs_dense = range(0.0, h_max, length=100)
-		sqrt_a_obj_dense = sqrt.(a_of_object.(hs_dense))
-		fig_ia = lines!(
-			sqrt_a_obj_dense, hs_dense, label="model", color=(theme_colors[8], 0.1)
-		)
-		lines!(
-			-sqrt_a_obj_dense, hs_dense, label="model", color=(theme_colors[8], 0.1)
-		)
-		
-		# plot area of tank for reference
-		r_tank = sqrt.([a_b, a_t])
-		lines!(r_tank, [0, length_measurements.h_max], color="gray")
-		lines!(-r_tank, [0, length_measurements.h_max], color="gray")
-		lines!([-r_tank[2], r_tank[2]], [length_measurements.h_max, length_measurements.h_max], color="gray")
-		lines!([-r_tank[1], r_tank[1]], [0, 0], color="gray")
+		if i <= n_sample
+			# plot inferred area of the object
+			hs_dense = range(0.0, h_max, length=100)
+			sqrt_a_obj_dense = sqrt.(a_of_object.(hs_dense))
+			fig_ia = lines!(
+				sqrt_a_obj_dense, hs_dense, label="model", color=(theme_colors[8], 0.1)
+			)
+			lines!(
+				-sqrt_a_obj_dense, hs_dense, label="model", color=(theme_colors[8], 0.1)
+			)
+			
+			# plot area of tank for reference
+			r_tank = sqrt.([a_b, a_t])
+			lines!(r_tank, [0, length_measurements.h_max], color="gray")
+			lines!(-r_tank, [0, length_measurements.h_max], color="gray")
+			lines!([-r_tank[2], r_tank[2]], [length_measurements.h_max, length_measurements.h_max], color="gray")
+			lines!([-r_tank[1], r_tank[1]], [0, 0], color="gray")
+		end
 	end
 
 	# plot hₒ and h₀
@@ -1564,7 +1563,10 @@ function viz_inferred_radius(
 		colgap!(fig.layout, 1)
 	end
 
-	println("mean residual: ", mean(residuals))
+	println("mean residual radius: ", mean(residuals))
+	println("avg actual radius: ", 
+		mean(sqrt.(object_true_area[:, "area [cm²]"] ./ π))
+	)
 	
 	if ! isnothing(savename)
 		save("$savename.pdf", fig)
@@ -1589,7 +1591,7 @@ begin
 	
 	object_prior = DataFrame(
 		sample(object_tank_model_prior, NUTS(0.65), MCMCSerial(), 
-			n_MC_sample * 4, n_chains; progress=true
+			n_MC_sample, n_chains; progress=true
 		)
 	)
 	
@@ -1608,8 +1610,6 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╔═╡ Cell order:
 # ╠═faf59350-8d67-11ee-0bdd-2510e986118b
 # ╠═4391f124-cbef-46e5-8462-e4e5126f5b38
-# ╠═68df601b-39b3-456b-bb42-d321e92286c8
-# ╠═6e1e65a9-822a-4370-812c-808a50c935f7
 # ╠═245836a9-6b44-4639-9209-e7ad9035e293
 # ╟─7752316d-9dd0-4403-aa08-22c977ff3727
 # ╟─76624080-150a-4783-b675-794365dcecee
@@ -1739,6 +1739,7 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═1aca6b92-7754-4cb3-b9e8-5d486e3bfcf8
 # ╠═3c9a219f-74ef-45fb-83e7-c497e0bee362
 # ╠═e1264f57-f675-4f37-b4db-313cfc52ab8e
+# ╠═a053a724-f16b-4e88-94af-6d0e0a96fed5
 # ╠═7127fc35-a0af-4463-9448-a948f229fd47
 # ╠═40157899-dffb-4e3a-b5ca-be3c23a465ae
 # ╟─bd95428d-1077-4417-bfca-0c5da7378af2
