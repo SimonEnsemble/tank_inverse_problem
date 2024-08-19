@@ -79,7 +79,7 @@ parbox=false
 %%%% Article title to be placed here
 % \title{Bayesian inference of the shape of an object inside of a gravity-drained tank}
 %\title{Inferring the shape of a solid inside a gravity-drained tank from liquid level time series data}
-\title{Inferring the shape of a solid inside a draining tank from its liquid level dynamics}
+\title{Inferring the shape of a solid inside a draining tank from liquid level dynamics}
 
 
 \author{%%%% Author details
@@ -106,16 +106,16 @@ Cory M. Simon$^{1}$
 \begin{abstract}
 In engineering, we often encounter an open-top, liquid-holding tank draining via gravity-driven flow through a small orifice in its side. 
 Torricelli's law and a mass balance give a differential equation model governing the dynamics of the liquid level in such a draining tank. 
-Herein, we leverage this forward model to tackle an inverse problem of reconstruction: infer the shape of an exogenous, heavy solid inside a draining tank from measurements of its liquid level over time. 
+Herein, we leverage this forward model to tackle an inverse problem of reconstruction: infer the shape of an exogenous, heavy solid inside a draining tank from measurements of its liquid level over time. To quantify uncertainty, we employ Bayesian statistical inversion to obtain a posterior distribution over the solid's cross-sectional area as a function of height. 
 (Because the solid displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at that height; 
 as the liquid level drops, it ``scans'' the area of the solid as a function of height.) 
-To quantify uncertainty, we employ Bayesian statistical inversion to obtain a posterior distribution over the solid's cross-sectional area as a function of height. 
+
 
 In our experimental setup, a tank
 % (an inverted, truncated cone with a rounded rectangle base) 
 drains of water through a small orifice in its side while a liquid level sensor collects time series data of the water level. 
 First, we calibrate and test a forward model of the water level dynamics using data from two tank drainage experiments without an exogenous solid. 
-Second, we conduct a drainage experiment with the tank containing an exogenous solid, then leverage the calibrated forward model and data to infer (i.e., obtain a posterior distribution for) the are of the solid inside the tank as a function of height.
+Second, we conduct a drainage experiment with the tank containing an exogenous solid, then leverage the calibrated forward model and data to infer (i.e., obtain a posterior distribution for) the area of the solid inside the tank as a function of height.
 Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, inside of an opaque tank. 
 \newline
 
@@ -157,7 +157,7 @@ Evangelista Torricelli (1608-1647) made a fundamental observation for mathematic
 % TODO: check that he didn't know g!
 Today, we recover Torricelli's observation from Daniel Bernoulli's (1700–1782) equation \cite{welty2020fundamentals}, a mechanical energy balance applied to the steady, plug flow of an incompressible, inviscid fluid through the small orifice, neglecting frictional forces. This gives \emph{Torricelli's law}: $v=\sqrt{2 g \Delta h}$, with $g$ the acceleration due to gravity. \cite{d2021torricelli,teoman2022discharge}
 
-Application of a mass balance to a draining tank with Torricelli's law gives a first-order, [generally] nonlinear differential equation governing the liquid level in the tank over time \cite{groetsch1993inverse,seborg2016process,debook}.
+A mass balance on a draining tank with Torricelli's law gives a first-order, [generally] nonlinear differential equation governing the liquid level in the tank over time \cite{groetsch1993inverse,seborg2016process,debook}.
 The geometry of the tank affects the dynamics of the liquid level through its cross-sectional area as a function of height.
 The cross-sectional area of the orifice affects the emptying time; theoretically, it gives the volumetric flow rate out of the tank from Torricelli's law. 
 % TODO: a name for cross-sectional area parallel to the ground?
@@ -169,18 +169,18 @@ The discharge coefficient \cite{teoman2022discharge,hicks2014determining,blasone
 %  and (ii) depends on the rheology of the fluid and the geometry of the orifice. 
 
 
-As opposed to the \emph{forward problem} of using a dynamic model to predict the trajectory of the liquid level in a draining tank of a given geometry, Groetsch \cite{groetsch1993inverse,groetsch1999inverse} framed an \emph{inverse problem} \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse}: reconstruct the shape of the tank from the liquid level in it over time as it drains. 
-While impossible to infer the precise tank geometry, one can theoretically determine the cross-sectional area of the tank as a function of height from the liquid level as a function of time. (Intuitively, the rate of decrease of the liquid level is indicative of the cross-sectional area of the tank at that height; wider [say, cylindrical] tanks drain more slowly.)
+In contrast to the \emph{forward problem} of using this dynamic model to predict the trajectory of the liquid level in a draining tank of a given geometry, Groetsch \cite{groetsch1993inverse,groetsch1999inverse} framed an \emph{inverse problem} \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse}: reconstruct the shape of the tank from its liquid level over time as it drains. 
+While impossible to infer the precise geometry of the tank, one can leverage the dynamic model to determine the cross-sectional area of the tank as a function of height from the liquid level as a function of time. (The rate of decrease of the liquid level is indicative of the cross-sectional area of the tank at that height. The outlet flow rate depends on the water height only, not width; so, wider [say, cylindrical] tanks drain more slowly.)
 However, this inverse problem of reconstruction is unstable: small errors in the measured liquid level can cause large errors in the estimated area of the tank. \cite{groetsch1993inverse}
 
 \subsection{Our contribution}
-Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to solve the following inverse problem of reconstruction with quantified uncertainty: infer the shape of an exogenous, heavy solid (of unknown geometry) contained in a draining tank (of known geometry) from measurements of its liquid level over time.
+Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to solve, with quantified uncertainty, an inverse problem of reconstruction: infer the shape of an exogenous, heavy solid (of unknown geometry but incapable of holding water) contained in a draining tank (of known geometry) from measurements of the liquid level in the draining tank over time.
 (Because the solid displaces liquid in the draining tank, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at the height of the liquid.
 As the tank drains, the liquid ``scans'' the solid's cross-sectional area as a function of its height.)
-To test our ability to reconstruct the shape of the solid in the tank, we conduct tank drainage experiments with water and collect water level time series data with a level sensing strip. First, we build and calibrate (i.e., determine the posterior distribution of the parameters of) (i) a forward model governing the dynamics of the water level in our draining tank and (ii) a probabilistic model of measurement noise from our level sensor.
+To test our ability to reconstruct the shape of the solid in the tank, we conduct tank drainage experiments with water and collect water level time series data with a level sensing strip. First, we build and calibrate (i.e., determine the posterior distribution of the parameters of) (i) a forward model of the dynamics of the water level in our draining tank and (ii) a probabilistic model of measurement noise from our level sensor.
 For this task, we take length-measurements of the tank and orifice geometry and collect water level time series data from a tank drainage experiment without an exogenous solid. 
-Second, we conduct a tank drainage experiment with an exogenous solid in the tank (a bottle). We then leverage this water level time series data and our calibrated forward model to obtain a posterior distribution over the area of the solid in the tank as a function of height.
-Comparing with our [more] direct (via a tape measure), held-out measurements of the solid's area as a function of height, the inferred area traces out the shape of the bottle reasonably well (mean residual radius: 0.35\,cm; mean bottle radius 3.2\,cm). 
+Second, we conduct a tank drainage experiment with an exogenous solid in the tank (a bottle). We then leverage this water level time series data and our calibrated forward and measurement models to obtain a posterior distribution over the area of the solid in the tank as a function of height.
+Comparing with our [more] direct (via a tape measure) measurements of the solid's area as a function of height, the inferred area of the solid traces its shape reasonably well ($\sim$10\% mean reconstruction error on the bottle's radius). 
 
 %
 %Because this reconstruction problem is unstable \cite{groetsch1993inverse}, 
