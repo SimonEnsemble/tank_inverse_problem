@@ -727,6 +727,8 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			axs[i, j].xticks = WilkinsonTicks(3)
 			if p in ["σ", "c"]
 				axs[i, j].xticks = LinearTicks(3)
+			elseif p == "rₒ"
+				axs[i, j].xticks = LinearTicks(2)
 			end
 
 			μ, σ = mean(posterior[:, p]), std(posterior[:, p])
@@ -1016,7 +1018,7 @@ function viz_cov_matrix(
 		title="covariance matrix, C",
 		titlefont=:regular
 	)
-	hm = heatmap!(Σ, colorrange=(0.0, 0.015))
+	hm = heatmap!(Σ, colorrange=(-0.015, 0.015), colormap="diverging_cwm_80_100_c22_n256")
 	if incl_values
 		for i = 1:size(Σ)[1]
 			for j = 1:size(Σ)[1]
@@ -1034,6 +1036,9 @@ end
 
 # ╔═╡ 3bb65b71-d191-498b-81bf-40ffff4df1f4
 viz_cov_matrix(Σ_train, var_list)
+
+# ╔═╡ 7c8608ba-759a-4bbf-be14-32813dcbf79b
+Σ_train
 
 # ╔═╡ 2fc78ec1-bf53-49da-b31a-6b5bf165eb81
 function viz_mean_matrix(μ::Vector{Float64}, var_list::Array{String})
@@ -1700,6 +1705,7 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═bb0a7df4-7e84-472a-ab00-e3dd801daf8e
 # ╠═3f640581-edcc-4c7a-86ba-b168f31fe4a3
 # ╠═3bb65b71-d191-498b-81bf-40ffff4df1f4
+# ╠═7c8608ba-759a-4bbf-be14-32813dcbf79b
 # ╠═2fc78ec1-bf53-49da-b31a-6b5bf165eb81
 # ╠═34f621c0-207e-41e5-8193-ad81d2d21a01
 # ╠═29518390-5d57-4f2d-b617-d7699468caf9
