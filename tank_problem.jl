@@ -528,7 +528,7 @@ md"""
 """
 
 # ╔═╡ 58eff13c-44b5-4f19-8a42-cf9907ac9515
-@bind n_MC_sample Select([25, 50, 100, 250, 1000], default=1000)
+@bind n_MC_sample Select([25, 50, 100, 250, 2000], default=2000)
 
 # ╔═╡ 68c9d88a-99b7-49be-9ac4-1e06c694c1a6
 @bind n_chains Select([3, 5], default=3)
@@ -862,7 +862,7 @@ function viz_fit(
 	end
 	axislegend(unique=true)
 	ylims!(0, nothing)
-	xlims!(0, maximum(ts))
+	xlims!(0, 1150.0)
 	if savename!=nothing
 		save( "$savename.pdf", fig)
 	end
@@ -871,6 +871,9 @@ end
 
 # ╔═╡ 2a01b228-f281-46c4-9764-fac6cc1b4217
 viz_fit(train_posterior, train_data, savename="posterior_train", n_data_end_omit=nb_data_train_omit)
+
+# ╔═╡ 18b5c6d2-2230-4881-8066-51eff42125ae
+train_data
 
 # ╔═╡ a5ae695b-bfc0-4425-9b64-bbeeba7da015
 md"""
@@ -1703,6 +1706,7 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═323f3fd7-e9a9-4598-ad2e-c1790cf4a264
 # ╠═2ab35999-3615-4f5c-8d89-36d77802fe9b
 # ╠═2a01b228-f281-46c4-9764-fac6cc1b4217
+# ╠═18b5c6d2-2230-4881-8066-51eff42125ae
 # ╟─a5ae695b-bfc0-4425-9b64-bbeeba7da015
 # ╠═eaf470e9-2898-41d5-a6d5-4cd846e9c0de
 # ╠═a3ba0c9d-5f81-4023-9ce0-ff29536aa968
