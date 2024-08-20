@@ -79,7 +79,7 @@ parbox=false
 %%%% Article title to be placed here
 % \title{Bayesian inference of the shape of an object inside of a gravity-drained tank}
 %\title{Inferring the shape of a solid inside a gravity-drained tank from liquid level time series data}
-\title{Inferring the shape of a solid inside a draining tank from liquid level dynamics}
+\title{Inferring the shape of a solid inside a draining tank from its liquid level dynamics}
 
 
 \author{%%%% Author details
@@ -492,7 +492,7 @@ Fig.~\ref{fig:posterior_train} shows the resulting water level time series data 
 
 \subsubsection{Posterior distribution}
 The posterior distribution $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$ follows from our prior and likelihood function constructed from the data \thedata (see eqn.~\ref{eq:post}). 
-We employ NUTS to draw $N_s=1000$ samples \thesamples from the posterior over three independent chains, excluding the first half of each chain discarded for ``burn-in''. 
+We employ NUTS to draw $N_s=2000$ samples \thesamples from the posterior over three independent chains, excluding the first half of each chain discarded for ``burn-in''. 
 (We omit the last three data points because surface tension stopped flow out of the orifice despite $h>h_o$---unaccounted for in the model.)
 
 %TODO how many samples
@@ -619,7 +619,7 @@ Our prior distribution encodes a uniform distribution over the effective average
 %  This is a visualization of our beliefs about the shape of the object in the tank before water level time series data from the ``object scan'' are collected and considered against the forward model.
 
 \subsection{Water level time series data from a tank-drainage experiment}
-At time $t:=0$, we allow our tank containing the exogenous solid to drain of water. Fig.~\ref{fig:posterior_object} shows the time series data of the water level \thedata obtained from our level sensor.
+At time $t:=0$, we allow our tank containing the exogenous solid to drain of water. Fig.~\ref{fig:posterior_object} shows the time series data of the water level \thedata obtained from our level sensor. Comparing with the water level dynamics in the calibration experiment where the tank was devoid of an exogenous object (Fig.~\ref{fig:posterior_train}), the tank drained more quickly, owing to the displacement of water by the solid in the tank.
 
 \subsection{Posterior distribution}
 Again, we employ NUTS to obtain samples from the posterior $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$. 
