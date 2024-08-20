@@ -180,7 +180,7 @@ As the tank drains, the liquid ``scans'' the area of the solid as a function of 
 To test our ability to reconstruct the shape of the solid in the tank, we conduct tank drainage experiments with water and collect water level time series data with a level sensing strip. First, we build and calibrate (i.e., determine the posterior distribution of the parameters of) (i) a forward model of the dynamics of the water level in our draining tank and (ii) a probabilistic model of measurement noise from our level sensor.
 For this task, we take length-measurements of the tank and orifice geometry and collect water level time series data from a tank drainage experiment without an exogenous solid. 
 Second, we conduct a tank drainage experiment with an exogenous solid in the tank (a bottle). We then leverage this water level time series data and our calibrated forward and measurement models to obtain a posterior distribution over the area of the solid in the tank as a function of height.
-Comparing with our [more] direct (via a tape measure) measurements of the solid's geometry, the inferred area of the solid traces its shape reasonably well ($\sim$10\% mean reconstruction error on the bottle's radius). 
+Comparing with our [more] direct (via a tape measure) measurements of the solid's geometry, the inferred area of the solid traces its shape reasonably well ($\sim$10\% mean reconstruction error on the bottle's radius). Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, inside of an opaque or underground tank in a non-destructive manner.
 
 %
 %Because this reconstruction problem is unstable \cite{groetsch1993inverse}, 
