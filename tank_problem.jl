@@ -1490,6 +1490,7 @@ function viz_inferred_radius(
 
 	residuals = zeros(nrow(object_posterior), nrow(object_true_area))
 	fig_ia = nothing, nothing
+	n_plotted = 1
 	for i in shuffle(1:nrow(object_posterior))
 		# unpack samples
 		h_max = object_posterior[i, "h_max"]
@@ -1513,7 +1514,8 @@ function viz_inferred_radius(
 			residuals[i, j] += abs(sqrt(aᵢ / π) - r̂ᵢ)
 		end
 
-		if i <= n_sample
+		if n_plotted <= n_sample
+			n_plotted += 1
 			# plot inferred area of the object
 			hs_dense = range(0.0, h_max, length=100)
 			sqrt_a_obj_dense = sqrt.(a_of_object.(hs_dense))
