@@ -20,6 +20,9 @@ begin
     using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions, Optim, Dierckx, MakieThemes, Printf, Colors
 end
 
+# ╔═╡ 260c0f85-ad6c-432a-8e9b-a04158c596c9
+using ColorSchemes
+
 # ╔═╡ a053a724-f16b-4e88-94af-6d0e0a96fed5
 using Random
 
@@ -1008,6 +1011,9 @@ var_list = ["a_t", "a_b", "h_max", "rₒ", "hₒ", "c", "σ"]
 function viz_cov_matrix(
 	Σ::Matrix{Float64}, var_list::Array{String}; incl_values::Bool=false
 )
+	cmap = ColorSchemes.diverging_cwm_80_100_c22_n256
+	cbar_limits = (-0.01, 0.01)
+	
 	fig = Figure()
 	ax = Axis(
 		fig[1, 1], 
@@ -1018,7 +1024,7 @@ function viz_cov_matrix(
 		title="covariance matrix, C",
 		titlefont=:regular
 	)
-	hm = heatmap!(Σ, colorrange=(-0.015, 0.015), colormap="diverging_cwm_80_100_c22_n256")
+	hm = heatmap!(Σ, colormap=cmap, colorrange=cbar_limits)
 	if incl_values
 		for i = 1:size(Σ)[1]
 			for j = 1:size(Σ)[1]
@@ -1029,10 +1035,14 @@ function viz_cov_matrix(
 			end
 		end
 	end
-	Colorbar(fig[1, 2], hm, label="covariance")
+	Colorbar(fig[1, 2], label="covariance", limits=cbar_limits, 
+		colormap=cmap, highclip=cmap[end], lowclip=cmap[1])
 	save("posterior_cov_matrix.pdf", fig)
 	fig
 end
+
+# ╔═╡ bbe56504-b7c2-4601-9f56-1957bd42e4e5
+maximum(abs.(Σ_train[3:end, 3:end]))
 
 # ╔═╡ 3bb65b71-d191-498b-81bf-40ffff4df1f4
 viz_cov_matrix(Σ_train, var_list)
@@ -1703,7 +1713,9 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═63977532-9afa-454c-9f51-af6f4b238120
 # ╠═aa9c9d45-bb7c-4eee-af87-6fbc01df271d
 # ╠═bb0a7df4-7e84-472a-ab00-e3dd801daf8e
+# ╠═260c0f85-ad6c-432a-8e9b-a04158c596c9
 # ╠═3f640581-edcc-4c7a-86ba-b168f31fe4a3
+# ╠═bbe56504-b7c2-4601-9f56-1957bd42e4e5
 # ╠═3bb65b71-d191-498b-81bf-40ffff4df1f4
 # ╠═7c8608ba-759a-4bbf-be14-32813dcbf79b
 # ╠═2fc78ec1-bf53-49da-b31a-6b5bf165eb81
