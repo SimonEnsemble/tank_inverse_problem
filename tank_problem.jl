@@ -657,7 +657,7 @@ md"""
 
 # ╔═╡ 7979b889-4782-45be-9a4f-91375f22f26f
 params_to_title = Dict(
-					"h_max" => rich("h", subscript("max"), " [cm²]"), 
+					"h_max" => rich("h", subscript("max"), " [cm]"), 
 					"a_b" => rich("a", subscript("b"), " [cm²]"), 
 					"a_t" => rich("a", subscript("t"), " [cm²]"),
 					"rₒ" => rich("r", subscript("o"), " [cm]"),
@@ -735,12 +735,21 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			end
 
 			μ, σ = mean(posterior[:, p]), std(posterior[:, p])
-			Label(fig[i, j], justification=:left,
-				@sprintf("mean:\n\t%.2f %s\nSTD:\n\t%.2f %s", μ, params_to_units[p], σ, params_to_units[p]), font=:regular, fontsize=11.0,
-				tellwidth=false, tellheight=false, 
-				halign=p in ["a_b", "a_t", "h₀"] ? 0.025 : 0.99, 
-				valign=0.9
-			)
+			if p == "rₒ"
+				Label(fig[i, j], justification=:left,
+					@sprintf("mean:\n\t%.2f %s\nSTD:\n\t%.3f %s", μ, params_to_units[p], σ, params_to_units[p]), font=:regular, fontsize=11.0,
+					tellwidth=false, tellheight=false, 
+					halign=p in ["a_b", "a_t", "h₀"] ? 0.025 : 0.99, 
+					valign=0.9
+				)
+			else
+				Label(fig[i, j], justification=:left,
+					@sprintf("mean:\n\t%.2f %s\nSTD:\n\t%.2f %s", μ, params_to_units[p], σ, params_to_units[p]), font=:regular, fontsize=11.0,
+					tellwidth=false, tellheight=false, 
+					halign=p in ["a_b", "a_t", "h₀"] ? 0.025 : 0.99, 
+					valign=0.9
+				)
+			end
 		end
 	end
 	linkyaxes!(axs...)

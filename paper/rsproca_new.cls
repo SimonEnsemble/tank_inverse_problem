@@ -1203,8 +1203,10 @@
 \def\titlehead#1{\gdef\@jtitlehead{#1}}
 
 \def\researchname{{\fontfamily{\sfdefault}\fontseries{m}\fontshape{n}\fontsize{18}{31}\selectfont\raggedright%
-\raisebox{9pt}{\@jtitlehead}\ifopenacc\hfill\includegraphics{RSTA_OpenAccesslogo_RGB}\hfill%
-\else\hfill\fi\href{http://crossmark.crossref.org/dialog/?doi=\@doi&domain=pdf&date_stamp=\@onlinepub}{\includegraphics{RS_crossmark_logo}}\par}}
+\raisebox{9pt}{\@jtitlehead}\ifopenacc\hfill%\includegraphics{RSTA_OpenAccesslogo_RGB}
+\hfill%
+\else\hfill\fi\href{http://crossmark.crossref.org/dialog/?doi=\@doi&domain=pdf&date_stamp=\@onlinepub}{%\includegraphics{RS_crossmark_logo}
+}\par}}
 
 \def\@citearticle{}
 \newcommand\citearticle[3]{%

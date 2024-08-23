@@ -79,7 +79,7 @@ parbox=false
 %%%% Article title to be placed here
 % \title{Bayesian inference of the shape of an object inside of a gravity-drained tank}
 %\title{Inferring the shape of a solid inside a gravity-drained tank from liquid level time series data}
-\title{Inferring the shape of a solid inside a draining tank from its liquid level dynamics}
+\title{Reconstructing the shape of a solid inside a draining tank from its liquid level dynamics}
 
 
 \author{%%%% Author details
@@ -137,7 +137,7 @@ Our approach may be practically useful to infer the shape of an unknown solid, o
 
 \section{Introduction}
 Throughout engineering and the applied sciences, we may encounter an open-top tank, draining of liquid via gravity-driven flow through a small orifice (a \emph{draining tank}).
-Mathematical models of the dynamics of the liquid level in a draining tank are useful for designing the tank and orifice geometry, predicting emptying times, forecasting outlet flow rates, controlling the liquid level by manipulating an input stream, and inferring the liquid level from the outlet flow rate \cite{d2021torricelli,seborg2016process,groetsch1993inverse,groetsch1999inverse}.
+Mathematical models of the dynamics of the liquid level in a draining tank are useful for designing the tank and orifice geometry, predicting emptying times, forecasting outlet flow rates, controlling the liquid level by manipulating an input stream, and inferring the liquid level from the outlet flow rate \cite{d2021torricelli,seborg2016process,groetsch1993inverse_tl,groetsch1999inverse}.
 
 \begin{mytcbox}[label=box:waterclocks, breakable]{Ancient water clocks}
 Interestingly, ancient societies (e.g. ancient Greece) exploited the empirically predictable dynamics of the water level in a draining tank to measure and display the passage of time.
@@ -156,7 +156,7 @@ Evangelista Torricelli (1608-1647) made a fundamental observation for mathematic
 % TODO: check that he didn't know g!
 Today, we recover Torricelli's observation from Daniel Bernoulli's (1700–1782) equation \cite{welty2020fundamentals}, a mechanical energy balance applied to the steady, plug flow of an incompressible, inviscid fluid through the small orifice, neglecting frictional forces. This gives \emph{Torricelli's law}: $v=\sqrt{2 g \Delta h}$, with $g$ the acceleration due to gravity. \cite{d2021torricelli,teoman2022discharge}
 
-A mass balance on a draining tank with Torricelli's law gives a first-order, [generally] nonlinear differential equation governing the liquid level in the tank over time \cite{groetsch1993inverse,seborg2016process,debook}.
+A mass balance on a draining tank with Torricelli's law gives a first-order, [generally] nonlinear differential equation governing the liquid level in the tank over time \cite{groetsch1993inverse_tl,seborg2016process,debook}.
 The geometry of the tank affects the dynamics of the liquid level through its cross-sectional area as a function of height.
 The cross-sectional area of the orifice affects the emptying time; theoretically, it gives the volumetric flow rate out of the tank from Torricelli's law. 
 % TODO: a name for cross-sectional area parallel to the ground?
@@ -168,9 +168,9 @@ The discharge coefficient \cite{teoman2022discharge,hicks2014determining,blasone
 %  and (ii) depends on the rheology of the fluid and the geometry of the orifice. 
 
 
-In contrast to the \emph{forward problem} of using this dynamic model to predict the trajectory of the liquid level in a draining tank of a given geometry, Groetsch \cite{groetsch1993inverse,groetsch1999inverse} framed an \emph{inverse problem} \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse}: reconstruct the shape of the tank from its liquid level over time as it drains. 
+In contrast to the \emph{forward problem} of using this dynamic model to predict the trajectory of the liquid level in a draining tank of a given geometry, Groetsch \cite{groetsch1993inverse_tl,groetsch1999inverse} framed an \emph{inverse problem} \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse}: reconstruct the shape of the tank from its liquid level over time as it drains. 
 While impossible to infer the precise geometry of the tank, one can leverage the dynamic model to determine the cross-sectional area of the tank as a function of height from the liquid level as a function of time. (The rate of decrease of the liquid level is indicative of the cross-sectional area of the tank at that height. The outlet flow rate depends on the water height only, not width; so, wider [say, cylindrical] tanks drain more slowly.)
-However, this inverse problem of reconstruction is unstable: small errors in the measured liquid level can cause large errors in the estimated area of the tank. \cite{groetsch1993inverse}
+However, this inverse problem of reconstruction is unstable: small errors in the measured liquid level can cause large errors in the estimated area of the tank. \cite{groetsch1993inverse_tl}
 
 \subsection{Our contribution}
 Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to solve, with quantified uncertainty, an inverse problem of reconstruction: infer the shape of an exogenous, heavy solid (of unknown geometry but incapable of holding water) contained in a draining tank (of known geometry) from measurements of the liquid level in the draining tank over time.
@@ -220,7 +220,7 @@ Let $\alpha(h)$ [cm$^2$] be the cross-sectional area of this solid as a function
 \begin{center}
 	\includegraphics[width=0.65\textwidth]{../real_expt/real_expt.png}
 	\caption{\textbf{Setup for tank drainage experiments} for (a) model calibration and (b) shape reconstruction.
-	We fill our open-top tank (perhaps, containing an exogenous solid) with water, then allow it to drain via gravity-driven flow out of a small hole in its side, near its bottom. A liquid level strip measures the water level in the tank over time, giving time series data.
+	We fill our open-top tank (in case (b), containing an exogenous solid) with water, then allow it to drain via gravity-driven flow out of a small hole in its side, near its bottom. A liquid level strip measures the water level in the tank over time, giving time series data.
 	}
 	\label{fig:photo_of_tank}
 \end{center}
@@ -249,7 +249,7 @@ We model the velocity $v$ [cm/s] of the jet of water flowing out of the orifice 
 \begin{equation}
 	v(h(t)) =  \sqrt{2 g(h(t)-h_o)}, \label{eq:Torricelli}
 \end{equation} where $g$ [cm/s$^2$] is the acceleration due to gravity. Torricelli's law follows from Bernoulli's equation \cite{welty2020fundamentals}, a mechanical energy balance on the flow through the orifice, treating (i) the flow as steady, plug, and absent of frictional forces and (ii) the water as inviscid and incompressible.
-Torricelli's law matches (i) the gain in kinetic energy, $(\Delta m) v^2/2$, when a small mass $\Delta m$ of water is ejected from the orifice, with (ii) the loss of gravitational potential energy, $(\Delta m)g(h-h_o)$, from the concomitant removal of a small slice of water of mass $\Delta m$ from the top of the body of water in the tank. \cite{groetsch1993inverse,driver1998torricelli,williams2021vessel}
+Torricelli's law matches (i) the gain in kinetic energy, $(\Delta m) v^2/2$, when a small mass $\Delta m$ of water is ejected from the orifice, with (ii) the loss of gravitational potential energy, $(\Delta m)g(h-h_o)$, from the concomitant removal of a small slice of water of mass $\Delta m$ from the top of the body of water in the tank. \cite{groetsch1993inverse_tl,driver1998torricelli,williams2021vessel}
 
 \paragraph{Volumetric outflow rate.}
 %If Torricelli's law held and the cross-sectional area of the liquid jet out of the tank were the same as the cross-sectional area of the orifice ($\pi r_o^2$), the volumetric flow rate out of the tank would be $v\pi r_o^2$.
@@ -595,7 +595,7 @@ Thereby, we exploit our \emph{calibrated} model for this reconstruction problem.
 
 \vspace{-\baselineskip}
 \subparagraph{Shape of the exogenous solid.}
-We adopt the principle of indifference and impose a diffuse prior over the size of the solid in the tank, but impose smoothness on the cross-sectional area of the solid as a function of height to counter instability in the solution to this inverse problem \cite{groetsch1993inverse}. 
+We adopt the principle of indifference and impose a diffuse prior over the size of the solid in the tank, but impose smoothness on the cross-sectional area of the solid as a function of height to counter instability in the solution to this inverse problem \cite{groetsch1993inverse_tl}. 
 By imposing a diffuse prior on the solid's size, we allow the water level time series data to ``speak for itself'' about the solid's size.
 Specifically, we impose a uniform distribution on the square root of the area of the bottom base of the solid, $A_0$ (the random variable representing $\alpha(0)$)
 \begin{equation}
