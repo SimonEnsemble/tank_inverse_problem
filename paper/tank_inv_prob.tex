@@ -119,8 +119,8 @@ Our approach may be practically useful to infer the shape of an unknown solid, o
 \newline
 
 \begin{center}
-	\includegraphics[height=0.375\textwidth]{../tank_geometry/tank_w_bottle.pdf}
-	\includegraphics[height=0.375\textwidth]{../toy_h_w_object.pdf}
+	\includegraphics[height=0.375\textwidth]{tank_w_bottle.pdf}
+	\includegraphics[height=0.375\textwidth]{toy_h_w_object.pdf}
 \end{center}
 
 \absbreak % unclear why this is needed
@@ -218,7 +218,7 @@ Let $\alpha(h)$ [cm$^2$] be the cross-sectional area of this solid as a function
 
 \begin{figure}[h!]
 \begin{center}
-	\includegraphics[width=0.65\textwidth]{../real_expt/real_expt.png}
+	\includegraphics[width=0.65\textwidth]{real_expt.png}
 	\caption{\textbf{Setup for tank drainage experiments} for (a) model calibration and (b) shape reconstruction.
 	We fill our open-top tank (in case (b), containing an exogenous solid) with water, then allow it to drain via gravity-driven flow out of a small hole in its side, near its bottom. A liquid level strip measures the water level in the tank over time, giving time series data.
 	}
@@ -511,23 +511,23 @@ Comparing the prior and posterior distributions of water level trajectories in F
 \begin{figure}[!ht]
     \centering
         \begin{subfigure}[b]{0.225\textwidth}
-    	\includegraphics[width=\textwidth]{../tank_geometry/naked_tank.pdf}
+    	\includegraphics[width=\textwidth]{naked_tank.pdf}
 	\caption{Experiment setup} \label{fig:naked_tank}
     \end{subfigure}
     
      \begin{subfigure}[b]{0.4\textwidth}
-    	\includegraphics[width=\textwidth]{../prior_train.pdf}
+    	\includegraphics[width=\textwidth]{prior_train.pdf}
 	\caption{Prior distribution} \label{fig:prior_train}
     \end{subfigure}
      \begin{subfigure}[b]{0.4\textwidth}
-    	\includegraphics[width=\textwidth]{../posterior_train.pdf}
+    	\includegraphics[width=\textwidth]{posterior_train.pdf}
 	\caption{Data \& posterior distribution} \label{fig:posterior_train}
     \end{subfigure}
     
      \begin{subfigure}[b]{\textwidth}
      \center
-    	\includegraphics[width=0.75\textwidth]{../posterior_train_theta.pdf}
-	\includegraphics[width=0.375\textwidth]{../posterior_cov_matrix.pdf}
+    	\includegraphics[width=0.75\textwidth]{posterior_train_theta.pdf}
+	\includegraphics[width=0.375\textwidth]{posterior_cov_matrix.pdf}
 	\caption{Posterior distribution} \label{fig:posterior_train_theta}
     \end{subfigure}
     \caption{
@@ -556,7 +556,7 @@ Fig.~\ref{fig:test} shows the water level time series data collected from the re
 
 \begin{figure}[h!]
     \centering
-    	\includegraphics[width=0.5\textwidth]{../test.pdf}
+    	\includegraphics[width=0.5\textwidth]{test.pdf}
     \caption{
       \textbf{Testing the calibrated forward model.}
       (Bottom) Comparison between water level time series data from a replicate tank drainage experiment and water level trajectories predicted by the calibrated forward model. 
@@ -638,20 +638,20 @@ As a posterior predictive check, Fig.~\ref{fig:posterior_object} displays sample
 \begin{figure}[h!]
     \centering
         \begin{subfigure}[b]{0.3\textwidth}
-    	\includegraphics[width=\textwidth]{../tank_geometry/tank_w_bottle.pdf}
+    	\includegraphics[width=\textwidth]{tank_w_bottle.pdf}
 	\caption{Experimental setup} \label{fig:tank_w_bottle}
     \end{subfigure}
      \begin{subfigure}[b]{0.49\textwidth}
-    	\includegraphics[width=\textwidth]{../prior_area.pdf}
+    	\includegraphics[width=\textwidth]{prior_area.pdf}
 	\caption{Prior distribution} \label{fig:prior_area}
     \end{subfigure}
     
      \begin{subfigure}[b]{0.49\textwidth}
-    	\includegraphics[width=\textwidth]{../posterior_object.pdf}
+    	\includegraphics[width=\textwidth]{posterior_object.pdf}
 	\caption{Data \& posterior distribution} \label{fig:posterior_object}
     \end{subfigure}
     \begin{subfigure}[b]{0.49\textwidth}
-    	\includegraphics[width=\textwidth]{../posterior_area.pdf}
+    	\includegraphics[width=\textwidth]{posterior_area.pdf}
 	\caption{Posterior distribution} \label{fig:posterior_area}
     \end{subfigure}
     \caption{

@@ -753,7 +753,7 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 		end
 	end
 	linkyaxes!(axs...)
-	save("posterior_train_theta.pdf", fig)
+	save("paper/posterior_train_theta.pdf", fig)
 	return fig
 end
 
@@ -879,7 +879,7 @@ function viz_fit(
 end
 
 # ╔═╡ 2a01b228-f281-46c4-9764-fac6cc1b4217
-viz_fit(train_posterior, train_data, savename="posterior_train", n_data_end_omit=nb_data_train_omit)
+viz_fit(train_posterior, train_data, savename="paper/posterior_train", n_data_end_omit=nb_data_train_omit)
 
 # ╔═╡ 18b5c6d2-2230-4881-8066-51eff42125ae
 train_data
@@ -981,7 +981,7 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 end	
 
 # ╔═╡ a3ba0c9d-5f81-4023-9ce0-ff29536aa968
-viz_test(train_posterior, test_data, savename="test")
+viz_test(train_posterior, test_data, savename="paper/test")
 
 # ╔═╡ 67c46219-2183-47fd-bd3c-82facff98d53
 md"## visualize prior too"
@@ -1001,7 +1001,7 @@ begin
 end
 
 # ╔═╡ 2148cbb2-b41f-4df3-ab5c-55a89eff7bf1
-viz_fit(train_prior, train_data, savename="prior_train", only_ic=true)
+viz_fit(train_prior, train_data, savename="paper/prior_train", only_ic=true)
 
 # ╔═╡ 968de6ad-eb48-4d70-b431-209e609904aa
 md"## covariance matrix of posterior for reconstruction problem"
@@ -1049,7 +1049,7 @@ function viz_cov_matrix(
 	end
 	Colorbar(fig[1, 2], label="covariance", limits=cbar_limits, 
 		colormap=cmap, highclip=cmap[end], lowclip=cmap[1])
-	save("posterior_cov_matrix.pdf", fig)
+	save("paper/posterior_cov_matrix.pdf", fig)
 	fig
 end
 
@@ -1213,7 +1213,7 @@ sim_object_data = DataFrame(
 viz_sim_fit(data_w_object, sim_object_data)
 
 # ╔═╡ 54e9eda2-d564-453a-8ea8-4c8395be9ed6
-viz_toy_h(sim_object_data, savename="toy_h_w_object")
+viz_toy_h(sim_object_data, savename="paper/toy_h_w_object")
 
 # ╔═╡ c53edeef-324a-418f-907d-aaf557cb8d24
 md"## classical method
@@ -1475,7 +1475,7 @@ end
 @assert all(object_posterior[:, "h₀"] .< object_posterior[:, "h_max"])
 
 # ╔═╡ e1264f57-f675-4f37-b4db-313cfc52ab8e
-viz_fit(object_posterior, data_w_object, savename="posterior_object", n_data_end_omit=nb_data_object_omit)
+viz_fit(object_posterior, data_w_object, savename="paper/posterior_object", n_data_end_omit=nb_data_object_omit)
 
 # ╔═╡ 7127fc35-a0af-4463-9448-a948f229fd47
 function viz_inferred_radius(
@@ -1606,7 +1606,7 @@ end
 
 # ╔═╡ 40157899-dffb-4e3a-b5ca-be3c23a465ae
 viz_inferred_radius(
-	object_posterior, object_true_area, length_measurements, savename="posterior_area"
+	object_posterior, object_true_area, length_measurements, savename="paper/posterior_area"
 )
 
 # ╔═╡ bd95428d-1077-4417-bfca-0c5da7378af2
@@ -1628,7 +1628,7 @@ begin
 end
 
 # ╔═╡ 8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
-viz_inferred_radius(object_prior, object_true_area, length_measurements, savename="prior_area", show_legend=false, viz_measurements=false)
+viz_inferred_radius(object_prior, object_true_area, length_measurements, savename="paper/prior_area", show_legend=false, viz_measurements=false)
 
 # ╔═╡ 6d4b0c74-4228-41e4-a8d0-98e0d71333b9
 hist(object_prior[:, "sqrt_a_obj[1]"]) # check prior
