@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.43
+# v0.19.40
 
 using Markdown
 using InteractiveUtils
@@ -730,7 +730,7 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			axs[i, j].xticks = WilkinsonTicks(3)
 			if p in ["σ", "c"]
 				axs[i, j].xticks = LinearTicks(3)
-			elseif p == "rₒ"
+			elseif p in ["rₒ", "h_max"]
 				axs[i, j].xticks = LinearTicks(2)
 			end
 
@@ -738,7 +738,7 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			Label(fig[i, j], justification=:left,
 				@sprintf("mean:\n\t%.2f %s\nSTD:\n\t%.2f %s", μ, params_to_units[p], σ, params_to_units[p]), font=:regular, fontsize=11.0,
 				tellwidth=false, tellheight=false, 
-				halign=p in ["A_b", "h₀"] ? 0.025 : 0.99, 
+				halign=p in ["a_b", "a_t", "h₀"] ? 0.025 : 0.99, 
 				valign=0.9
 			)
 		end
@@ -947,7 +947,7 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 	println("mean abs residual: [cm] ", mar)
 	
 	# plot dist'n of emptying times
-	hist!(ax_stopping, emptying_time, color=Cycled(3))
+	hist!(ax_stopping, emptying_time, color=Cycled(3), bins=12)
 
 	scatter!(
 		ax,
@@ -955,7 +955,7 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		test_data[:, "h [cm]"],
 		label="data (held-out)",
 		color=colors["data"]
-		)
+	)
 	# @assert 1.25 * test_data[end, "t [s]"] > maximum(emptying_time)
 	xlims!(0, 1.01 * maximum(emptying_time))
 	ylims!(ax, 0, nothing)
