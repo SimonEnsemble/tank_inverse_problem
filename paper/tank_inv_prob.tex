@@ -112,7 +112,6 @@ as the liquid level drops, it ``scans'' the area of the solid as a function of h
 
 
 In our experimental setup, a tank
-% (an inverted, truncated cone with a rounded rectangle base) 
 drains of water through a small orifice in its side while a liquid level sensor collects time series data of the water level. 
 First, we calibrate and test a forward model of the water level dynamics using data from two tank drainage experiments without an exogenous solid. 
 Second, we conduct a drainage experiment with the tank containing an exogenous solid, then leverage the calibrated forward model and data to infer (i.e., obtain a posterior distribution for) the area of the solid inside the tank as a function of height.
@@ -602,9 +601,9 @@ Specifically, we impose a uniform distribution on the square root of the area of
 \begin{equation}
 	\sqrt{A_0} \mid A_b=a_b \sim \mathcal{U}(0, \sqrt{a_b}).
 \end{equation}
-Ie., we believe 
+So, we believe 
 (i) the area of the solid's bottom base can span from zero (corresponding to the lack of an exogenous solid) to the area of tank's bottom base $a_b$ (corresponding to the largest solid that can fit in the tank) and
-(ii) the effective radius of the solid is uniformly distributed.
+(ii) the effective radius of the solid (hence, we take the square root of $A_i$) is uniformly distributed.
 For the smoothness prior \cite{calvetti2018inverse}, we sequentially correlate the solid's effective radius at the sequence of heights: 
 \begin{equation}
  \sqrt{A_i} - \sqrt{A_{i-1}} \sim \mathcal{N}(0, \gamma^2) \text{ for } i \in \{1, ..., n\}.
@@ -705,8 +704,9 @@ Examples of other geometric inverse problems, where the unknown is a geometric s
 \enlargethispage{20pt}
 
 \ack{CMS acknowledges support from the Intel Corporation through their Mindshare Program - Broadening Participation in Science and Engineering Higher Education. 
-GF acknowledges ARMI for funding. 
-Hat tips to Brian Wood for helpful discussions about the possibility to infer the precise shape of the solid in the tank by tilting it; Adrian Henle for feedback on our manuscript; and Axel Rodriguez for help articulating the condition for a solid to be incapable of holding water.}
+Thanks to 
+% Brian Wood for helpful discussions about the possibility to infer the precise shape of the solid in the tank by tilting it; 
+Adrian Henle for feedback on our manuscript and Axel Rodriguez for help articulating the condition for a solid to be incapable of holding water.}
 
 
 \vskip2pc
