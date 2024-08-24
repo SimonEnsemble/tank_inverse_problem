@@ -79,7 +79,7 @@ parbox=false
 %%%% Article title to be placed here
 % \title{Bayesian inference of the shape of an object inside of a gravity-drained tank}
 %\title{Inferring the shape of a solid inside a gravity-drained tank from liquid level time series data}
-\title{Reconstructing the shape of a solid inside a draining tank from its liquid level dynamics}
+\title{Inferring the shape of a solid inside a draining tank from its liquid level dynamics}
 
 
 \author{%%%% Author details
@@ -104,19 +104,12 @@ Cory M. Simon$^{1}$
 
 %%%% Abstract text to be placed here %%%%%%%%%%%%
 \begin{abstract}
-In engineering, we often encounter an open-top, liquid-holding tank draining via gravity-driven flow through a small orifice in its side. 
-Torricelli's law and a mass balance give a differential equation model governing the dynamics of the liquid level in such a draining tank. 
-Herein, we leverage this forward model to tackle an inverse problem of reconstruction: infer the shape of an exogenous, heavy solid inside a draining tank from measurements of its liquid level over time. To quantify uncertainty, we employ Bayesian statistical inversion to obtain a posterior distribution over the solid's cross-sectional area as a function of height. 
-(Because the solid displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at that height; 
-as the liquid level drops, it ``scans'' the area of the solid as a function of height.) 
+We aim to reconstruct the shape of an exogenous, heavy solid contained in a tank from the liquid level in the tank as it drains through a small orifice in its side, driven by gravity. (Because the solid displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at that height; as the liquid level drops, it ``scans’' the area of the solid as a function of height.) We combine mathematical modeling, Bayesian statistical inversion, Monte Carlo simulations, and wet experiments of a tank draining of water to demonstrate and test our ability to infer the cross-sectional area of the exogenous solid as a function of height. In our experiment, the posterior distribution over the [held-out] shape of the solid (a bottle) agreed reasonably well with our length-measurements (<10\% mean reconstruction error on its radius). Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, contained in an opaque tank. 
+% In engineering, we often encounter an open-top, liquid-holding tank draining via gravity-driven flow through a small orifice in its side. Torricelli's law and a mass balance give a differential equation model governing the dynamics of the liquid level in such a draining tank. Herein, we leverage this forward model to tackle an inverse problem of reconstruction: infer the shape of an exogenous, heavy solid inside a draining tank from measurements of its liquid level over time. To quantify uncertainty, we employ Bayesian statistical inversion to obtain a posterior distribution over the solid's cross-sectional area as a function of height. (Because the solid displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at that height; as the liquid level drops, it ``scans'' the area of the solid as a function of height.) 
 
 
-In our experimental setup, a tank
-drains of water through a small orifice in its side while a liquid level sensor collects time series data of the water level. 
-First, we calibrate and test a forward model of the water level dynamics using data from two tank drainage experiments without an exogenous solid. 
-Second, we conduct a drainage experiment with the tank containing an exogenous solid, then leverage the calibrated forward model and data to infer (i.e., obtain a posterior distribution for) the area of the solid inside the tank as a function of height.
-Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, inside of an opaque tank. 
-\newline
+% In our experimental setup, a tank drains of water through a small orifice in its side while a liquid level sensor collects time series data of the water level. First, we calibrate and test a forward model of the water level dynamics using data from two tank drainage experiments without an exogenous solid. Second, we conduct a drainage experiment with the tank containing an exogenous solid, then leverage the calibrated forward model and data to infer (i.e., obtain a posterior distribution for) the area of the solid inside the tank as a function of height. Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, inside of an opaque tank. 
+%\newline
 
 \begin{center}
 	\includegraphics[height=0.375\textwidth]{tank_w_bottle.pdf}
@@ -179,7 +172,7 @@ As the tank drains, the liquid ``scans'' the area of the solid as a function of 
 To test our ability to reconstruct the shape of the solid in the tank, we conduct tank drainage experiments with water and collect water level time series data with a level sensing strip. First, we build and calibrate (i.e., determine the posterior distribution of the parameters of) (i) a forward model of the dynamics of the water level in our draining tank and (ii) a probabilistic model of measurement noise from our level sensor.
 For this task, we take length-measurements of the tank and orifice geometry and collect water level time series data from a tank drainage experiment without an exogenous solid. 
 Second, we conduct a tank drainage experiment with an exogenous solid in the tank (a bottle). We then leverage this water level time series data and our calibrated forward and measurement models to obtain a posterior distribution over the area of the solid in the tank as a function of height.
-Comparing with our [more] direct (via a tape measure) measurements of the solid's geometry, the inferred area of the solid traces its shape reasonably well ($\sim$10\% mean reconstruction error on the bottle's radius). Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, inside of an opaque or underground tank in a non-destructive manner.
+Comparing with our [more] direct (via a tape measure) measurements of the solid's geometry, the inferred area of the solid traces its shape reasonably well (<10\% mean reconstruction error on the bottle's radius). Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, inside of an opaque or underground tank in a non-destructive manner.
 
 %
 %Because this reconstruction problem is unstable \cite{groetsch1993inverse}, 

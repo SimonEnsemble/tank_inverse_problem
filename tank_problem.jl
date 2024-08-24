@@ -835,7 +835,7 @@ function viz_fit(
 
 		# set up, solve ODE
 		sim_data = DataFrame(
-			simulate(posterior[i, "h₀"], params, 1.05 * maximum(ts))
+			simulate(posterior[i, "h₀"], params, 1150.0)
 		)
 			
 		lines!(
@@ -1520,7 +1520,11 @@ function viz_inferred_radius(
 		for j = 1:nrow(object_true_area)
 			hᵢ, aᵢ = object_true_area[j, "h [cm]"], object_true_area[j, "area [cm²]"]
 			r̂ᵢ = sqrt(a_of_object(hᵢ) / π)
-			residuals[i, j] += abs(sqrt(aᵢ / π) - r̂ᵢ)
+			if hᵢ > mean(object_posterior[:, "hₒ"]) && hᵢ < mean(object_posterior[:, "h₀"])
+				residuals[i, j] += abs(sqrt(aᵢ / π) - r̂ᵢ)
+			else
+				residuals[i, j] = NaN
+			end
 		end
 
 		if n_plotted <= n_sample
@@ -1592,7 +1596,7 @@ function viz_inferred_radius(
 		colgap!(fig.layout, 1)
 	end
 
-	println("mean residual radius: ", mean(residuals))
+	println("mean residual radius: ", mean(residuals[.! isnan.(residuals)]))
 	println("avg actual radius: ", 
 		mean(sqrt.(object_true_area[:, "area [cm²]"] ./ π))
 	)
@@ -1608,6 +1612,9 @@ end
 viz_inferred_radius(
 	object_posterior, object_true_area, length_measurements, savename="paper/posterior_area"
 )
+
+# ╔═╡ 3d0c3999-77a2-40d6-923b-78d3329e2154
+0.31/3.22
 
 # ╔═╡ bd95428d-1077-4417-bfca-0c5da7378af2
 md"### prior"
@@ -1775,6 +1782,7 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═a053a724-f16b-4e88-94af-6d0e0a96fed5
 # ╠═7127fc35-a0af-4463-9448-a948f229fd47
 # ╠═40157899-dffb-4e3a-b5ca-be3c23a465ae
+# ╠═3d0c3999-77a2-40d6-923b-78d3329e2154
 # ╟─bd95428d-1077-4417-bfca-0c5da7378af2
 # ╠═65d81268-9ff2-4a18-b0ce-4b105740dc8b
 # ╠═8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
