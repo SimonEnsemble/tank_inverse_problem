@@ -199,7 +199,7 @@ Comparing with our [more] direct (via a tape measure) measurements of the solid'
 \section{Setup for tank drainage experiments} \label{sec:expt}
 First, we describe our experimental setup in Fig.~\ref{fig:photo_of_tank} for tank drainage (of water) experiments.
 
-We possess a plastic, open-top tank---an inverted, right, truncated cone with a rounded rectangle base. 
+We possess a plastic, open-top tank---an inverted, right, truncated cone with a rounded rectangle base (excluding the top rim). 
 The cross-sectional area [parallel to the ground] of the tank as a function of height $h$ [cm] from its bottom base is:
 \begin{equation}
 	a(h) = \frac{h}{h_{\text{max}}}a_t + \left(1-\frac{h}{h_{\text{max}}}\right) a_b, \label{eq:a_of_h}
@@ -693,9 +693,8 @@ We inhibited our ambition to reconstruct the geometry of an exogenous solid insi
 (3) Finally, another interesting inverse problem pertaining to a draining tank is time reversal: infer the initial water level from measurement(s) of the water level at later times.
 
 \paragraph{Other geometric inverse problems.}
-Examples of other geometric inverse problems, where the unknown is a geometric shape \cite{ameur2004level,burger2001level,harbrecht2013numerical}, include inferring the shape and location of cracks in a solid \cite{nishimura1991boundary}, fouling on the inner wall of a pipe \cite{chen2011inverse}, mines underground \cite{delbary2007inverse,lopez2003detection}, scattering objects like submarines \cite{yaman2013survey} underwater \cite{buchanan2004marine}, and inclusions or cavities inside thermal conductors \cite{wang2018numerical,nakamura2015reconstruction}
- from boundary measurements; inferring the shape of obstacles in blood vessels from flow measurements \cite{aguayo2021distributed,nolte2022inverse}; and inferring the shape of a membrane from the sound it produces when it vibrates \cite{kac1966can}.
-
+Examples of other geometric inverse problems, where the unknown is a geometric shape \cite{ameur2004level,burger2001level,harbrecht2013numerical,kawakami2020stabilities}, include inferring the shape and location of cracks in a solid \cite{nishimura1991boundary}, fouling on the inner wall of a pipe \cite{chen2011inverse}, mines underground \cite{delbary2007inverse,lopez2003detection}, scattering objects like submarines \cite{yaman2013survey} underwater \cite{buchanan2004marine}, and inclusions or cavities inside thermal conductors \cite{wang2018numerical,nakamura2015reconstruction}
+ from boundary measurements; inferring the shape of obstacles in blood vessels from flow measurements \cite{aguayo2021distributed,nolte2022inverse}; and inferring the shape of a membrane from the sound it produces when it vibrates \cite{kac1966can}. 
 
 
 \subsubsection*{Data and code availability} The raw liquid level time series data and Julia code to reproduce our results are available at \url{github.com/SimonEnsemble/tank_inverse_problem}.
