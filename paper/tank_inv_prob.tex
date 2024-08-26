@@ -657,7 +657,7 @@ As a posterior predictive check, Fig.~\ref{fig:posterior_object} displays sample
 \end{figure}
 
 \section{Conclusions and Discussion}
-We demonstrated our ability to reconstruct, with quantified uncertainty, the cross-sectional area of a heavy, exogenous solid (incapable of holding water) inside a tank from (i) a calibrated dynamic model of the liquid level in the tank as it drains through a small orifice and (ii) measurements of the liquid level in the tank over time as it drains.
+We demonstrated our ability to reconstruct, with quantified uncertainty, the cross-sectional area of a heavy, exogenous solid (incapable of holding water) inside a tank from (i) a calibrated dynamic model of the liquid level in the tank as it drains (driven by gravity) through a small orifice and (ii) measurements of the liquid level in the tank over time as it drains.
 First, we constructed, Bayesian-calibrated, and tested a forward model for the dynamics of the liquid level in our tank draining of water.
 The calibrated model predicted the liquid level trajectory in our tank in a replicate experiment with a mean absolute residual of 0.28\,cm.
 Then, we exploited our Bayesian-calibrated forward model to reconstruct the shape of an exogenous, heavy solid (a bottle) inside our draining tank using water level time series data. 
@@ -665,8 +665,11 @@ Essentially, the water ``scanned'' the area of the solid as a function of its he
 The posterior distribution of the bottle's area as a function of height agreed reasonably well with our [more] direct measurements of its area, with $\sim 10$\% reconstruction error over the bottle's radius. 
 % In conclusion, a forward model of the dynamics of the liquid level in a draining tank containing an exogenous solid, a probabilistic measurement model of the liquid level sensor, and liquid level time series data during the process of draining together allow us to reconstruct the area of the exogenous solid as a function of height with quantified uncertainty via Bayesian statistical inversion. 
 
-Our methodology herein could be employed throughout engineering and the applied sciences to infer the shape of an exogenous solid inside of an opaque or underground \cite{gephart2010short} liquid-holding tank in a non-destructive manner, provided we have access to liquid level measurements.
-In a similar manner, one could also infer the height and/or porosity of small, heavy solid particles (e.g. gravel, sand) packed into a liquid holding tank \cite{guellouz2020estimation}.
+Our methodology herein could be employed throughout engineering and the applied sciences to infer the shape of an exogenous solid inside of an opaque or underground \cite{gephart2010short} liquid-holding tank in a non-destructive manner.
+With some modification, one could also infer the height and/or porosity of a bed of small, heavy solid particles (e.g. gravel, sand) packed into a tank \cite{guellouz2020estimation}; we could infer the \emph{shape} of the particles as well, by coupling to a packing model \cite{zhang2006relationship}. 
+While our methodology requires access to the liquid level in the tank as it drains, we could also infer the liquid level from the volumetric flow rate or the geometry of the liquid jet exiting from the tank \cite{groetsch1999inverse}.
+
+
 
 \paragraph{Can we infer the precise geometry of a solid in an opaque, draining tank?}
 We inhibited our ambition to reconstruct the geometry of an exogenous solid inside a draining tank from its liquid level over time by settling for its area as a function of height; determining the precise geometry of the solid is impossible because the dynamics of $h(t)$ depend solely on the area of the solid as a function of height (see eqn.~\ref{eq:forward_model})---and, there are multiple non-congruent solids with an identical area as a function of height. We speculate that, by conducting multiple tank-draining experiments with the tank tilted and held at different angles, we may be able to reconstruct the precise geometry of the solid in the tank. The key idea is that two non-congruent solids with an identical area as a function of height may exhibit different areas as a function of height when tilted; thus, they can be distinguished by tilting the tank. A complication is that gravity could cause the shape to rotate when the tank is tilted. 
