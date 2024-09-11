@@ -10,6 +10,7 @@
 \usepackage[thinc]{esdiff} % for derivatives
 \usepackage{empheq} % boxed equations
 \usepackage{amsmath}
+\usepackage{hyperref}
 %\usepackage[section]{placeins}
 
 
@@ -81,7 +82,6 @@ parbox=false
 %\title{Inferring the shape of a solid inside a gravity-drained tank from liquid level time series data}
 \title{Inferring the shape of a solid inside a draining tank from its liquid level dynamics}
 
-
 \author{%%%% Author details
 Gbenga Fabusola$^{1}$, 
 Cory M. Simon$^{1}$
@@ -104,7 +104,7 @@ Cory M. Simon$^{1}$
 
 %%%% Abstract text to be placed here %%%%%%%%%%%%
 \begin{abstract}
-We aim to reconstruct the shape of an exogenous, heavy solid contained in a tank from the liquid level in the tank as it drains through a small orifice in its side, driven by gravity. (Because the solid displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at that height; as the liquid level drops, it ``scans’' the area of the solid as a function of height.) We combine mathematical modeling, Bayesian statistical inversion, Monte Carlo simulations, and wet experiments of a tank draining of water to demonstrate and test our ability to infer the cross-sectional area of the exogenous solid as a function of height. In our experiment, the posterior distribution over the [held-out] shape of the solid (a bottle) agreed reasonably well with our length-measurements (<10\% mean reconstruction error on its radius). Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, contained in an opaque tank. 
+We aim to reconstruct the shape of an exogenous, heavy solid contained in a tank from the liquid level in the tank as it drains through a small orifice in its side, driven by gravity. (Because the solid displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at that height; as the liquid level drops, it ``scans’' the area of the solid as a function of height.) We combine mathematical modeling, Bayesian statistical inversion, Monte Carlo simulation, and wet experiments of a tank draining of water to demonstrate and test our ability to infer the cross-sectional area of the exogenous solid as a function of height. In our experiment, the posterior distribution over the [held-out] shape of the solid (a bottle) agreed reasonably well with our length-measurements (<10\% mean reconstruction error on its radius). Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, contained in an opaque tank.
 % In engineering, we often encounter an open-top, liquid-holding tank draining via gravity-driven flow through a small orifice in its side. Torricelli's law and a mass balance give a differential equation model governing the dynamics of the liquid level in such a draining tank. Herein, we leverage this forward model to tackle an inverse problem of reconstruction: infer the shape of an exogenous, heavy solid inside a draining tank from measurements of its liquid level over time. To quantify uncertainty, we employ Bayesian statistical inversion to obtain a posterior distribution over the solid's cross-sectional area as a function of height. (Because the solid displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at that height; as the liquid level drops, it ``scans'' the area of the solid as a function of height.) 
 
 
@@ -690,8 +690,13 @@ We inhibited our ambition to reconstruct the geometry of an exogenous solid insi
 
 \paragraph{Other geometric inverse problems.}
 Examples of other geometric inverse problems, where the unknown is a geometric shape \cite{ameur2004level,burger2001level,harbrecht2013numerical,kawakami2020stabilities}, include inferring the shape and location of cracks in a solid \cite{nishimura1991boundary}, fouling on the inner wall of a pipe \cite{chen2011inverse}, mines underground \cite{delbary2007inverse,lopez2003detection}, scattering objects like submarines \cite{yaman2013survey} underwater \cite{buchanan2004marine}, and inclusions or cavities inside thermal conductors \cite{wang2018numerical,nakamura2015reconstruction}
- from boundary measurements; inferring the shape of obstacles in blood vessels from flow measurements \cite{aguayo2021distributed,nolte2022inverse}; and inferring the shape of a membrane from the sound it produces when it vibrates \cite{kac1966can}. 
-
+ from boundary measurements; inferring the shape of obstacles in blood vessels from flow measurements \cite{aguayo2021distributed,nolte2022inverse}; inferring the shape of a membrane from the sound it produces when it vibrates \cite{kac1966can}; and inferring the potential energy of the interaction between a particle and a surface as a function of distance from the distribution of [fluctuating] distance measurements \cite{prieve1999measurement}.
+Geometric inverse problems leading to engineering designs include inferring: 
+the region in input space, constituting design and operating parameters, for a chemical reactor that gives an output falling in a desired set \cite{alves2023inverse,gazzaneo2019process}; 
+the shape of an adhesive pillar that gives a desired interfacial stress distribution \cite{kim2020designing};
+the shape of particles giving a desired packing stiffness \cite{miskin2013adapting}, self-assembly behavior \cite{sacanna2013engineering}, or optical properties \cite{forestiere2016inverse};
+the shape of an airfoil giving desired aerodynamic properties \cite{sun2015artificial};
+and the shape of the blades of a heat exchanger achieve a desired heat exchange \cite{hilbert2006multi}.
 
 \subsubsection*{Data and code availability} The raw liquid level time series data and Julia code to reproduce our results are available at \url{github.com/SimonEnsemble/tank_inverse_problem}.
 
