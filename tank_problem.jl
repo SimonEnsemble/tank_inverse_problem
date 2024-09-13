@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.40
+# v0.19.46
 
 using Markdown
 using InteractiveUtils
@@ -679,7 +679,7 @@ params_to_units = Dict(
 function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			           lm::LengthMeasurements, h₀_obs::Float64
 )
-	fig = Figure(size=(800, 400))
+	fig = Figure(size=(900, 450))
 	axs = [Axis(fig[i, j]) for i = 1:2, j = 1:4]
 
 	for i = 1:2
