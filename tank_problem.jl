@@ -679,7 +679,7 @@ params_to_units = Dict(
 function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			           lm::LengthMeasurements, h₀_obs::Float64
 )
-	fig = Figure(size=(900, 450))
+	fig = Figure(size=(850, 425))
 	axs = [Axis(fig[i, j]) for i = 1:2, j = 1:4]
 
 	for i = 1:2
@@ -700,7 +700,7 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 		
 			# plot equal-tailed 80% interval
 			lo, hi = quantile(posterior[:, p], [0.1, 0.9])
-			lines!(axs[i, j], [lo, hi], [0, 0], linewidth=8, color=Cycled(3))
+			lines!(axs[i, j], [lo, hi], [1, 1], linewidth=8, color="black")
 			
 			axs[i, j].xlabel = params_to_title[p]
 		
@@ -1637,6 +1637,9 @@ end
 # ╔═╡ 8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
 viz_inferred_radius(object_prior, object_true_area, length_measurements, savename="paper/prior_area", show_legend=false, viz_measurements=false)
 
+# ╔═╡ 5b9d558a-2991-489e-be58-f5a5db0479f8
+viz_fit(object_prior, data_w_object, savename="paper/prior_object", only_ic=true)
+
 # ╔═╡ 6d4b0c74-4228-41e4-a8d0-98e0d71333b9
 hist(object_prior[:, "sqrt_a_obj[1]"]) # check prior
 
@@ -1786,5 +1789,6 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╟─bd95428d-1077-4417-bfca-0c5da7378af2
 # ╠═65d81268-9ff2-4a18-b0ce-4b105740dc8b
 # ╠═8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
+# ╠═5b9d558a-2991-489e-be58-f5a5db0479f8
 # ╠═6d4b0c74-4228-41e4-a8d0-98e0d71333b9
 # ╠═67b3c66c-b3eb-438f-96e4-c09e117cde87
