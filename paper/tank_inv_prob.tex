@@ -98,7 +98,7 @@ parbox=false
 
 %%%% Abstract text to be placed here %%%%%%%%%%%%
 \begin{abstract}
-We aim to reconstruct the shape of an exogenous, heavy solid contained in a tank from the liquid level in the tank as it drains through a small orifice in its side, driven by gravity. (Because the solid displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at that height; as the liquid level drops, it ``scans’' the area of the solid as a function of height.) We combine mathematical modeling, Bayesian statistical inversion, Monte Carlo simulation, and wet experiments of a tank draining of water to demonstrate and test our ability to infer the cross-sectional area of the exogenous solid as a function of height. In our experiment, the posterior distribution over the [held-out] shape of the solid (a bottle) agreed reasonably well with our length-measurements ($<$10\% mean reconstruction error on its radius). Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, contained in an opaque tank.
+We aim to reconstruct the shape of an exogenous, heavy solid contained in a tank from measurements of the liquid level in the tank as it drains (driven by gravity) through a small orifice in its side. (Because the solid displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at that height; as the liquid level drops, it ``scans’' the area of the solid as a function of height.) We combine mathematical modeling, Bayesian statistical inversion, Monte Carlo simulation, and wet experiments of a tank draining of water to demonstrate and test our ability to infer the cross-sectional area of the exogenous solid as a function of height. In our experiment, the posterior distribution over the [held-out] shape of the solid (a bottle) agreed reasonably well with our length-measurements ($<$10\% mean reconstruction error on its radius). Our approach may be practically useful to non-destructively characterize the geometry of an unknown solid, or a packed bed of solid particles, contained in an opaque tank.
 % In engineering, we often encounter an open-top, liquid-holding tank draining via gravity-driven flow through a small orifice in its side. Torricelli's law and a mass balance give a differential equation model governing the dynamics of the liquid level in such a draining tank. Herein, we leverage this forward model to tackle an inverse problem of reconstruction: infer the shape of an exogenous, heavy solid inside a draining tank from measurements of its liquid level over time. To quantify uncertainty, we employ Bayesian statistical inversion to obtain a posterior distribution over the solid's cross-sectional area as a function of height. (Because the solid displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at that height; as the liquid level drops, it ``scans'' the area of the solid as a function of height.) 
 
 
@@ -123,7 +123,7 @@ Interestingly, ancient societies (e.g.\ ancient Greece) exploited the empiricall
 Specifically, the outflow \emph{clepsydra}, Greek for ``water thief'', was an open-top container with a small hole near its bottom and graduated markings on the inside. 
 Filled with water then allowed to drain, the elapsed time was indicated by the liquid level with respect to the markings on the inside. \cite{bedini1962compartmented,hwang2021historical,ritner2016oriental,hejun1987research,schomberg2018karnak,mills1982newton}
 The preserved Karnak clepsydra from $\sim$1300 BC \cite{schomberg2018karnak} is an inverted truncated cone. Notably, this geometry does not provide a constant rate of decrease in the water level; perhaps, though, its wider top was intended to compensate for faster outflow at higher water levels. An inverse problem pertaining to an outflow clepsydra is: what clepsydra shape provides a constant rate of decrease in the water level as it drains?
-(Such a clepsydra may be obtained via a solid of revolution about the vertical axis such that the radius is proportional to the quartic root of the height. \cite{mills1982newton,d2021torricelli})
+(Such a clepsydra may be obtained via a solid of revolution about the vertical axis such that the radius increases with the quartic root of the height. \cite{mills1982newton,d2021torricelli})
 \end{mytcbox}
 %Draining tanks have been studied since ancient times, as evidenced by water clocks in ancient Egypt, Greece, India, and China.
 %The water clock, or clepsydra (Greek for ''water thief''), of the outflow design consisted of an open-top container, filled with water at some reference time, with a small orifice for outflow near its bottom.
@@ -142,13 +142,13 @@ The cross-sectional area of the orifice affects the emptying time; theoretically
 However, a \emph{discharge coefficient} \cite{de2000pin,blasone2015discharge,wadhwa2021study,liu2008drainage} must be introduced into the model for agreement with experimentally-measured volumetric outflow rates \cite{farmer1992physical,driver1998torricelli,brady2009siphons,rother2024modelling,paldy1963apparatus,ivanov2014testing,williams2021vessel,pavesi2019investigating,planinvsivc2011holes,saleta2005experimental,lopac2015water,powell2012carrying}.
 The discharge coefficient \cite{teoman2022discharge,hicks2014determining,blasone2015discharge,lienhard1984velocity,wadhwa2021study}
 (i) is defined as the ratio of the observed outlet volumetric flow rate to that predicted by Torricelli's law and the area of the orifice \cite{hicks2014determining};
-(ii) accounts for (a) the vena contracta of the liquid jet (the cross-sectional area of the liquid jet issuing from the orifice is smaller than that of the orifice, owing to fluid streamlines in the tank, near the orifice, non-perpendicular to the orifice area \cite{horsch2020simple}), (b) frictional losses across the orifice, and (c) non-uniformity of the velocity profile; and
+(ii) accounts for (a) the vena contracta of the liquid jet (the cross-sectional area of the liquid jet issuing from the orifice is smaller than that of the orifice, owing to fluid streamlines in the tank, near the orifice, non-perpendicular to the face of the orifice \cite{horsch2020simple}), (b) frictional losses across the orifice, and (c) non-uniformity of the velocity profile; and
 (iii) depends on the rheology of the liquid, the geometry of the orifice, and, for laminar flow, the Reynolds number \cite{teoman2022discharge}. 
 %  and (ii) depends on the rheology of the fluid and the geometry of the orifice. 
 
 
 In contrast to the \emph{forward problem} of using this dynamic model to predict the trajectory of the liquid level in a draining tank of a given geometry, Groetsch \cite{groetsch1993inverse_tl,groetsch1999inverse} framed an \emph{inverse problem} \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse}: reconstruct the shape of the tank from its liquid level over time as it drains. 
-While impossible to infer the precise geometry of the tank, one can leverage the dynamic model to determine the cross-sectional area of the tank as a function of height from the liquid level as a function of time. (The rate of decrease of the liquid level is indicative of the cross-sectional area of the tank at that height. The outlet flow rate depends on the water height only, not width; so, wider [say, cylindrical] tanks drain more slowly.)
+While impossible to infer the precise geometry of the tank, one can leverage the dynamic model to determine the cross-sectional area of the tank as a function of height from the liquid level as a function of time. (The rate of decrease of the liquid level provides information about the cross-sectional area of the tank at that height. The outlet flow rate depends on the height of water only; so, wider [say, cylindrical] tanks drain more slowly.)
 However, this inverse problem of reconstruction is unstable: small errors in the measured liquid level can cause large errors in the estimated area of the tank. \cite{groetsch1993inverse_tl}
 
 Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to solve, with quantified uncertainty, an inverse problem of reconstruction: infer the shape of an exogenous, heavy solid (of unknown geometry but incapable of holding water) contained in a draining tank (of known geometry) from measurements of the liquid level in the draining tank over time.
@@ -156,8 +156,8 @@ Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar
 As the tank drains, the liquid ``scans'' the area of the solid as a function of height.)
 To test our ability to reconstruct the shape of the solid in the tank, we conduct tank drainage experiments with water and collect water level time series data with a level sensing strip. First, we build and calibrate (i.e., determine the posterior distribution of the parameters of) (i) a forward model of the dynamics of the water level in our draining tank and (ii) a probabilistic model of measurement noise from our level sensor.
 For this task, we take length-measurements of the tank and orifice geometry and collect water level time series data from a tank drainage experiment without an exogenous solid. 
-Second, we conduct a tank drainage experiment with an exogenous solid in the tank (a bottle). We then leverage this water level time series data and our calibrated forward and measurement models to obtain a posterior distribution over the area of the solid in the tank as a function of height.
-Comparing with our [more] direct (via a tape measure) measurements of the solid's geometry, the inferred area of the solid traces its shape reasonably well ($<$10\% mean reconstruction error on the bottle's radius). Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, inside of an opaque or underground tank in a non-destructive manner.
+Second, we conduct a tank drainage experiment with an exogenous solid in the tank (a bottle). We then leverage this water level time series data and our calibrated forward and measurement models to obtain a posterior distribution over the area of the solid as a function of height.
+Comparing with our [more] direct (via a tape measure) measurements of the solid's geometry, the inferred area of the solid traces its shape reasonably well ($<$10\% mean reconstruction error on the bottle's radius). Our approach may be practically useful to non-destructively determine the shape of an unknown solid, or the porosity, shape, and/or height of packed solid particles, inside of an opaque or underground tank.
 
 %
 %Because this reconstruction problem is unstable \cite{groetsch1993inverse}, 
@@ -236,7 +236,7 @@ Invoking Torricelli's law, we model the volumetric flow rate out of the tank at 
 	c \pi r_o^2 \sqrt{2 g(h(t)-h_o)}, \label{eq:outletflow}
 \end{equation}
 with $c\in(0,1)$ the [dimensionless] discharge coefficient---a ``fudge factor'' to account for the vena contracta in the water jet, non-plug flow through the orifice, and frictional losses as the water flows through the orifice \cite{horsch2020simple,teoman2022discharge,hicks2014determining,blasone2015discharge,lienhard1984velocity,wadhwa2021study}. 
-Note, $c=1$ corresponds with an ideal water jet with cross-sectional area equal to that of the orifice ($\pi r_o^2$), plug flow, and zero frictional losses.
+Note, $c=1$ corresponds with an ``ideal'' water jet with cross-sectional area equal to that of the orifice ($\pi r_o^2$), plug flow, and zero frictional losses.
 
 \paragraph{Volume of water in the tank.} 
 The volume $V$ [cm$^3$] of water in the tank at time $t$, when the water height is $h(t)$, follows from the method of cross-sections in calculus \cite{debook}:
@@ -300,7 +300,7 @@ with the Gaussian-distributed random variable $\Psi \overset{\text{iid}}{\sim} \
 Then, the probability density of the measured liquid level is a Gaussian centered at the model prediction:
 \begin{equation}
 	H_{\text{obs}} \mid h_0, \boldsymbol \alpha, \boldsymbol  \theta, \sigma^2 \overset{\text{iid}}{\sim} \mathcal{N}(\themodelnomath, \sigma^2). \label{eq:H_obs_distn}
-\end{equation} We are explicit that $H_{\text{obs}}$ is conditioned upon the inputs, parameters, and noise variance.
+\end{equation} We are explicit that $H_{\text{obs}}$ is conditioned upon the inputs, parameters, and noise variance and neglect model discrepancy \cite{brynjarsdottir2014learning}.
 % Sources of this noise are: imprecision of the liquid level strip, our calibration curve for the liquid level strip, vibrations
 
 % TODO: plot residuals
@@ -313,7 +313,7 @@ Based on eqn.~\ref{eq:H_obs_distn}, the likelihood density is:
  \pi_{\text{like}}(\thedatanomath \mid h_0,\boldsymbol  \alpha, \boldsymbol \theta, \sigma^2 ) = \\ \prod_{i=1}^N \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left[-\frac{1}{2}\left(\frac{h_{\text{obs}, i} - h(t_i; h_0, \boldsymbol\alpha, \boldsymbol\theta)}{\sigma} \right)^2 \right]. \label{eq:like}
 \end{multline}
 Once we obtain the data \thedata, we view the likelihood as a function of $h_0$, $\boldsymbol \alpha$, $\boldsymbol \theta$, and $\sigma^2$.
-The likelihood function (i) scores the consistency between (a) the model predictions of the water level over time, with proposed values for the inputs and parameters, and (b) the water level time series data and, hence, (ii) quantifies the support the data lend for each possible set of values for the inputs and parameters \cite{van2021bayesian}. 
+The likelihood function (i) scores the consistency between (a) the model predictions, with proposed values for the inputs and parameters, of the water level over time and (b) the water level time series data and, hence, (ii) quantifies the support the data lend for each possible set of values for the inputs and parameters \cite{van2021bayesian}. 
 % The key idea is: if the data were likely (unlikely) to be obtained under proposed values for the inputs and parameters, then the 
 
 \section{Bayesian statistical inversion (BSI)} \label{sec:bsi}
