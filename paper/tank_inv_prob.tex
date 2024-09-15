@@ -105,10 +105,10 @@ We aim to reconstruct the shape of an exogenous, heavy solid contained in a tank
 % In our experimental setup, a tank drains of water through a small orifice in its side while a liquid level sensor collects time series data of the water level. First, we calibrate and test a forward model of the water level dynamics using data from two tank drainage experiments without an exogenous solid. Second, we conduct a drainage experiment with the tank containing an exogenous solid, then leverage the calibrated forward model and data to infer (i.e., obtain a posterior distribution for) the area of the solid inside the tank as a function of height. Our approach may be practically useful to infer the shape of an unknown solid, or the porosity of packed solid particles, inside of an opaque tank. 
 %\newline
 
-\begin{center}
-	\includegraphics[height=0.2\textwidth]{tank_w_bottle.pdf}
-	\includegraphics[height=0.2\textwidth]{toy_h_w_object.pdf}
-\end{center}
+%\begin{center}
+%	\includegraphics[height=0.2\textwidth]{tank_w_bottle.pdf}
+%	\includegraphics[height=0.2\textwidth]{toy_h_w_object.pdf}
+%\end{center}
 
 \end{abstract}
 
@@ -151,7 +151,7 @@ In contrast to the \emph{forward problem} of using this dynamic model to predict
 While impossible to infer the precise geometry of the tank, one can leverage the dynamic model to determine the cross-sectional area of the tank as a function of height from the liquid level as a function of time. (The rate of decrease of the liquid level provides information about the cross-sectional area of the tank at that height. The outlet flow rate depends on the height of water only; so, wider [say, cylindrical] tanks drain more slowly.)
 However, this inverse problem of reconstruction is unstable: small errors in the measured liquid level can cause large errors in the estimated area of the tank. \cite{groetsch1993inverse_tl}
 
-Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to solve, with quantified uncertainty, an inverse problem of reconstruction: infer the shape of an exogenous, heavy solid (of unknown geometry but incapable of holding water) contained in a draining tank (of known geometry) from measurements of the liquid level in the draining tank over time.
+Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to solve, with quantified uncertainty, an inverse problem of reconstruction (or, ``seeing the unseen'' \cite{uhlmann2014inverse}): infer the shape of an exogenous, heavy solid (of unknown geometry but incapable of holding water) contained in a draining tank (of known geometry) from measurements of the liquid level in the draining tank over time.
 (Because the solid displaces liquid in the tank, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at the height of the liquid.
 As the tank drains, the liquid ``scans'' the area of the solid as a function of height.)
 To test our ability to reconstruct the shape of the solid in the tank, we conduct tank drainage experiments with water and collect water level time series data with a level sensing strip. First, we build and calibrate (i.e., determine the posterior distribution of the parameters of) (i) a forward model of the dynamics of the water level in our draining tank and (ii) a probabilistic model of measurement noise from our level sensor.
@@ -496,7 +496,7 @@ We employ NUTS to draw $2000$/chain samples of inputs/parameters from the poster
       (a) We fill our tank (devoid of an exogenous solid) with water, then, at $t=0$, allow it to drain through the orifice in its side. A level sensor measures the water level.     
       (b) Samples of water level trajectories from the prior.
       (c) Time series data from the tank drainage experiment and samples of water level trajectories from the posterior (hollow points omitted).
-       (d) Visualizing the posterior. Left: marginals. Right: covariance matrix.      
+       (d) Visualizing the posterior. Left: marginals (vertical red lines: measurements, horizontal black bars: 80\% credible intervals). Right: (clipped) covariance matrix.      
       }
 \end{figure*}
 
@@ -569,7 +569,7 @@ Our objective is to obtain the posterior distribution of $\mathbf{A}$ (random va
       \textbf{Reconstructing the shape of an exogenous solid in the draining tank.} 
       (a) We fill our tank, containing a heavy glass bottle, with water, then, at $t=0$, allow it to drain through the orifice in its side.
       (b) Samples from the prior of (left) the square root of the solid's area as a function of height (orange lines), along with the square root of the area of the tank (gray) and (right) associated liquid level trajectories.
-      (c) Time series data from the tank drainage experiment and samples of water level trajectories from the posterior.
+      (c) Time series data from the tank drainage experiment and samples of water level trajectories from the posterior (hollow points omitted).
       (d) Samples of the square root of the solid's inferred area as a function of height from the posterior distribution (orange lines) compared with held-out, direct measurements (points) and the tank's area (gray).
       }
 \end{figure*}

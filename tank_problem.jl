@@ -787,13 +787,13 @@ function viz_fit(
 	posterior::DataFrame, data::DataFrame; 
 	savename::Union{String, Nothing}=nothing, 
 	n_sample::Int=50, only_ic::Bool=false,
-	n_data_end_omit::Int=0
+	n_data_end_omit::Int=0, incl_legend::Bool=true, legend_pos=:lb
 )
 	fig = Figure()
 	ax = Axis(
 		fig[1, 1], 
 		xlabel="time, t [s]", 
-		ylabel="liquid height, h [cm]"
+		ylabel="water height, h [cm]"
 	)
 	
 	ts = range(0, 1.05 * maximum(data[:, "t [s]"]), length=500)
@@ -847,7 +847,7 @@ function viz_fit(
 		mar += mean_abs_residual(data, sim_data)
 
 		# h hole
-		hlines!(ax, posterior[i, "hₒ"], color=("gray", 0.1), linestyle=:dash)
+		hlines!(ax, posterior[i, "hₒ"], color=("gray", 0.1), linestyle=:dash, label="hₒ")
 	end
 	mar /= n_sample
 	println("mean abs residual: [cm] ", mar)
@@ -869,8 +869,10 @@ function viz_fit(
 			color=("white", 0.0)
 		)
 	end
-	axislegend(unique=true)
-	ylims!(0, nothing)
+	if incl_legend
+		axislegend(unique=true, position=legend_pos)
+	end
+	ylims!(0, 28.0)
 	xlims!(0, 1150.0)
 	if savename!=nothing
 		save( "$savename.pdf", fig)
@@ -879,7 +881,7 @@ function viz_fit(
 end
 
 # ╔═╡ 2a01b228-f281-46c4-9764-fac6cc1b4217
-viz_fit(train_posterior, train_data, savename="paper/posterior_train", n_data_end_omit=nb_data_train_omit)
+viz_fit(train_posterior, train_data, savename="paper/posterior_train", n_data_end_omit=nb_data_train_omit, incl_legend=false)
 
 # ╔═╡ 18b5c6d2-2230-4881-8066-51eff42125ae
 train_data
@@ -904,7 +906,7 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 	ax = Axis(
 		fig[2, 1], 
 		xlabel="time, t [s]", 
-		ylabel="liquid level, h [cm]",
+		ylabel="water height, h [cm]",
 	)
 
 	# sample from the train posterior
@@ -962,12 +964,12 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		ax,
 		test_data[:, "t [s]"], 
 		test_data[:, "h [cm]"],
-		label="data (held-out)",
+		label="data",
 		color=colors["data"]
 	)
 	# @assert 1.25 * test_data[end, "t [s]"] > maximum(emptying_time)
 	xlims!(0, 1.01 * maximum(emptying_time))
-	ylims!(ax, 0, nothing)
+	ylims!(ax, 0, 28.0)
 	ylims!(ax_stopping, 0, nothing)
 
 	linkxaxes!(ax, ax_stopping)
@@ -1475,7 +1477,7 @@ end
 @assert all(object_posterior[:, "h₀"] .< object_posterior[:, "h_max"])
 
 # ╔═╡ e1264f57-f675-4f37-b4db-313cfc52ab8e
-viz_fit(object_posterior, data_w_object, savename="paper/posterior_object", n_data_end_omit=nb_data_object_omit)
+viz_fit(object_posterior, data_w_object, savename="paper/posterior_object", n_data_end_omit=nb_data_object_omit, incl_legend=false)
 
 # ╔═╡ 7127fc35-a0af-4463-9448-a948f229fd47
 function viz_inferred_radius(
@@ -1638,7 +1640,7 @@ end
 viz_inferred_radius(object_prior, object_true_area, length_measurements, savename="paper/prior_area", show_legend=false, viz_measurements=false)
 
 # ╔═╡ 5b9d558a-2991-489e-be58-f5a5db0479f8
-viz_fit(object_prior, data_w_object, savename="paper/prior_object", only_ic=true)
+viz_fit(object_prior, data_w_object, savename="paper/prior_object", only_ic=true, legend_pos=:rt)
 
 # ╔═╡ 6d4b0c74-4228-41e4-a8d0-98e0d71333b9
 hist(object_prior[:, "sqrt_a_obj[1]"]) # check prior
