@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.38
+# v0.20.1
 
 using Markdown
 using InteractiveUtils
@@ -44,10 +44,10 @@ H = 28.6 # cm
 
 # ╔═╡ ad79ab7a-74a6-4043-a1c1-7d4738e2d1ed
 begin
-	r_hole = 1 / 8 * 2.54 / 2 # cm
+	r_hole = 5 / 64 * 2.54 / 2 # cm
 	a_hole = π * r_hole ^ 2 # cm²
 
-	h_hole = 2.5 # cm
+	h_hole = 0.9 # cm
 end
 
 # ╔═╡ 633af570-2e83-41b8-8854-fcaad776b1de
@@ -65,7 +65,7 @@ read in data for calibration of the liquid level sensor.
 "
 
 # ╔═╡ e602eab3-b4a1-41d5-9181-4f9c253a5677
-calibration_data = CSV.read("../liquid calibration.csv", DataFrame)
+calibration_data = CSV.read("../calibration_curve.csv", DataFrame)
 
 # ╔═╡ 03a52d5f-2931-42be-9270-e15ac322057a
 md"create a linear interpolator to obtain liquid level at level sensor readings between those recorded in the calibration data set."
@@ -73,7 +73,7 @@ md"create a linear interpolator to obtain liquid level at level sensor readings 
 # ╔═╡ ad0d77c2-2c9d-4d6d-849a-52a95343d8ab
 sensor_output_to_h = linear_interpolation(
 	calibration_data[:, "level sensor reading"], 
-	calibration_data[:, "liquid level (cm)"]
+	calibration_data[:, "h [cm]"]
 )
 
 # ╔═╡ e73ae703-5814-44b1-b546-f983299a591e
@@ -93,7 +93,7 @@ begin
 	
 	scatter!(
 		calibration_data[:, "level sensor reading"], 
-		calibration_data[:, "liquid level (cm)"]
+		calibration_data[:, "h [cm]"]
 	)
 	
 	lr = range(
@@ -113,42 +113,70 @@ read in and process time series data collected during an experiment where the ta
 "
 
 # ╔═╡ 27c461b1-9ded-417a-83a8-d08643e72e32
-function read_process_data(expt_no::Int; t_begin::Float64=0.0)
-	# read in
-	data = CSV.read(
-		"../experiment $expt_no- 1-12.csv", 
-		DataFrame, 
-		types=[Float64, Float64]
+function read_h_time_series(file::String)
+	#=
+	read in file
+	=#
+	data = CSV.read(file, DataFrame)
+	rename!(data, 
+		" liquid_level_reading" => "liquid_level_reading",
+		"Time [s]" => "t [s]"
 	)
-	# downsample
-	data = data[1:100:nrow(data), :]
 
+	#=
+	find starting point, t = 0, as when max water level occurs.
+	=#
+	# index of highest water level
+	id_start = argmax(data[:, "liquid_level_reading"])
+	# remove data before that
+	data = data[id_start:end, :]
 	# shift time
-	filter!(row -> row["Time [s]"] > t_begin, data)
-	data[:, "Time [s]"] = data[:, "Time [s]"] .- t_begin
+	data[:, "t [s]"] = data[:, "t [s]"] .- data[1, "t [s]"]
+	data[:, "t [min]"] = data[:, "t [s]"] / 60
 
-	# apply calibration curve
-	data[:, "h [cm]"] = map(sensor_output_to_h, data[:, " liquid_level_reading"])
+	#=
+	apply calibration curve to get h
+	=#
+	data[:, "h [cm]"] = sensor_output_to_h.(data[:, "liquid_level_reading"])
 	
-	return select(data, ["Time [s]", "h [cm]"])
+	return select(data, ["t [min]", "h [cm]"])
 end
 
-# ╔═╡ 9e760ae6-bd5b-4fdc-a385-133b4869e163
-data = read_process_data(3, t_begin=50.0)
+# ╔═╡ b5edda70-4771-48f8-a11a-afcb2b4bf33d
+function downsample(data::DataFrame, n::Int)
+	# filter out sensor data that is below 508
+	# this is the liquid level where the jet shooting outside the tank
+	# dies, and it just runs down the tank (Toricelli's law invalid)
+	data = filter("h [cm]" => (x -> x >= sensor_output_to_h(508)), data)
+	
+	ids = trunc.(Int, collect(range(1, nrow(data), length=n)))
+	return data[ids, :]
+end
+
+# ╔═╡ bd4f9b9f-7af4-44cf-8b54-65222d64de13
+train_experiment = "../no_obs_4_18_2.csv"
+
+# ╔═╡ 176a95b8-c2e9-4713-ad51-8997a7b65c09
+test_experiment  = "../no_obs_4_18_3.csv"
+
+# ╔═╡ b2757732-d93b-479c-a20b-a8e8aef75efb
+data = downsample(read_h_time_series(train_experiment), 20)
 
 # ╔═╡ 4d603ba3-2b2d-4c37-a7af-88e333c32a6c
 function viz_data(data::DataFrame)
 	fig = Figure()
 	ax = Axis(
 		fig[1, 1], 
-		xlabel="time [s]", 
+		xlabel="time [min]", 
 		ylabel="h [cm]"
 	)
 	scatter!(
-		data[:, "Time [s]"], 
+		data[:, "t [min]"], 
 		data[:, "h [cm]"],
 		label="data"
 	)
+	xlims!(0, nothing)
+	ylims!(0, nothing)
 	fig
 end
 
@@ -161,7 +189,7 @@ set up ODE model governing $h(t;c)$ where $c$ is a paramter.
 "
 
 # ╔═╡ e8de8919-4147-4255-afbf-de9f13e5e37a
-g = 980.0 # cm / s²
+g = 980.665 * 60^2 # cm/s² -> cm/min²
 
 # ╔═╡ afaa06c2-da85-11ee-1846-cb19e3e8c03b
 # right-hand side of ODE
@@ -178,7 +206,7 @@ end
 h₀ = data[1, "h [cm]"] # initial liquid level
 
 # ╔═╡ 7afa6f66-4e6e-4d45-b038-19a26ffb605d
-tspan = (0.0, 410.0) # s
+tspan = (0.0, 20.0) # min
 
 # ╔═╡ dce788c9-ed23-453e-afe4-76b384799ee1
 prob = ODEProblem(f, h₀, tspan, [1.0], saveat=1.0)
@@ -214,9 +242,9 @@ function loss(c)
 
 	# compute loss
 	ℓ = 0.0
-	for row in eachrow(data)
+	for row in eachrow(data[1:end-3, :])
 		# extract data point
-		tᵢ = row["Time [s]"]
+		tᵢ = row["t [min]"]
 		hᵢ = row["h [cm]"]
 		
 		# get predicted h
@@ -229,7 +257,7 @@ function loss(c)
 end
 
 # ╔═╡ c8e6165e-7bca-4784-bed9-e655fb33644d
-cs = range(0.4, 1.1, length=15)
+cs = range(0.75, 1.0, length=15)
 
 # ╔═╡ f9860b59-9943-4eac-b7aa-d7a06340ad79
 begin
@@ -265,10 +293,34 @@ begin
 		ax, 
 		sim_data_opt[:, "timestamp"], 
 		sim_data_opt[:, "value"], 
-		label="sim",
+		label="simulation",
 		color=Cycled(2)
 	)
+	xlims!(0, nothing)
+	ylims!(0, nothing)
 	axislegend()
+	save("train_fit.pdf", fig)
+	fig
+end
+
+# ╔═╡ 947b8285-36c6-4949-9d3b-7b8da0f19e2c
+begin
+	local fig = Figure()
+	local ax = Axis(
+		fig[1, 1], 
+		xlabel="time [min]", 
+		ylabel="h [cm]"
+	)
+	lines!(
+		ax, 
+		sim_data_opt[:, "timestamp"], 
+		sim_data_opt[:, "value"],
+		color=Cycled(2)
+	)
+	scatter!([0], [h₀])
+	xlims!(0, tspan[2])
+	ylims!(0, nothing)
+	save("just_sim.pdf", fig)
 	fig
 end
 
@@ -281,7 +333,7 @@ the test data contains time series data for $h(t)$ when the tank was draining in
 "
 
 # ╔═╡ d8fe78f3-ab8b-4716-bea2-47edcad2d912
-data_test = read_process_data(4, t_begin=50.0)
+data_test = downsample(read_h_time_series(test_experiment), 20)
 
 # ╔═╡ 2ea68858-158b-48e9-b8eb-5230542f9f04
 viz_data(data_test)
@@ -303,7 +355,7 @@ begin
 		ax, 
 		sim_data_test[:, "timestamp"], 
 		sim_data_test[:, "value"], 
-		label="sim",
+		label="simulation",
 		color=Cycled(2)
 	)
 	axislegend()
@@ -329,7 +381,10 @@ end
 # ╠═3a2a1f79-bdae-411b-8f7e-62b3edcacb2e
 # ╟─180dfe22-6948-431f-a7eb-8e85e4b0f6df
 # ╠═27c461b1-9ded-417a-83a8-d08643e72e32
-# ╠═9e760ae6-bd5b-4fdc-a385-133b4869e163
+# ╠═b5edda70-4771-48f8-a11a-afcb2b4bf33d
+# ╠═bd4f9b9f-7af4-44cf-8b54-65222d64de13
+# ╠═176a95b8-c2e9-4713-ad51-8997a7b65c09
+# ╠═b2757732-d93b-479c-a20b-a8e8aef75efb
 # ╠═4d603ba3-2b2d-4c37-a7af-88e333c32a6c
 # ╠═b375842f-f762-4ac4-a645-19d0f479b0c3
 # ╟─bb175715-e92c-46db-83a6-1941ff7b5815
@@ -351,6 +406,7 @@ end
 # ╠═f30f8862-81fc-4ae6-a218-fd9df8e60093
 # ╠═06804f34-1bc3-43e9-8c52-bd5953ce1628
 # ╠═17199b2d-fd12-4460-8581-219681ad6553
+# ╠═947b8285-36c6-4949-9d3b-7b8da0f19e2c
 # ╟─5acc0622-68ed-48f8-ad5d-56225fa51afe
 # ╠═d8fe78f3-ab8b-4716-bea2-47edcad2d912
 # ╠═2ea68858-158b-48e9-b8eb-5230542f9f04
