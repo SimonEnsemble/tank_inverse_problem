@@ -1,17 +1,19 @@
 ### A Pluto.jl notebook ###
-# v0.19.46
+# v0.20.3
 
 using Markdown
 using InteractiveUtils
 
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
+    #! format: off
     quote
         local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
         local el = $(esc(element))
         global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
         el
     end
+    #! format: on
 end
 
 # ╔═╡ faf59350-8d67-11ee-0bdd-2510e986118b
@@ -99,58 +101,53 @@ length_measurements = LengthMeasurements(
 	5 / 64 * 2.54 / 2 # in diam -> cm diam -> radius
 )
 
-# ╔═╡ 06673583-6631-4561-a7c4-66232d9d7fd7
-function rounded_rectangle_area(l, w, p; verbose::Bool=false)
-	# solve for the r consistent with a rounded rectangle [cm]
-	#  https://mathworld.wolfram.com/RoundedRectangle.html
-	r = (p / 2 - (l + w)) / (π - 4)
-	if verbose
-		@show r
-	end
-	return (l - 2 * r) * (w - 2 * r) + # main rectangle
-		2 * r * (l + w - 4 * r) + # four strips
-		π * r ^ 2 # four circles
-end
+# ╔═╡ 439baaee-492d-493d-b30f-5d50312cf8e3
+# infer radius for rounded rectangle
+plw_to_r(p, l, w) = (p / 2 - (l + w)) / (π - 4)
 
-# ╔═╡ 9c33755b-5f82-4cc5-9742-ca7d52f0cc3c
-rounded_rectangle_area(
-	length_measurements.l_t,
-	length_measurements.w_t,
-	length_measurements.p_t,
-	verbose=true
-)
-
-# ╔═╡ edd07812-4fee-4cc5-b914-160a7824b5e1
-rounded_rectangle_area(
-	length_measurements.l_b,
-	length_measurements.w_b,
-	length_measurements.p_b,
-	verbose=true
-)
-
-# ╔═╡ 89cd4845-4cee-4ddf-b324-dcd2ac3224ca
+# ╔═╡ 6d94f549-645d-4c27-9e4f-046542b5fb16
 begin
 	struct TankGeometry
-		a_t::Float64
-		a_b::Float64
+		# rounded rectangle (top)
+		l_t::Float64
+		w_t::Float64
+		r_t::Float64 
+		
+		# rounded rectangle (bottom)
+		l_b::Float64
+		w_b::Float64
+		r_b::Float64 
+
+		# height of tank
 		h_max::Float64
+
+		# orifice height
 		hₒ::Float64
+
+		# orifice radius
 		rₒ::Float64
 	end
 	
 	function TankGeometry(lm::LengthMeasurements)
+		# infer r of rounded rectangle (top and bottom)
+		r_t = plw_to_r(lm.p_t, lm.l_t, lm.w_t)
+		r_b = plw_to_r(lm.p_b, lm.l_b, lm.w_b)
+		
 		return TankGeometry(
-			rounded_rectangle_area(lm.l_t, lm.w_t, lm.p_t),
-			rounded_rectangle_area(lm.l_b, lm.w_b, lm.p_b),
+			lm.l_t, lm.w_t, r_t,
+			lm.l_b, lm.w_b, r_b,
 			lm.h_max, lm.hₒ, lm.rₒ
 		)
 	end
 end
 
-# ╔═╡ a391cd0a-f752-4efd-92de-43e7cec656d4
-tank_geometry = TankGeometry(length_measurements)
+# ╔═╡ 109a382d-8d41-4bc3-a23b-439a987b17c7
+# area of rounded rectangle
+lwr_to_a(l, w, r) = (l - 2 * r) * (w - 2 * r) + # main rectangle
+		2 * r * (l + w - 4 * r) + # four strips
+		π * r ^ 2 # four circles
 
-# ╔═╡ 48d7273e-a48b-49fd-991b-6e29f64a0760
+# ╔═╡ a6687107-7448-451e-a3cf-04a3d2c3d7a5
 """
 cross-sectional area of water from helicopter view, as a function of liquid level, h.
 """
@@ -158,10 +155,20 @@ function A_of_h(h::Float64, tg::TankGeometry)
 	# check for over/underflow
 	h < 0.0      ? error("tank underflow!") : nothing
 	h > tg.h_max ? error("tank overflow!")  : nothing
-	# linearly interpolate top and bottom areas
+
+	# fraction tank is full
 	θ = h / tg.h_max
-	return θ * tg.a_t + (1 - θ) * tg.a_b
+
+	# l, w, r of rounded rectangle here
+	l = tg.l_b * (1 - θ) + tg.l_t * θ
+	w = tg.w_b * (1 - θ) + tg.w_t * θ
+	r = tg.r_b * (1 - θ) + tg.r_t * θ
+	
+	return lwr_to_a(l, w, r)
 end
+
+# ╔═╡ a391cd0a-f752-4efd-92de-43e7cec656d4
+tank_geometry = TankGeometry(length_measurements)
 
 # ╔═╡ 9a7e5903-69be-4e0a-8514-3e05feedfed5
 begin
@@ -365,17 +372,18 @@ md"""
 
 # ╔═╡ c6a263eb-cb45-4ee7-9c02-549c89298652
 function f!(dh, h, params, t) # use in-place to prevent ODE error
+	# if liquid level drops below height of orifice, none can leave.
 	if h[1] <= params.hₒ
 		dh[1] = 0.0
 		return 0.0
 	end
 	# for unphysical stuff
-	if (params.rₒ < 0.0) || (params.c < 0.0)
-		dh[1] = 1.0 # bogus but controlled growth so this won't count.
-	else
-		dh[1] = - π * params.rₒ ^ 2 * params.c * 
-			sqrt(2 * g * (h[1] .- params.hₒ)) / params.A_of_h(h[1])
-	end
+	# if (params.rₒ < 0.0) || (params.c < 0.0)
+	# 	dh[1] = 1.0 # bogus but controlled growth so this won't count.
+	# else
+	dh[1] = - π * params.rₒ ^ 2 * params.c * 
+		sqrt(2 * g * (h[1] .- params.hₒ)) / params.A_of_h(h[1])
+	# end
 end
 
 # ╔═╡ 05ed4187-a01a-4a16-a0e7-b3867d252578
@@ -528,7 +536,7 @@ md"""
 """
 
 # ╔═╡ 58eff13c-44b5-4f19-8a42-cf9907ac9515
-@bind n_MC_sample Select([25, 50, 100, 250, 2000], default=2000)
+@bind n_MC_sample Select([25, 50, 100, 250, 2000], default=25)
 
 # ╔═╡ 68c9d88a-99b7-49be-9ac4-1e06c694c1a6
 @bind n_chains Select([3, 5], default=3)
@@ -568,8 +576,19 @@ const σᵣ = 0.001 # cm [precision of our drill]
 	hₒ ~ Normal(lm.hₒ, σₗ)
 	rₒ ~ Normal(lm.rₒ, σᵣ)
 
-	a_t = rounded_rectangle_area(l_t, w_t, p_t)
-	a_b = rounded_rectangle_area(l_b, w_b, p_b)
+	# area of tank
+	# infer radius of circles from simulated measurements
+	r_t = plw_to_r(p_t, l_t, w_t)
+	r_b = plw_to_r(p_b, l_b, w_b)
+
+	function sampled_A_of_h(h)
+		θ = h / h_max # fraction tank is full
+		# calcualte l, w, r of rounded rectangle here.
+		l = l_b * (1 - θ) + l_t * θ
+		w = w_b * (1 - θ) + w_t * θ
+		r = r_b * (1 - θ) + r_t * θ
+		return lwr_to_a(l, w, r)
+	end
 
 	# discharge coefficient
 	c ~ Truncated(Normal(0.65, 0.25), 0.0, 1.0) # unitless
@@ -594,7 +613,7 @@ const σᵣ = 0.001 # cm [precision of our drill]
 			  rₒ=rₒ,
 			  c=c,
 			  hₒ=hₒ,
-			  A_of_h=h -> h / h_max * a_t + (1 - h / h_max) * a_b
+			  A_of_h=sampled_A_of_h
 			)
 	
 	# set up and solve ODE
@@ -632,17 +651,25 @@ end
 md"compute tank areas"
 
 # ╔═╡ 2a973d9c-8b33-4c67-8177-73fd826c8dac
-function compute_tank_area!(data::DataFrame)
-	for tb in ["_t", "_b"]
-		data[:, "a" * tb] = [
-			rounded_rectangle_area(data[i, "l"*tb], data[i, "w"*tb], data[i, "p"*tb])
-			for i = 1:nrow(data)
-		]
+function infer_tank_radius_and_area!(data::DataFrame)
+	for tb in ["_t", "_b"] # top or bottom
+		# radius
+		data[:, "r"*tb] = plw_to_r.(
+			data[:, "p"*tb], data[:, "l"*tb], data[:, "w"*tb]
+		)
+
+		# area
+		data[:, "a"*tb] = lwr_to_a.(
+			data[:, "l"*tb], data[:, "w"*tb], data[:, "r"*tb]
+		)
 	end
 end
 
 # ╔═╡ c31a2d3f-902b-4be9-a64c-b04cb83ffaa4
-compute_tank_area!(train_posterior)
+infer_tank_radius_and_area!(train_posterior)
+
+# ╔═╡ d03cf081-8ebe-4f5b-a81f-abc843e1bb65
+train_posterior
 
 # ╔═╡ 2ee1ca40-141f-40ad-b4c1-a2e025f69f95
 md"make sure never $h_0>H$."
@@ -717,9 +744,11 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			elseif p == "h₀"
 				p_obs = h₀_obs
 			elseif p == "a_t"
-				p_obs = rounded_rectangle_area(lm.l_t, lm.w_t, lm.p_t)
+				r_t_obs = plw_to_r(lm.p_t, lm.l_t, lm.w_t)
+				p_obs = lwr_to_a(lm.l_t, lm.w_t, r_t_obs)
 			elseif p == "a_b"
-				p_obs = rounded_rectangle_area(lm.l_b, lm.w_b, lm.p_b)
+				r_b_obs = plw_to_r(lm.p_b, lm.l_b, lm.w_b)
+				p_obs = lwr_to_a(lm.l_b, lm.w_b, r_b_obs)
 			end
 			if ! isnothing(p_obs)
 				vlines!(axs[i, j], p_obs, linestyle=:dash, color=Cycled(4), 
@@ -803,8 +832,14 @@ function viz_fit(
 	mar = 0.0 # mean absolute residual
 	for i in sample(1:nrow(posterior), n_sample)
 		# area of tank
-		a_of_h_tank = h -> h / posterior[i, "h_max"] * posterior[i, "a_t"] + 
-			  	    (1 - h / posterior[i, "h_max"]) * posterior[i, "a_b"]
+		function a_of_h_tank(h)
+			θ = h / posterior[i, "h_max"] # fraction tank is full
+			# calcualte l, w, r of rounded rectangle here.
+			l = posterior[i, "l_b"] * (1 - θ) + posterior[i, "l_t"] * θ
+			w = posterior[i, "w_b"] * (1 - θ) + posterior[i, "w_t"] * θ
+			r = posterior[i, "r_b"] * (1 - θ) + posterior[i, "r_t"] * θ
+			return lwr_to_a(l, w, r)
+		end
 
 		# area of object
 		if "sqrt_a_obj[1]" in names(posterior)
@@ -893,7 +928,7 @@ md"""
 
 # ╔═╡ eaf470e9-2898-41d5-a6d5-4cd846e9c0de
 function viz_test(posterior::DataFrame, test_data::DataFrame;
-				 savename::Union{String, Nothing}=nothing, n_sample::Int=100
+				  savename::Union{String, Nothing}=nothing, n_sample::Int=100
 )
 	fig = Figure(size=(figsize[1], figsize[2] * 1.25))
 	
@@ -923,12 +958,20 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 		end
 		cb = ContinuousCallback(condition, affect!)
 
+		function a_of_h_tank(h)
+			θ = h / posterior[i, "h_max"] # fraction tank is full
+			# calcualte l, w, r of rounded rectangle here.
+			l = posterior[i, "l_b"] * (1 - θ) + posterior[i, "l_t"] * θ
+			w = posterior[i, "w_b"] * (1 - θ) + posterior[i, "w_t"] * θ
+			r = posterior[i, "r_b"] * (1 - θ) + posterior[i, "r_t"] * θ
+			return lwr_to_a(l, w, r)
+		end
+
 		params = (
 			  rₒ=posterior[i, "rₒ"],
 			  c=posterior[i, "c"],
 			  hₒ=posterior[i, "hₒ"],
-			  A_of_h= h -> h / posterior[i, "h_max"] * posterior[i, "a_t"] + 
-			  	    (1 - h / posterior[i, "h_max"]) * posterior[i, "a_b"]
+			  A_of_h=a_of_h_tank
 		)
 
 		# sample an initial condtion
@@ -999,7 +1042,7 @@ begin
 		)
 	)
 	
-	compute_tank_area!(train_prior)
+	infer_tank_radius_and_area!(train_prior)
 end
 
 # ╔═╡ 2148cbb2-b41f-4df3-ab5c-55a89eff7bf1
@@ -1370,7 +1413,7 @@ end
 # ╔═╡ 798d8d16-1c19-400d-8a94-e08c7f991e33
 @model function forward_model_object(
 	data_w_object::DataFrame, train_posterior::DataFrame, 
-	N::Int, lm::LengthMeasurements, γ::Float64;
+	N::Int, lm::LengthMeasurements, γ::Float64, var_list::Vector{String};
 	prior_only::Bool=false
 )
 	#=
@@ -1378,16 +1421,20 @@ end
 	yesterday's posterior is today's prior
 	=#
 	μ_pr, Σ_pr = compute_mean_cov(train_posterior, var_list)
-	
 	# sample param vector from prior
-	θ ~ MvNormal(μ_pr, Σ_pr)
-	a_t    = θ[1] # hard-coded based on var_list: warning!
-	a_b    = θ[2]
-	h_max  = θ[3]
-	rₒ     = θ[4]
-	hₒ     = θ[5]
-	c      = θ[6]
-	σ      = θ[7]
+	Ψ ~ MvNormal(μ_pr, Σ_pr)
+	l_t    = Ψ[1] # hard-coded based on new_var_list: warning!
+	w_t    = Ψ[2]
+	r_t    = Ψ[3]
+	l_b    = Ψ[4]
+	w_b    = Ψ[5]
+	r_b    = Ψ[6]
+	h_max  = Ψ[7]
+	rₒ     = Ψ[8]
+	hₒ     = Ψ[9]
+	c      = Ψ[10]
+	σ      = Ψ[11]
+	a_b    = Ψ[12]
 
 	# initial liquid level
 	h₀_obs = data_w_object[1, "h [cm]"]
@@ -1396,7 +1443,14 @@ end
 	)
 
 	# tank geometry
-	a_of_tank(h) = h / h_max * a_t + (1 - h / h_max) * a_b
+	function a_of_tank(h)
+		θ = h / h_max # fraction tank is full
+		# calcualte l, w, r of rounded rectangle here.
+		l = l_b * (1 - θ) + l_t * θ
+		w = w_b * (1 - θ) + w_t * θ
+		r = r_b * (1 - θ) + r_t * θ
+		return lwr_to_a(l, w, r)
+	end
 
 	# solid geometry
 	hs = range(0.0, 0.999 * h_max, length=N)
@@ -1426,7 +1480,7 @@ end
 			  rₒ=rₒ,
 			  c=c,
 			  hₒ=hₒ,
-			  A_of_h=h ->  a_of_tank(h) - a_of_object(h)
+			  A_of_h=h -> a_of_tank(h) - a_of_object(h)
 			)
 
 	# checks before simulation
@@ -1456,21 +1510,35 @@ md"### posterior"
 # ╔═╡ fb3ece76-f85c-41e1-a332-12c71d9d3cc0
 N = 10  # number of points to infer area on
 
+# ╔═╡ 743e74ec-9c66-4665-845d-75ede418616b
+@bind infer_shape CheckBox()
+
+# ╔═╡ 02e3a4c1-1ea3-4fa7-9b93-f16ecfdb5bf9
+infer_shape
+
 # ╔═╡ 1aca6b92-7754-4cb3-b9e8-5d486e3bfcf8
 begin
-	γ = 1.0 # smoothness param
-	nb_data_object_omit = 2 # surface tension prevents flow
-	
-	object_tank_model = forward_model_object(
-		data_w_object[1:end-nb_data_object_omit, :], train_posterior, N, length_measurements, γ
-	)
-	
-	object_posterior = DataFrame(
-		sample(object_tank_model, NUTS(0.65), MCMCSerial(), 
-			n_MC_sample, n_chains, progress=true
+	if infer_shape
+		new_var_list = [
+			"l_t", "w_t", "r_t",
+			"l_b", "w_b", "r_b",
+			"h_max", "rₒ", "hₒ", "c", "σ", "a_b"
+		] # DO NOT CHANGE unless you change forward_model_object too.
+		
+		γ = 1.0 # smoothness param
+		nb_data_object_omit = 2 # surface tension prevents flow
+		
+		object_tank_model = forward_model_object(
+			data_w_object[1:end-nb_data_object_omit, :], train_posterior, N, length_measurements, γ, new_var_list
 		)
-	)
-	rename!(object_posterior, ["θ[$i]" => var_list[i] for i = 1:length(var_list)]...)
+		
+		object_posterior = DataFrame(
+			sample(object_tank_model, NUTS(0.65), MCMCSerial(), 
+				n_MC_sample, n_chains, progress=true
+			)
+		)
+		rename!(object_posterior, ["Ψ[$i]" => new_var_list[i] for i = 1:length(new_var_list)]...)
+	end
 end
 
 # ╔═╡ 3c9a219f-74ef-45fb-83e7-c497e0bee362
@@ -1656,12 +1724,11 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╟─76624080-150a-4783-b675-794365dcecee
 # ╠═cccf3dfb-8b3c-45e8-bb1c-e9579afc7e1a
 # ╠═0e485727-495c-444d-9fb4-f20bdaac2676
-# ╠═06673583-6631-4561-a7c4-66232d9d7fd7
-# ╠═9c33755b-5f82-4cc5-9742-ca7d52f0cc3c
-# ╠═edd07812-4fee-4cc5-b914-160a7824b5e1
-# ╠═89cd4845-4cee-4ddf-b324-dcd2ac3224ca
+# ╠═439baaee-492d-493d-b30f-5d50312cf8e3
+# ╠═6d94f549-645d-4c27-9e4f-046542b5fb16
+# ╠═109a382d-8d41-4bc3-a23b-439a987b17c7
+# ╠═a6687107-7448-451e-a3cf-04a3d2c3d7a5
 # ╠═a391cd0a-f752-4efd-92de-43e7cec656d4
-# ╠═48d7273e-a48b-49fd-991b-6e29f64a0760
 # ╠═9a7e5903-69be-4e0a-8514-3e05feedfed5
 # ╟─418525b7-c358-41da-b865-5df3feb15855
 # ╠═a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
@@ -1718,6 +1785,7 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╟─b04ad0dc-10b5-433e-abc3-e87b4aa4f7eb
 # ╠═2a973d9c-8b33-4c67-8177-73fd826c8dac
 # ╠═c31a2d3f-902b-4be9-a64c-b04cb83ffaa4
+# ╠═d03cf081-8ebe-4f5b-a81f-abc843e1bb65
 # ╟─2ee1ca40-141f-40ad-b4c1-a2e025f69f95
 # ╠═c2d877b5-d309-4868-925d-dab8d7d23403
 # ╟─c239deed-8291-45aa-95cf-94df26e0136d
@@ -1781,6 +1849,8 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═798d8d16-1c19-400d-8a94-e08c7f991e33
 # ╟─da44647a-36e4-4116-9698-df1cb059c2b7
 # ╠═fb3ece76-f85c-41e1-a332-12c71d9d3cc0
+# ╠═743e74ec-9c66-4665-845d-75ede418616b
+# ╠═02e3a4c1-1ea3-4fa7-9b93-f16ecfdb5bf9
 # ╠═1aca6b92-7754-4cb3-b9e8-5d486e3bfcf8
 # ╠═3c9a219f-74ef-45fb-83e7-c497e0bee362
 # ╠═e1264f57-f675-4f37-b4db-313cfc52ab8e
