@@ -19,14 +19,11 @@ end
 # ╔═╡ faf59350-8d67-11ee-0bdd-2510e986118b
 begin
     import Pkg; Pkg.activate()
-    using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions, Optim, Dierckx, MakieThemes, Printf, Colors
+    using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions, Optim, Dierckx, MakieThemes, Printf, Colors, Random
 end
 
 # ╔═╡ 260c0f85-ad6c-432a-8e9b-a04158c596c9
 using ColorSchemes
-
-# ╔═╡ a053a724-f16b-4e88-94af-6d0e0a96fed5
-using Random
 
 # ╔═╡ 4391f124-cbef-46e5-8462-e4e5126f5b38
 begin
@@ -1434,8 +1431,7 @@ end
 	hₒ     = Ψ[9]
 	c      = Ψ[10]
 	σ      = Ψ[11]
-	a_b    = Ψ[12]
-
+	
 	# initial liquid level
 	h₀_obs = data_w_object[1, "h [cm]"]
 	h₀ ~ Truncated(
@@ -1455,6 +1451,7 @@ end
 	# solid geometry
 	hs = range(0.0, 0.999 * h_max, length=N)
 	sqrt_a_obj = Vector{Float64}(undef, N)
+	a_b = lwr_to_a(l_b, w_b, r_b)
 	sqrt_a_obj[1] ~ Uniform(0.0, sqrt(a_b))
 	for i = 2:N
 		sqrt_a_obj[i] ~ Truncated(
@@ -1522,7 +1519,7 @@ begin
 		new_var_list = [
 			"l_t", "w_t", "r_t",
 			"l_b", "w_b", "r_b",
-			"h_max", "rₒ", "hₒ", "c", "σ", "a_b"
+			"h_max", "rₒ", "hₒ", "c", "σ"
 		] # DO NOT CHANGE unless you change forward_model_object too.
 		
 		γ = 1.0 # smoothness param
@@ -1537,8 +1534,29 @@ begin
 				n_MC_sample, n_chains, progress=true
 			)
 		)
-		rename!(object_posterior, ["Ψ[$i]" => new_var_list[i] for i = 1:length(new_var_list)]...)
+		rename!(
+			object_posterior, 
+			["Ψ[$i]" => new_var_list[i] for i = 1:length(new_var_list)]...
+		)
+
+		# compute top, bottom area for posterior
+		for tb in ["_t", "_b"]
+			object_posterior[:, "a"*tb] = lwr_to_a.(
+				object_posterior[:, "l"*tb], 
+				object_posterior[:, "w"*tb], 
+				object_posterior[:, "r"*tb]
+			)
+		end
 	end
+end
+
+# ╔═╡ 57b18cdd-27a8-44df-b959-f5e7c7eb7413
+for tb in ["_t", "_b"]
+	object_posterior[:, "a"*tb] = lwr_to_a.(
+		object_posterior[:, "l"*tb], 
+		object_posterior[:, "w"*tb], 
+		object_posterior[:, "r"*tb]
+	)
 end
 
 # ╔═╡ 3c9a219f-74ef-45fb-83e7-c497e0bee362
@@ -1683,6 +1701,9 @@ viz_inferred_radius(
 	object_posterior, object_true_area, length_measurements, savename="paper/posterior_area"
 )
 
+# ╔═╡ 0c624592-df44-413e-9101-eefc3913d658
+object_posterior
+
 # ╔═╡ 3d0c3999-77a2-40d6-923b-78d3329e2154
 0.31/3.22
 
@@ -1692,7 +1713,7 @@ md"### prior"
 # ╔═╡ 65d81268-9ff2-4a18-b0ce-4b105740dc8b
 begin
 	object_tank_model_prior = forward_model_object(
-		data_w_object, train_posterior, N, length_measurements, γ, prior_only=true
+		data_w_object, train_posterior, N, length_measurements, γ, new_var_list, prior_only=true
 	)
 	
 	object_prior = DataFrame(
@@ -1701,7 +1722,18 @@ begin
 		)
 	)
 	
-	rename!(object_prior, ["θ[$i]" => var_list[i] for i = 1:length(var_list)]...)
+	rename!(
+		object_prior, 
+		["Ψ[$i]" => new_var_list[i] for i = 1:length(new_var_list)]...
+	)
+	# compute top, bottom area for posterior
+	for tb in ["_t", "_b"]
+		object_prior[:, "a"*tb] = lwr_to_a.(
+			object_prior[:, "l"*tb], 
+			object_prior[:, "w"*tb], 
+			object_prior[:, "r"*tb]
+		)
+	end
 end
 
 # ╔═╡ 8c1d1401-bc6b-4be3-8481-1c9a8f86f63d
@@ -1852,11 +1884,12 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═743e74ec-9c66-4665-845d-75ede418616b
 # ╠═02e3a4c1-1ea3-4fa7-9b93-f16ecfdb5bf9
 # ╠═1aca6b92-7754-4cb3-b9e8-5d486e3bfcf8
+# ╠═57b18cdd-27a8-44df-b959-f5e7c7eb7413
 # ╠═3c9a219f-74ef-45fb-83e7-c497e0bee362
 # ╠═e1264f57-f675-4f37-b4db-313cfc52ab8e
-# ╠═a053a724-f16b-4e88-94af-6d0e0a96fed5
 # ╠═7127fc35-a0af-4463-9448-a948f229fd47
 # ╠═40157899-dffb-4e3a-b5ca-be3c23a465ae
+# ╠═0c624592-df44-413e-9101-eefc3913d658
 # ╠═3d0c3999-77a2-40d6-923b-78d3329e2154
 # ╟─bd95428d-1077-4417-bfca-0c5da7378af2
 # ╠═65d81268-9ff2-4a18-b0ce-4b105740dc8b
