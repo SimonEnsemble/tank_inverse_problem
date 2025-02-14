@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.4
 
 using Markdown
 using InteractiveUtils
@@ -25,6 +25,9 @@ end
 # ╔═╡ 260c0f85-ad6c-432a-8e9b-a04158c596c9
 using ColorSchemes
 
+# ╔═╡ c8da63f7-fa15-4b2b-9018-40790723c6a7
+md"📉 first, settings for plot theme."
+
 # ╔═╡ 4391f124-cbef-46e5-8462-e4e5126f5b38
 begin
 	# see https://makieorg.github.io/MakieThemes.jl/dev/themes/ggthemr
@@ -46,9 +49,11 @@ begin
 	)
 
 	theme_colors = MakieThemes.GGThemr.ColorTheme[gg_theme][:swatch]
-	colors = Dict(zip(
-		["data", "model", "distn", "other"], 
-		parse.(Color, theme_colors[1:4]))
+	colors = Dict(
+		zip(
+			["data", "model", "distn", "other"], 
+			parse.(Color, theme_colors[1:4])
+		)
 	)
 end
 
@@ -59,7 +64,9 @@ TableOfContents()
 md"""
 # tank geometry and measurements
 
-we characterize the area of the liquid holding tank, as a function of height $h$, from a helicopter view. the cross-sectional area we model as a [rounded rectangle](https://mathworld.wolfram.com/RoundedRectangle.html). see notes in `tank_geometry/cory_measurements.txt`.
+we characterize the cross-sectional area (from a helicopter view) of the liquid holding tank, as a function of height $h$. the cross-sectional area we model as a [rounded rectangle](https://mathworld.wolfram.com/RoundedRectangle.html). see notes in `data/tank_length_measurements.txt`.
+
+💡 we can't measure the radius of the circle in the corner, so we measure perimeter instead and infer it.
 """
 
 # ╔═╡ 76624080-150a-4783-b675-794365dcecee
@@ -85,6 +92,7 @@ md"📏 length-measurements"
 end
 
 # ╔═╡ 0e485727-495c-444d-9fb4-f20bdaac2676
+# our raw measurements
 length_measurements = LengthMeasurements(
 	# top cross-section
 	14.6, 9.0, 44.3,
@@ -99,7 +107,8 @@ length_measurements = LengthMeasurements(
 )
 
 # ╔═╡ 439baaee-492d-493d-b30f-5d50312cf8e3
-# infer radius for rounded rectangle
+# infer radius for rounded rectangle, given measurements of:
+#    perimeter, length, width.
 plw_to_r(p, l, w) = (p / 2 - (l + w)) / (π - 4)
 
 # ╔═╡ 6d94f549-645d-4c27-9e4f-046542b5fb16
@@ -139,15 +148,14 @@ begin
 end
 
 # ╔═╡ 109a382d-8d41-4bc3-a23b-439a987b17c7
-# area of rounded rectangle
+# area of rounded rectangle given length, width, radius
 lwr_to_a(l, w, r) = (l - 2 * r) * (w - 2 * r) + # main rectangle
 		2 * r * (l + w - 4 * r) + # four strips
 		π * r ^ 2 # four circles
 
 # ╔═╡ a6687107-7448-451e-a3cf-04a3d2c3d7a5
-"""
-cross-sectional area of water from helicopter view, as a function of liquid level, h.
-"""
+# cross-sectional area of water in the tank, from helicopter view, 
+#   as a function of liquid level, h.
 function A_of_h(h::Float64, tg::TankGeometry)
 	# check for over/underflow
 	h < 0.0      ? error("tank underflow!") : nothing
@@ -157,11 +165,12 @@ function A_of_h(h::Float64, tg::TankGeometry)
 	θ = h / tg.h_max
 
 	# l, w, r of rounded rectangle here
+	#   note, these vary linearly with height.
 	l = tg.l_b * (1 - θ) + tg.l_t * θ
 	w = tg.w_b * (1 - θ) + tg.w_t * θ
 	r = tg.r_b * (1 - θ) + tg.r_t * θ
-	
-	return lwr_to_a(l, w, r)
+
+	return lwr_to_a(l, w, r) # area of rounded rectange at this height
 end
 
 # ╔═╡ a391cd0a-f752-4efd-92de-43e7cec656d4
@@ -193,7 +202,9 @@ read in data characterizing the calibration curve of the liquid level sensor.
 
 # ╔═╡ a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
 begin
-	calibration_data = CSV.read("calibration_curve.csv", DataFrame)
+	calibration_data = CSV.read(
+		joinpath("data", "level_sensor_calibration.csv"), DataFrame
+	)
 	sort!(calibration_data, "level sensor reading")
 end
 
@@ -243,11 +254,11 @@ md"
 "
 
 # ╔═╡ 8b00d2b3-9182-42ab-8393-91707b813f60
-function read_h_time_series(file::String)
+function read_h_time_series(filename::String)
 	#=
 	read in file
 	=#
-	data = CSV.read(file, DataFrame)
+	data = CSV.read(joinpath("data", filename), DataFrame, comment="#")
 	rename!(data, 
 		" liquid_level_reading" => "liquid_level_reading",
 		"Time [s]" => "t [s]"
@@ -279,17 +290,11 @@ md"""
 # ╔═╡ 96f26378-846c-4964-935c-0372e2e86e91
 md"time series data for two experiments without any object in the tank"
 
-# ╔═╡ 2ddf387c-5a61-4490-9746-96e1589c7a74
-train_experiment = "no_obs_4_18_2.csv"
-
-# ╔═╡ b2228d5c-16b4-4fee-b9b6-1112d7cf391c
-test_experiment  = "no_obs_4_18_3.csv"
-
 # ╔═╡ 661feb84-339c-4bbe-a8a5-65de74ed58c8
-all_train_data = read_h_time_series(train_experiment)
+all_train_data = read_h_time_series("liq_level_data_empty_train.csv")
 
 # ╔═╡ 1e8a535e-25ea-490b-b545-e532c4fbc0f3
-all_test_data = read_h_time_series(test_experiment)
+all_test_data = read_h_time_series("liq_level_data_empty_test.csv")
 
 # ╔═╡ a0849611-23b3-4a91-a054-f390bc6c9f0a
 md"""
@@ -1117,7 +1122,7 @@ function viz_mean_matrix(μ::Vector{Float64}, var_list::Array{String})
 	)
 	hm = heatmap!(reshape(μ, (1, length(μ))))
 	Colorbar(fig[1, 2], hm, label="mean")
-	save("posterior_mean.pdf", fig)
+	# save("posterior_mean.pdf", fig)
 	fig
 end
 
@@ -1149,14 +1154,8 @@ md"""
 ## read experimental data
 """
 
-# ╔═╡ b06a1c07-6250-4324-8802-010e5d847edb
-begin
-	data_w_object_filenames = ["obs_4_18_1.csv", "obs_4_18_2.csv"]
-	@bind data_w_object_filename Select(data_w_object_filenames)
-end
-
 # ╔═╡ 8b6d766a-8f7b-4b9a-9a15-0f7375087120
-all_data_w_object = read_h_time_series(data_w_object_filename)
+all_data_w_object = read_h_time_series("liq_level_data_w_bottle.csv")
 
 # ╔═╡ 807222ba-5ff8-4f33-a9a0-7c69b1dccf52
 data_w_object = downsample(all_data_w_object, n_data_sample)[1:end-5, :] # cut end to avoid overfitting to h_hole
@@ -1185,7 +1184,7 @@ begin
 		axislegend()
 		ylims!(0, nothing)
 		xlims!(0, nothing)
-		save("h_of_t_with_without_object.pdf", fig)
+		# save("h_of_t_with_without_object.pdf", fig)
 		fig
 	end
 	
@@ -1199,7 +1198,7 @@ a ground truth"
 
 # ╔═╡ cb59f55b-c748-4a94-b344-e50a8fa7c690
 begin
-	object_true_area = CSV.read("obstacle_area.csv", DataFrame)
+	object_true_area = CSV.read(joinpath("data", "bottle_area.csv"), DataFrame)
 	rename!(object_true_area, "area " => "area [cm²]")
 	select!(object_true_area, ["h [cm]", "area [cm²]"])
 end
@@ -1510,9 +1509,6 @@ N = 10  # number of points to infer area on
 # ╔═╡ 743e74ec-9c66-4665-845d-75ede418616b
 @bind infer_shape CheckBox()
 
-# ╔═╡ 02e3a4c1-1ea3-4fa7-9b93-f16ecfdb5bf9
-infer_shape
-
 # ╔═╡ 1aca6b92-7754-4cb3-b9e8-5d486e3bfcf8
 begin
 	if infer_shape
@@ -1750,6 +1746,7 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 
 # ╔═╡ Cell order:
 # ╠═faf59350-8d67-11ee-0bdd-2510e986118b
+# ╟─c8da63f7-fa15-4b2b-9018-40790723c6a7
 # ╠═4391f124-cbef-46e5-8462-e4e5126f5b38
 # ╠═245836a9-6b44-4639-9209-e7ad9035e293
 # ╟─7752316d-9dd0-4403-aa08-22c977ff3727
@@ -1773,8 +1770,6 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═8b00d2b3-9182-42ab-8393-91707b813f60
 # ╟─7899f488-9c48-466f-857d-f5a31b5820ab
 # ╟─96f26378-846c-4964-935c-0372e2e86e91
-# ╠═2ddf387c-5a61-4490-9746-96e1589c7a74
-# ╠═b2228d5c-16b4-4fee-b9b6-1112d7cf391c
 # ╠═661feb84-339c-4bbe-a8a5-65de74ed58c8
 # ╠═1e8a535e-25ea-490b-b545-e532c4fbc0f3
 # ╟─a0849611-23b3-4a91-a054-f390bc6c9f0a
@@ -1854,7 +1849,6 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═a515407b-f749-48f2-b8ea-62940a186cce
 # ╠═692a7f74-ca65-494b-b683-2d30e34e4c1e
 # ╟─9533c662-80af-4dd4-bf25-02e894867360
-# ╠═b06a1c07-6250-4324-8802-010e5d847edb
 # ╠═8b6d766a-8f7b-4b9a-9a15-0f7375087120
 # ╠═807222ba-5ff8-4f33-a9a0-7c69b1dccf52
 # ╠═16158266-36ed-44c3-a418-0c454955ce78
@@ -1882,7 +1876,6 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╟─da44647a-36e4-4116-9698-df1cb059c2b7
 # ╠═fb3ece76-f85c-41e1-a332-12c71d9d3cc0
 # ╠═743e74ec-9c66-4665-845d-75ede418616b
-# ╠═02e3a4c1-1ea3-4fa7-9b93-f16ecfdb5bf9
 # ╠═1aca6b92-7754-4cb3-b9e8-5d486e3bfcf8
 # ╠═57b18cdd-27a8-44df-b959-f5e7c7eb7413
 # ╠═3c9a219f-74ef-45fb-83e7-c497e0bee362
