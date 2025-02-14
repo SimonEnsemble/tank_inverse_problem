@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.1
+# v0.20.4
 
 using Markdown
 using InteractiveUtils
@@ -65,7 +65,9 @@ read in data for calibration of the liquid level sensor.
 "
 
 # ╔═╡ e602eab3-b4a1-41d5-9181-4f9c253a5677
-calibration_data = CSV.read("../calibration_curve.csv", DataFrame)
+calibration_data = CSV.read(
+	joinpath("..", "data", "level_sensor_calibration.csv"), DataFrame
+)
 
 # ╔═╡ 03a52d5f-2931-42be-9270-e15ac322057a
 md"create a linear interpolator to obtain liquid level at level sensor readings between those recorded in the calibration data set."
@@ -113,11 +115,11 @@ read in and process time series data collected during an experiment where the ta
 "
 
 # ╔═╡ 27c461b1-9ded-417a-83a8-d08643e72e32
-function read_h_time_series(file::String)
+function read_h_time_series(filename::String)
 	#=
 	read in file
 	=#
-	data = CSV.read(file, DataFrame)
+	data = CSV.read(joinpath("..", "data", filename), DataFrame, comment="#")
 	rename!(data, 
 		" liquid_level_reading" => "liquid_level_reading",
 		"Time [s]" => "t [s]"
@@ -132,12 +134,13 @@ function read_h_time_series(file::String)
 	data = data[id_start:end, :]
 	# shift time
 	data[:, "t [s]"] = data[:, "t [s]"] .- data[1, "t [s]"]
-	data[:, "t [min]"] = data[:, "t [s]"] / 60
 
 	#=
 	apply calibration curve to get h
 	=#
 	data[:, "h [cm]"] = sensor_output_to_h.(data[:, "liquid_level_reading"])
+	
+	data[:, "t [min]"] = data[:, "t [s]"] / 60
 	
 	return select(data, ["t [min]", "h [cm]"])
 end
@@ -160,7 +163,7 @@ train_experiment = "../no_obs_4_18_2.csv"
 test_experiment  = "../no_obs_4_18_3.csv"
 
 # ╔═╡ b2757732-d93b-479c-a20b-a8e8aef75efb
-data = downsample(read_h_time_series(train_experiment), 20)
+data = downsample(read_h_time_series("liq_level_data_empty_train.csv"), 20)
 
 # ╔═╡ 4d603ba3-2b2d-4c37-a7af-88e333c32a6c
 function viz_data(data::DataFrame)
@@ -333,7 +336,7 @@ the test data contains time series data for $h(t)$ when the tank was draining in
 "
 
 # ╔═╡ d8fe78f3-ab8b-4716-bea2-47edcad2d912
-data_test = downsample(read_h_time_series(test_experiment), 20)
+data_test = downsample(read_h_time_series("liq_level_data_empty_test.csv"), 20)
 
 # ╔═╡ 2ea68858-158b-48e9-b8eb-5230542f9f04
 viz_data(data_test)
