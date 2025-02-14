@@ -19,4 +19,10 @@ the `data` folder contains:
 
 ## drawings and photo
 
-the folder `drawings_and_photo/` contains several sketches of the tank geometry and a photo of the tank during the experiment.
+the folder `drawings_and_photo/` contains several sketches of the tank geometry and photos of the draining tank during the experiment.
+
+## simple activity for the classroom
+
+(not discussed in the paper, but uses data from this project.)
+
+the Pluto notebook `classroom/model_tank.jl` contains a simple learning activity for the classroom: model the liquid level in the draining tank and fit the coefficient of discharge to the data.
