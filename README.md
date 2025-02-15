@@ -17,9 +17,9 @@ the `data` folder contains:
 * `tank_problem.jl`, a Pluto notebook, contains all Julia code to reproduce the results and draw the figures in our article. this notebook reads in the data in `data` and conducts Bayesian inference. the notebook is well-organized and documented.
 * `Water_level_measurement_Audrino.ino` contains the Arduino code to read data from our liquid level sensor.
 
-## drawings and photo
+## drawings and photos
 
-the folder `drawings_and_photo/` contains several sketches of the tank geometry and photos of the draining tank during the experiment.
+the folder `drawings_and_photos/` contains several sketches of the tank geometry and photos of the draining tank during the experiment.
 
 ## simple activity for the classroom
 
