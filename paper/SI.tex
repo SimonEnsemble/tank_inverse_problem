@@ -111,13 +111,13 @@ Supporting Information: Scanning the cross-sectional area of a solid inside an o
             state={Oregon},
             country={USA}}
 
-\author[1]{Cory Simon}[orcid=0000-0002-8181-9178]
+\author[1]{Cory Simon}
 
 % Footnote of the second author
 \cormark[1]
 
 % Email id of the second author
-\ead{Cory.Simon@oregonstate.edu}
+
 
 % URL of the second author
 \ead[url]{}
@@ -147,37 +147,40 @@ Supporting Information: Scanning the cross-sectional area of a solid inside an o
 
 \begin{wrapfigure}{r}{0.4\textwidth}
 	\centering
-	\includegraphics[width=0.4\textwidth]{../drawings_and_photo/torricelli_illustration.pdf}
+	\includegraphics[width=0.4\textwidth]{../drawings_and_photos/torricelli_illustration.pdf}
+	\caption{Applying Bernoulli's equation to points (1) and (2) along the typical flow streamline shown gives Torricelli's law after neglecting the small downward velocity of the liquid level in the tank. Sketch mimics Problem 3B.14 in Edition 2 of Bird, Stewart, and Lightfoot \cite{bsl_book}.}
 \end{wrapfigure}
 
-	Consider an open-top tank, nearly filled with liquid and with a small hole in its side that allows liquid to flow out of the tank to the atmosphere. 
-	At some moment in time, we wish to find the velocity $v_2$ [m/s] at which the liquid ejects from the side of the tank, when the height of the liquid above the center of the hole is $z$ [m].
+	Consider an open-top tank with a small hole in its side. Suppose we nearly fill the tank with liquid then allow liquid to flow out of the tank through the small hole, to the atmosphere. (This flow is driven by the force of gravity.)
+	At some moment in time, let $z$ [m] be the height of the liquid above the center of the hole. 
+	We wish to find the corresponding velocity $v_2$ [m/s] at which the liquid is ejecting from the side of the tank. 
 	
-	To do so, we follow Bird, Stewart, and Lightfoot \cite{bsl_book} by applying Bernoulli's equation to two points in the liquid: 
+	To do so, we follow Bird, Stewart, and Lightfoot \cite{bsl_book} (Problem 3B.14 in Edition 2) by applying Bernoulli's equation to two points in the liquid: 
 	(1) a point just below the surface of the liquid at the top of the tank, near the center of the tank, and 
-	(2) a point inside the outlet stream, just outside of the tank and near the center of the cross-section. 
+	(2) a point inside the outlet stream, just outside of the tank and near the center of the cross-section of the stream. 
 	 Conceptually, we're considering a typical streamline of the flow extending from point (1) to point (2).
-	We make three approximations: 
-	(1) the flow along this streamline is at steady-state, which is a quasi-steady-state assumption that $z$ is approximately constant (despite dropping slowly),
-	(2) the liquid is inviscid (neglecting frictional forces),
+	We make three approximations about the liquid along this streamline: 
+	(1) the flow is at steady-state, which applies the quasi-steady-state assumption that $z$ is approximately constant despite dropping slowly,
+	(2) the liquid is inviscid (i.e., we neglect frictional forces internal to the liquid),
 	and
-	(3) the liquid is incompressible (constant density $\rho$ kg/m$^3$).
+	(3) the liquid is incompressible (i.e., its density, $\rho$ [kg/m$^3$], is constant).
 	(Also, the flow is isothermal.)
 	
-	A mechanical energy balance then implies Bernoulli's equation holds for the two points, which relates the velocity $v_i$ [m/s], pressure $P_i$ [N/m$^2$ $[=]$ kg$\cdot$ /(s$^2\cdot$m)], and elevation $y_i$ [m] of the liquid at the two points $i\in\{1,2\}$:
+	A mechanical energy balance then implies Bernoulli's equation \cite{welty2020fundamentals} holds for points (1) and (2) along the flow streamline, which relates the velocity $v_i$ [m/s], pressure $P_i$ [N/m$^2$ $[=]$ kg /(s$^2\cdot$m)], and elevation $y_i$ [m] of the liquid at the two points $i\in\{1,2\}$:
 	\begin{equation}
 	g y_1 + \frac{1}{2} v_1^2 + \frac{P_1}{\rho} = gy_2 + \frac{1}{2} v_2^2 + \frac{P_2}{\rho} 
 	\end{equation}
 	where $g$ [m/s$^2$] is the gravitational acceleration constant. 
 	
-	Now, since both points are at atmospheric pressure, $P_1=P_2$. And, we have $y_1-y_2=z$. Approximating $v_1\approx 0$ given the cross-sectional area of the liquid at the top of the tank is large relative to the size of the hole in the side of the tank, Bernoulli's equation reduces to:
+	Now, since both the top of the tank and the stream ejecting from the side of the tank are open to the atmosphere, we have $P_1=P_2$ both at atmospheric pressure. And, we have $y_1-y_2=z$. Further, we approximate $v_1\approx 0$ since the cross-sectional area of the liquid at the top of the tank is large relative to the cross-sectional area of the hole in the side of the tank (making $v_2 >> v_1$). Bernoulli's equation then reduces to:
 	\begin{equation}
 	g z  = \frac{1}{2} v_2^2,
 	\end{equation}
-	which states that the potential energy change of the liquid from point (1) to (2) matches the kinetic energy change. I.e., gravitational potential energy is converted to kinetic energy. Solving for $v_2$ gives Torricelli's law:
+	which states that the decrease in gravitational potential energy of a parcel of liquid that traveled from point (1) to (2) matches its gain in kinetic energy. Solving for $v_2$ gives Torricelli's law \cite{driver1998torricelli}:
 	\begin{equation}
 	v_2 = \sqrt{2gz}.
 	\end{equation}
+	The velocity of the liquid ejecting from the side of the tank is proportional to the square root of the height of liquid $z$ above the hole. The gravitational acceleration constant appears because gravity is the force that drives the flow.
 % Biography
 %\bio{}
 % Here goes the biography details.
