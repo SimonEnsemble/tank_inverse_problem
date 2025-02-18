@@ -178,9 +178,18 @@ We aim to reconstruct the shape of an exogenous, heavy solid contained in a tank
 
 % Research highlights
 \begin{highlights}
-\item 
-\item 
-\item 
+\item We combine experiments, mathematical modeling, and Bayesian statistical
+inversion theory to tackle an inverse problem of shape reconstruction, concerning a
+tank draining of liquid.
+\item The inverse problem is to reconstruct, with quantified uncertainty, the shape of an
+exogenous solid contained in a draining tank from measurements of the liquid level
+in the tank as it drains, driven by gravity, through a small orifice in its side.
+\item We conduct experiments with a draining tank containing water and a glass bottle;
+using our dynamic model of the liquid level and the water level time series data
+from the experiment, we reconstruct the shape of the bottle with <10% error.
+\item Our approach may be practically useful to non-destructively characterize the
+geometry of an unknown solid, or a bed of packed solid particles, inside of an
+opaque tank.
 \end{highlights}
 
 
@@ -196,7 +205,7 @@ We aim to reconstruct the shape of an exogenous, heavy solid contained in a tank
 
 
 \section{Introduction}
-Throughout engineering and the applied sciences, we may encounter an open-top tank, draining of liquid via gravity-driven flow through a small orifice (a \emph{draining tank}).
+In engineering and applied sciences, we often encounter an open-top tank from which liquid drains through a small orifice under gravity-driven flow, exiting to the atmosphere (hereafter, a \emph{draining tank}).
 Mathematical models of the dynamics of the liquid level in a draining tank are useful for designing the tank and orifice geometry, predicting emptying times, forecasting outlet flow rates, controlling the liquid level by manipulating an input stream, and inferring the liquid level from the outlet flow rate \cite{d2021torricelli,seborg2016process,groetsch1993inverse_tl,groetsch1999inverse}.
 
 \begin{mytcbox}[label=box:waterclocks, breakable]{Ancient water clocks}
@@ -212,9 +221,12 @@ The preserved Karnak clepsydra from $\sim$1300 BC \cite{schomberg2018karnak} is 
 %The geometry of an ideal clepsydra would produce a constant rate of decrease in the liquid level. However, the geometry of e.g. the preserved Karnak clepsydra from $\sim$1300 BC \cite{schomberg2018karnak}, an inverted truncated cone, does not. Though, perhaps, its wider top was intended to compensate for the faster outflow when the liquid level is higher.
 
 % Italian physicist and mathematician 
-Evangelista Torricelli (1608-1647) made a fundamental observation for mathematically modeling the liquid level in a draining tank: the velocity $v$ at which liquid flows out of a small orifice in a tank is proportional to the square root of the height of liquid above the orifice, $\Delta h$, i.e. $v\propto \sqrt{\Delta h}$ \cite{mills1982newton}.
+Evangelista Torricelli (1608-1647) made a fundamental observation for mathematically modeling the liquid level in a draining tank: 
+the velocity $v$ at which liquid flows out of the orifice is proportional to the square root of the height of liquid above the orifice, $z$, i.e. $v\propto \sqrt{z}$ \cite{mills1982newton}.
 % TODO: check that he didn't know g!
-Today, we recover Torricelli's observation from Daniel Bernoulli's (1700–1782) equation \cite{welty2020fundamentals}, a mechanical energy balance applied to the steady, plug flow of an incompressible, inviscid fluid through the small orifice, neglecting frictional forces. This gives \emph{Torricelli's law}: $v=\sqrt{2 g \Delta h}$, with $g$ the acceleration due to gravity. \cite{d2021torricelli,teoman2022discharge}
+Today, we recover Torricelli's observation by applying Bernoulli's (1700–1782) equation \cite{welty2020fundamentals} to a streamline of the flow of liquid from (1) a point just below the top of the liquid inside the tank to (2) a point in the jet just outside of the orifice. 
+Bernoulli's equation is a mechanical energy balance along this flow streamline, approximating the liquid as ideal (incompressible and inviscid) and the flow as at steady-state. 
+This gives \emph{Torricelli's law}: $v=\sqrt{2 g z}$, with $g$ the gravitational acceleration constant. \cite{d2021torricelli,teoman2022discharge}
 
 A mass balance on a draining tank with Torricelli's law gives a first-order, [generally] nonlinear differential equation governing the liquid level in the tank over time \cite{groetsch1993inverse_tl,seborg2016process,debook}.
 The geometry of the tank affects the dynamics of the liquid level through its cross-sectional area as a function of height.
@@ -222,11 +234,10 @@ The cross-sectional area of the orifice affects the emptying time; theoretically
 % TODO: a name for cross-sectional area parallel to the ground?
 However, a \emph{discharge coefficient} \cite{de2000pin,blasone2015discharge,wadhwa2021study,liu2008drainage} must be introduced into the model for agreement with experimentally-measured volumetric outflow rates \cite{farmer1992physical,driver1998torricelli,brady2009siphons,rother2024modelling,paldy1963apparatus,ivanov2014testing,williams2021vessel,pavesi2019investigating,planinvsivc2011holes,saleta2005experimental,lopac2015water,powell2012carrying}.
 The discharge coefficient \cite{teoman2022discharge,hicks2014determining,blasone2015discharge,lienhard1984velocity,wadhwa2021study}
-(i) is defined as the ratio of the observed outlet volumetric flow rate to that predicted by Torricelli's law and the area of the orifice \cite{hicks2014determining};
+(i) is defined as the ratio of the observed outlet volumetric flow rate to that predicted by Torricelli's law, plug flow for the jet, and the area of the orifice \cite{hicks2014determining};
 (ii) accounts for (a) the vena contracta of the liquid jet (the cross-sectional area of the liquid jet issuing from the orifice is smaller than that of the orifice, owing to fluid streamlines in the tank, near the orifice, non-perpendicular to the face of the orifice \cite{horsch2020simple}), (b) frictional losses across the orifice, and (c) non-uniformity of the velocity profile; and
 (iii) depends on the rheology of the liquid, the geometry of the orifice, and, for laminar flow, the Reynolds number \cite{teoman2022discharge}. 
 %  and (ii) depends on the rheology of the fluid and the geometry of the orifice. 
-
 
 In contrast to the \emph{forward problem} of using this dynamic model to predict the trajectory of the liquid level in a draining tank of a given geometry, Groetsch \cite{groetsch1993inverse_tl,groetsch1999inverse} framed an \emph{inverse problem} \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse}: reconstruct the shape of the tank from its liquid level over time as it drains. 
 While impossible to infer the precise geometry of the tank, one can leverage the dynamic model to determine the cross-sectional area of the tank as a function of height from the liquid level as a function of time. (The rate of decrease of the liquid level provides information about the cross-sectional area of the tank at that height. The outlet flow rate depends on the height of water only; so, wider [say, cylindrical] tanks drain more slowly.)
