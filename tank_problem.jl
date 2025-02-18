@@ -493,7 +493,7 @@ function viz_sim_fit(
 		label="model", color=Cycled(2)
 	)
 
-	axislegend(@sprintf("c=%.2f", c), titlefont=:regular)
+	axislegend(@sprintf("c*=%.2f", c), titlefont=:regular)
 	if ! isnothing(savename)
 		save("paper/$savename.pdf", fig)
 	end
