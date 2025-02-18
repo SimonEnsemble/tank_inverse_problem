@@ -379,13 +379,8 @@ function f!(dh, h, params, t) # use in-place to prevent ODE error
 		dh[1] = 0.0
 		return 0.0
 	end
-	# for unphysical stuff
-	# if (params.rₒ < 0.0) || (params.c < 0.0)
-	# 	dh[1] = 1.0 # bogus but controlled growth so this won't count.
-	# else
 	dh[1] = - π * params.rₒ ^ 2 * params.c * 
 		sqrt(2 * g * (h[1] .- params.hₒ)) / params.A_of_h(h[1])
-	# end
 end
 
 # ╔═╡ 05ed4187-a01a-4a16-a0e7-b3867d252578
@@ -401,7 +396,9 @@ end
 
 # ╔═╡ 6f7d4335-d9a6-4896-9d69-bfc1c2c1c3d0
 md"""
-## minimize loss (classical approach) to identify $c$
+## classical approach
+
+### identify $c$
 """
 
 # ╔═╡ 66815e8e-09d9-4b43-9f45-9379b3d34f78
@@ -409,7 +406,7 @@ function loss(data::DataFrame, c::Float64, tg::TankGeometry)
 	params = (
 		# radius of the hole
 		rₒ = tg.rₒ,
-		# fudge factor
+		# coefficient of determination
 		c = c, 
 		# height of the hole
 		hₒ = tg.hₒ,
@@ -417,8 +414,9 @@ function loss(data::DataFrame, c::Float64, tg::TankGeometry)
 		A_of_h = h -> A_of_h(h, tg)
 	)
 
+	h₀ = data[1, "h [cm]"]
 	h_of_t = simulate(
-		data[1, "h [cm]"], # h₀
+		h₀, # h₀
 		params,
 		data[end, "t [s]"] # end of time
 	)
@@ -451,7 +449,7 @@ c_opt = compute_mle(train_data, tank_geometry)
 params = (
 	# radius of the hole
 	rₒ = tank_geometry.rₒ,
-	# fudge factor
+	# coefficient of discharge
 	c = c_opt,
 	# height of the hole
 	hₒ = tank_geometry.hₒ,
@@ -474,8 +472,10 @@ md"""
 """
 
 # ╔═╡ 444f6d74-273e-486d-905a-1443ec0e98df
-function viz_sim_fit(data::DataFrame, sim_data::DataFrame; 
-		             savename::Union{Nothing, String}=nothing)
+function viz_sim_fit(
+	data::DataFrame, sim_data::DataFrame, c::Float64; 
+	savename::Union{Nothing, String}=nothing
+)
 	 fig = Figure()
 	 ax = Axis(
 		fig[1, 1], 
@@ -493,7 +493,7 @@ function viz_sim_fit(data::DataFrame, sim_data::DataFrame;
 		label="model", color=Cycled(2)
 	)
 
-	axislegend()
+	axislegend(@sprintf("c=%.2f", c), titlefont=:regular)
 	if ! isnothing(savename)
 		save("$savename.pdf", fig)
 	end
@@ -501,7 +501,7 @@ function viz_sim_fit(data::DataFrame, sim_data::DataFrame;
 end
 
 # ╔═╡ 8cfdc784-4060-48b8-8d1a-3b8d11f7a9a7
-viz_sim_fit(train_data, sim_train_data)
+viz_sim_fit(train_data, sim_train_data, c_opt, savename="classic_MLE_fit")
 
 # ╔═╡ 6c010734-e8a0-4000-88eb-f2a85d25ed99
 function viz_toy_h(sim_data::DataFrame; savename::String="toy_h")
@@ -1205,7 +1205,7 @@ end
 
 # ╔═╡ 89cced40-f24e-499e-8bfd-19c3964f689b
 A_of_object = Spline1D(object_true_area[:, "h [cm]"], 
-					  object_true_area[:, "area [cm²]"]; k=3, s=10.0, bc="zero")
+					   object_true_area[:, "area [cm²]"]; k=3, s=10.0, bc="zero")
 
 # ╔═╡ b9515b3a-b254-49ae-8c2c-b8ce7ced4d3a
 begin
@@ -1251,13 +1251,13 @@ sim_object_data = DataFrame(
 )
 
 # ╔═╡ cfbe753d-85a8-445f-9eda-14a376d7e0c6
-viz_sim_fit(data_w_object, sim_object_data)
+viz_sim_fit(data_w_object, sim_object_data, c_opt)
 
 # ╔═╡ 54e9eda2-d564-453a-8ea8-4c8395be9ed6
 viz_toy_h(sim_object_data, savename="paper/toy_h_w_object")
 
 # ╔═╡ c53edeef-324a-418f-907d-aaf557cb8d24
-md"## classical method
+md"## classical (baseline) method
 
 
 ```math
@@ -1280,104 +1280,128 @@ begin
 		row -> row["h [cm]"] >= length_measurements.hₒ + 1.0, data_w_object
 	)
 	
-	h_of_t_object = Spline1D(
-		data_w_object_spline_fit[:, "t [s]"], data_w_object_spline_fit[:, "h [cm]"]; k=4, s=20.0, bc="nearest"
+	h_of_t_w_object = Spline1D(
+		data_w_object_spline_fit[:, "t [s]"], data_w_object_spline_fit[:, "h [cm]"]; k=4, s=150.0, bc="nearest"
 	)
 end
 
+# ╔═╡ 08cee0a9-d358-4954-8e46-74de23d48d86
+t_end_classical = 650.0 # s
+
 # ╔═╡ f3f886d6-3010-4dd9-b42a-d5309463beb6
-h_of_t_object(30.0)
+h_of_t_w_object(30.0)
 
 # ╔═╡ 5003d6c6-fa30-423e-80c1-a0f82e4085b9
-derivative(h_of_t_object, 30.0) # WARNING: doesn't extrapolate.
+derivative(h_of_t_w_object, 30.0) # WARNING: doesn't extrapolate.
 
 # ╔═╡ 36b1822e-fe08-494b-a57d-5888163a7b54
-function viz_spline_fit(data_w_object::DataFrame, h_of_t_object::Spline1D, h_hole::Float64)
-	fig = Figure(size=(500, 600))
+function viz_spline_fit(
+	data_w_object::DataFrame, h_of_t_w_object, h_hole::Float64
+)
+	fig = Figure(size=(500, 500))
 	axs = [Axis(fig[i, 1]) for i = 1:2]
 	linkxaxes!(axs...)
 	axs[2].xlabel = "t [s]"
 	axs[1].ylabel = "h(t) [cm]"
 	axs[2].ylabel = "dh/dt [cm/s]"
 	
-	ts = range(0.0, data_w_object[end, "t [s]"], length=150)
+	ts = range(0.0, t_end_classical, length=150)
 
 	# top
-	scatter!(axs[1], data_w_object[:, "t [s]"], data_w_object[:, "h [cm]"])
-	hs = h_of_t_object.(ts)
-	lines!(axs[1], ts, hs, color=Cycled(3))
+	scatter!(
+		axs[1], data_w_object[:, "t [s]"], data_w_object[:, "h [cm]"], label="data"
+	)
+	hs = h_of_t_w_object.(ts)
+	lines!(axs[1], ts, hs, color=Cycled(3), label="spline fit")
 	ylims!(axs[1], 0, nothing)
+	axislegend(axs[1])
 
 	# bottom
-	h′ = [derivative(h_of_t_object, tᵢ) for tᵢ in ts]
+	h′ = [derivative(h_of_t_w_object, tᵢ) for tᵢ in ts]
 	# flatten derivative since it doesn't handle extrapolation
-	h′[h′ .> 0.0] .= 0.0
+	# h′[h′ .> 0.0] .= 0.0
 	# shut off derivative
-	lines!(axs[2], ts, h′)
+	lines!(axs[2], ts, h′, color=Cycled(3))
 	
 	for ax in axs
 		xlims!(ax, 0, nothing)
 	end
-	# save("block_data_spline_fit.png", fig)
+	save("classical_spline_fit.png", fig)
 	fig
 end
 
 # ╔═╡ 29ccc89b-f76a-44fa-8a89-e3ca10742ba1
-viz_spline_fit(data_w_object, h_of_t_object, length_measurements.hₒ)
+viz_spline_fit(data_w_object, h_of_t_w_object, length_measurements.hₒ)
+
+# ╔═╡ 3385b22e-85ef-4bb0-8b1b-d03411c89b4f
+tank_geometry
 
 # ╔═╡ 29d3cc8f-780b-449a-87ba-8d543ad2473b
 function classical_soln_A_object(
-	h_of_t_object::Spline1D,
+	h_of_t_w_object,
 	c_opt::Float64,
-	length_measurements::LengthMeasurements
+	tank_geometry::TankGeometry
 )
-	ts = range(0.0, 1000.0, length=150)
+	ts = range(0.0, t_end_classical, length=150)
 
 	# dh/dt
-	h′ = [derivative(h_of_t_object, tᵢ) for tᵢ in ts]
-	h′[h′ .> 0.0] .= 0.0 # flatten to handle BC
+	h′ = [derivative(h_of_t_w_object, tᵢ) for tᵢ in ts]
 
 	# h
-	hs = h_of_t_object.(ts)
+	hs = h_of_t_w_object.(ts)
 
 	# inferred area in tank
-	A_tank = [A_of_h(hᵢ, TankGeometry(length_measurements)) for hᵢ in hs]
-	Aₒ = A_tank .+ π * length_measurements.rₒ ^ 2 * c_opt * 
-			sqrt.(2 * g * (hs .- length_measurements.hₒ)) ./ h′
+	A_tank = [A_of_h(hᵢ, tank_geometry) for hᵢ in hs]
+	α = A_tank .+ π * tank_geometry.rₒ ^ 2 * c_opt * 
+			sqrt.(2 * g * (hs .- tank_geometry.hₒ)) ./ h′
 	
-	inferred_object_data = DataFrame("h [cm]" => hs, "Aₒ [cm²]" => Aₒ)
+	inferred_object_data = DataFrame("h [cm]" => hs, "α [cm²]" => α)
 	
-	# filter data where (i) dh/dt
-	filter!(row -> ! isinf(row["Aₒ [cm²]"]), inferred_object_data)
+	# filter data where...
+	filter!(row -> ! isinf(row["α [cm²]"]), inferred_object_data) # dh/dt=0
+	filter!(row -> row["α [cm²]"] > 0.0, inferred_object_data) # α > 0
 	
 	return inferred_object_data
 end
 
 # ╔═╡ 0a48e016-2fba-47cc-a212-47b4a3324b20
-classical_Aₒ = classical_soln_A_object(h_of_t_object, c_opt, length_measurements)
+classical_α = classical_soln_A_object(
+	h_of_t_w_object, c_opt, tank_geometry
+)
 
 # ╔═╡ 5feb46c0-3888-4586-8b12-f990d4d38912
 begin
-	local fig = Figure()
+	local fig = Figure(size=(500, 500))
 	local ax = Axis(
 		fig[1, 1], 
-		xlabel="water level, h [cm]", 
-		ylabel="cross-sectional area\nof object\nAₒ [cm²]"
+		xlabel="√(area), √(α) [cm]",
+		ylabel="height, h [cm]",
+		aspect=DataAspect()
+	)
+
+	# true bottle area
+	scatterlines!(
+		sqrt.(object_true_area[:, "area [cm²]"]), object_true_area[:, "h [cm]"],
+		label="measured", color="black"
+	)
+	scatterlines!(
+		-sqrt.(object_true_area[:, "area [cm²]"]), object_true_area[:, "h [cm]"],
+		color="black"
 	)
 	
 	lines!(
-		classical_Aₒ[:, "h [cm]"], classical_Aₒ[:, "Aₒ [cm²]"], 
-		label="predicted", color=Cycled(4)
+		sqrt.(classical_α[:, "α [cm²]"]), classical_α[:, "h [cm]"], 
+		label="inferred", color=theme_colors[8]
 	)
-	scatter!(
-		object_true_area[:, "h [cm]"], object_true_area[:, "area [cm²]"], 
-		label="measured"
+	lines!(
+		-sqrt.(classical_α[:, "α [cm²]"]), classical_α[:, "h [cm]"], 
+		color=theme_colors[8]
 	)
 	
-	xlims!(0, nothing)
-	ylims!(-10, 100)
-	hlines!(0.0, color="lightgray")
-	axislegend()
+	# xlims!(0, nothing)
+	ylims!(0, nothing)
+	axislegend(position=:cb)
+	save("classical_soln.png", fig)
 	fig
 end
 
@@ -1863,10 +1887,12 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═54e9eda2-d564-453a-8ea8-4c8395be9ed6
 # ╟─c53edeef-324a-418f-907d-aaf557cb8d24
 # ╠═4831a3be-35d3-420c-8463-bb14a597cc6a
+# ╠═08cee0a9-d358-4954-8e46-74de23d48d86
 # ╠═f3f886d6-3010-4dd9-b42a-d5309463beb6
 # ╠═5003d6c6-fa30-423e-80c1-a0f82e4085b9
 # ╠═36b1822e-fe08-494b-a57d-5888163a7b54
 # ╠═29ccc89b-f76a-44fa-8a89-e3ca10742ba1
+# ╠═3385b22e-85ef-4bb0-8b1b-d03411c89b4f
 # ╠═29d3cc8f-780b-449a-87ba-8d543ad2473b
 # ╠═0a48e016-2fba-47cc-a212-47b4a3324b20
 # ╠═5feb46c0-3888-4586-8b12-f990d4d38912
