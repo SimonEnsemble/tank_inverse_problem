@@ -64,6 +64,12 @@
 \def\floatpagepagefraction{1}
 \def\textpagefraction{.001}
 
+\renewcommand{\thepage}{S\arabic{page}}  
+\renewcommand{\thesection}{S\arabic{section}}   
+\renewcommand{\thetable}{S\arabic{table}}   
+\renewcommand{\thefigure}{S\arabic{figure}}
+\renewcommand{\theequation}{S\arabic{equation}}
+
 % Short title
 \shorttitle{}    
 
@@ -146,7 +152,6 @@ Supporting Information: Scanning the cross-sectional area of a solid inside an o
 \newpage 
 
 \section{Geometry of the tank}
-
 \begin{figure}[h!]
 	\centering
 	 \begin{subfigure}[b]{0.35\textwidth}
@@ -158,7 +163,22 @@ Supporting Information: Scanning the cross-sectional area of a solid inside an o
 	\end{subfigure}
 	\caption{Geometry of our tank. 
 	(a) The 3D geometry of the tank with the four corresponding views we show. (b) The tank from four views, drawn approximately to scale, with variables denoting the dimensions marked. Each cross-section of the tank, taken parallel with the ground, is a rounded rectangle.
-	}
+	} \label{fig:tank_geometry}
+\end{figure}
+
+\clearpage
+
+\section{A rounded rectangle}
+We can most directly measure, with a length measuring tape, the two dimensions $l+2r$ and $w+2r$ across the rounded rectangle and its perimeter 
+\begin{equation}
+p = 2 l + 2 w + 2 \pi r.
+\end{equation}
+From these, three measurements, we can determine $l$, $w$, and $r$ via solving the system of three equations.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.75\textwidth]{../drawings_and_photos/rounded_rectangle.png} 
+	\caption{A rounded rectangle \cite{rounded_rect} is formed by the convex hull of four circles, each of radius $r$, centered at the four vertices of a rectangle of width $w$ and length $l$. We partition the rounded rectangle into five rectangles and four quarter-circles to visually prove the formula for its area.} \label{fig:rounded_rectangle}
 \end{figure}
 
 \clearpage
@@ -174,6 +194,7 @@ Supporting Information: Scanning the cross-sectional area of a solid inside an o
 \clearpage
 
 \section{Obtaining Torricelli's Law from Bernoulli's Equation}
+\label{sec:Torricelli}
 
 \begin{wrapfigure}{r}{0.35\textwidth}
 	\centering
@@ -270,6 +291,11 @@ However, unlike our Bayesian statistical inversion in the main text, the uncerta
 	(c) The measured and predicted square root of the area of the exogenous object as a function of $h$.
 	}
 \end{figure}
+
+\clearpage
+
+\section{Expanded derivation of the forward model from a mass balance}
+
 
 % Biography
 %\bio{}

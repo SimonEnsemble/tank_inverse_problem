@@ -19,11 +19,8 @@ end
 # ╔═╡ faf59350-8d67-11ee-0bdd-2510e986118b
 begin
     import Pkg; Pkg.activate()
-    using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions, Optim, Dierckx, MakieThemes, Printf, Colors, Random
+    using CSV, Interpolations, DataFrames, CairoMakie, DifferentialEquations, Turing, StatsBase, PlutoUI, Distributions, Optim, Dierckx, MakieThemes, Printf, Colors, Random, ColorSchemes
 end
-
-# ╔═╡ 260c0f85-ad6c-432a-8e9b-a04158c596c9
-using ColorSchemes
 
 # ╔═╡ c8da63f7-fa15-4b2b-9018-40790723c6a7
 md"📉 first, settings for plot theme."
@@ -75,12 +72,12 @@ md"📏 length-measurements"
 # ╔═╡ cccf3dfb-8b3c-45e8-bb1c-e9579afc7e1a
 @kwdef struct LengthMeasurements # units: cm
 	# top and bottom base, rounded rectangles
-	l_t::Float64 # length
-	w_t::Float64 # width
+	l̂_t::Float64 # length, l + 2 r
+	ŵ_t::Float64 # width, 2 + 2r
  	p_t::Float64 # perimeter
 	
-	l_b::Float64
-	w_b::Float64
+	l̂_b::Float64
+	ŵ_b::Float64
 	p_b::Float64
 
 	# height
@@ -89,6 +86,20 @@ md"📏 length-measurements"
 	# orifice height and radius
 	hₒ::Float64
 	rₒ::Float64
+end
+
+# ╔═╡ 0f8e955e-fe9e-4b9d-ac24-1d2fb403a46c
+function l̂ŵp_to_lwr(l̂, ŵ, p)
+	# x = [l, w, r]
+	A = [
+		1 0 2;
+		0 1 2;
+		2 2 2*π
+	]
+	b = [l̂, ŵ, p]
+	x = A \ b
+	l, w, r = x[1], x[2], x[3]
+	return l, w, r
 end
 
 # ╔═╡ 0e485727-495c-444d-9fb4-f20bdaac2676
@@ -106,10 +117,10 @@ length_measurements = LengthMeasurements(
 	5 / 64 * 2.54 / 2 # in diam -> cm diam -> radius
 )
 
-# ╔═╡ 439baaee-492d-493d-b30f-5d50312cf8e3
-# infer radius for rounded rectangle, given measurements of:
-#    perimeter, length, width.
-plw_to_r(p, l, w) = (p / 2 - (l + w)) / (π - 4)
+# ╔═╡ 85bac8de-3224-4f02-a625-fdf55ec611a1
+l̂ŵp_to_lwr(
+	length_measurements.l̂_b, length_measurements.ŵ_b, length_measurements.p_b
+)
 
 # ╔═╡ 6d94f549-645d-4c27-9e4f-046542b5fb16
 begin
@@ -135,13 +146,13 @@ begin
 	end
 	
 	function TankGeometry(lm::LengthMeasurements)
-		# infer r of rounded rectangle (top and bottom)
-		r_t = plw_to_r(lm.p_t, lm.l_t, lm.w_t)
-		r_b = plw_to_r(lm.p_b, lm.l_b, lm.w_b)
+		# infer l, w, r of rounded rectangle (top and bottom)
+		l_t, w_t, r_t = l̂ŵp_to_lwr(lm.l̂_t, lm.ŵ_t, lm.p_t)
+		l_b, w_b, r_b = l̂ŵp_to_lwr(lm.l̂_b, lm.ŵ_b, lm.p_b)
 		
 		return TankGeometry(
-			lm.l_t, lm.w_t, r_t,
-			lm.l_b, lm.w_b, r_b,
+			l_t, w_t, r_t,
+			l_b, w_b, r_b,
 			lm.h_max, lm.hₒ, lm.rₒ
 		)
 	end
@@ -149,8 +160,8 @@ end
 
 # ╔═╡ 109a382d-8d41-4bc3-a23b-439a987b17c7
 # area of rounded rectangle given length, width, radius
-lwr_to_a(l, w, r) = (l - 2 * r) * (w - 2 * r) + # main rectangle
-		2 * r * (l + w - 4 * r) + # four strips
+lwr_to_a(l, w, r) = l * w + # main rectangle
+		2 * r * (l + w) + # four strips
 		π * r ^ 2 # four circles
 
 # ╔═╡ a6687107-7448-451e-a3cf-04a3d2c3d7a5
@@ -565,23 +576,20 @@ const σᵣ = 0.001 # cm [precision of our drill]
 	prior distributions
 	=#
 	# length-measurements
-	l_t ~ Normal(lm.l_t, σₗ)
-	w_t ~ Normal(lm.w_t, σₗ)
+	l̂_t ~ Normal(lm.l̂_t, σₗ)
+	ŵ_t ~ Normal(lm.ŵ_t, σₗ)
 	p_t ~ Normal(lm.p_t, σₗ)
+	l_t, w_t, r_t = l̂ŵp_to_lwr(l̂_t, ŵ_t, p_t)
 
-	l_b ~ Normal(lm.l_b, σₗ)
-	w_b ~ Normal(lm.w_b, σₗ)
+	l̂_b ~ Normal(lm.l̂_b, σₗ)
+	ŵ_b ~ Normal(lm.ŵ_b, σₗ)
 	p_b ~ Normal(lm.p_b, σₗ)
+	l_b, w_b, r_b = l̂ŵp_to_lwr(l̂_b, ŵ_b, p_b)
 
 	h_max ~ Normal(lm.h_max, σₗ)
 
 	hₒ ~ Normal(lm.hₒ, σₗ)
 	rₒ ~ Normal(lm.rₒ, σᵣ)
-
-	# area of tank
-	# infer radius of circles from simulated measurements
-	r_t = plw_to_r(p_t, l_t, w_t)
-	r_b = plw_to_r(p_b, l_b, w_b)
 
 	function sampled_A_of_h(h)
 		θ = h / h_max # fraction tank is full
@@ -655,15 +663,19 @@ md"compute tank areas"
 # ╔═╡ 2a973d9c-8b33-4c67-8177-73fd826c8dac
 function infer_tank_radius_and_area!(data::DataFrame)
 	for tb in ["_t", "_b"] # top or bottom
-		# radius
-		data[:, "r"*tb] = plw_to_r.(
-			data[:, "p"*tb], data[:, "l"*tb], data[:, "w"*tb]
-		)
+		lwrs = [
+			l̂ŵp_to_lwr(row["l̂"*tb], row["ŵ"*tb], row["p"*tb])
+			for row in eachrow(data)
+		]
+		
+		data[:, "l"*tb] = [lwr[1] for lwr in lwrs]
+		data[:, "w"*tb] = [lwr[2] for lwr in lwrs]
+		data[:, "r"*tb] = [lwr[3] for lwr in lwrs]
 
-		# area
-		data[:, "a"*tb] = lwr_to_a.(
-			data[:, "l"*tb], data[:, "w"*tb], data[:, "r"*tb]
-		)
+		data[:, "a"*tb] = [
+			lwr_to_a(row["l"*tb], row["w"*tb], row["r"*tb]) 
+				for row in eachrow(data)
+		]
 	end
 end
 
@@ -746,11 +758,11 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			elseif p == "h₀"
 				p_obs = h₀_obs
 			elseif p == "a_t"
-				r_t_obs = plw_to_r(lm.p_t, lm.l_t, lm.w_t)
-				p_obs = lwr_to_a(lm.l_t, lm.w_t, r_t_obs)
+				l_t, w_t, r_t = l̂ŵp_to_lwr(lm.l̂_t, lm.ŵ_t, lm.p_t)
+				p_obs = lwr_to_a(l_t, w_t, r_t)
 			elseif p == "a_b"
-				r_b_obs = plw_to_r(lm.p_b, lm.l_b, lm.w_b)
-				p_obs = lwr_to_a(lm.l_b, lm.w_b, r_b_obs)
+				l_b, w_b, r_b = l̂ŵp_to_lwr(lm.l̂_b, lm.ŵ_b, lm.p_b)
+				p_obs = lwr_to_a(l_b, w_b, r_b)
 			end
 			if ! isnothing(p_obs)
 				vlines!(axs[i, j], p_obs, linestyle=:dash, color=Cycled(4), 
@@ -1790,8 +1802,9 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╟─7752316d-9dd0-4403-aa08-22c977ff3727
 # ╟─76624080-150a-4783-b675-794365dcecee
 # ╠═cccf3dfb-8b3c-45e8-bb1c-e9579afc7e1a
+# ╠═0f8e955e-fe9e-4b9d-ac24-1d2fb403a46c
+# ╠═85bac8de-3224-4f02-a625-fdf55ec611a1
 # ╠═0e485727-495c-444d-9fb4-f20bdaac2676
-# ╠═439baaee-492d-493d-b30f-5d50312cf8e3
 # ╠═6d94f549-645d-4c27-9e4f-046542b5fb16
 # ╠═109a382d-8d41-4bc3-a23b-439a987b17c7
 # ╠═a6687107-7448-451e-a3cf-04a3d2c3d7a5
@@ -1873,7 +1886,6 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═63977532-9afa-454c-9f51-af6f4b238120
 # ╠═aa9c9d45-bb7c-4eee-af87-6fbc01df271d
 # ╠═bb0a7df4-7e84-472a-ab00-e3dd801daf8e
-# ╠═260c0f85-ad6c-432a-8e9b-a04158c596c9
 # ╠═3f640581-edcc-4c7a-86ba-b168f31fe4a3
 # ╠═bbe56504-b7c2-4601-9f56-1957bd42e4e5
 # ╠═3bb65b71-d191-498b-81bf-40ffff4df1f4

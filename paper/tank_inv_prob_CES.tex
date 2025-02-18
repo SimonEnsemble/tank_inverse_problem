@@ -21,6 +21,9 @@
 
 \usepackage{subcaption}
 
+\usepackage{xr}
+\externaldocument{SI}
+
 \usepackage[thinc]{esdiff} % for derivatives
 
 % boxed and annotated eqns.
@@ -224,7 +227,7 @@ The preserved Karnak clepsydra from $\sim$1300 BC \cite{schomberg2018karnak} is 
 Evangelista Torricelli (1608-1647) made a fundamental observation for mathematically modeling the liquid level in a draining tank: 
 the velocity $v$ at which liquid flows out of the orifice is proportional to the square root of the height of liquid above the orifice, $z$, i.e. $v\propto \sqrt{z}$ \cite{mills1982newton}.
 % TODO: check that he didn't know g!
-Today, we recover Torricelli's observation by applying Bernoulli's (1700–1782) equation \cite{welty2020fundamentals} to a streamline of the flow of liquid from (1) a point just below the top of the liquid inside the tank to (2) a point in the jet just outside of the orifice. 
+Today, we recover Torricelli's observation by applying Bernoulli's (1700–1782) equation \cite{welty2020fundamentals} to a streamline of the flow of liquid from (1) a point just below the top of the liquid inside the tank to (2) a point in the outlet stream just outside of the orifice. 
 Bernoulli's equation is a mechanical energy balance along this flow streamline, approximating the liquid as ideal (incompressible and inviscid) and the flow as at steady-state. 
 This gives \emph{Torricelli's law}: $v=\sqrt{2 g z}$, with $g$ the gravitational acceleration constant. \cite{d2021torricelli,teoman2022discharge}
 
@@ -269,18 +272,30 @@ Comparing with our [more] direct (via a tape measure) measurements of the solid'
 \section{Setup for tank drainage experiments} \label{sec:expt}
 First, we describe our experimental setup in Fig.~\ref{fig:photo_of_tank} for tank drainage (of water) experiments.
 
-We possess a plastic, open-top tank---an inverted, right, truncated cone with a rounded rectangle base (excluding the top rim). 
-The cross-sectional area [parallel to the ground] of the tank as a function of height $h$ [cm] from its bottom base is:
-\begin{equation}
-	a(h) = \frac{h}{h_{\text{max}}}a_t + \left(1-\frac{h}{h_{\text{max}}}\right) a_b, \label{eq:a_of_h}
-\end{equation}
-with $h_{\text{max}}$ [cm] the height of the tank and $a_b$ and $a_t$ [cm$^2$] the area of the rounded rectangle forming the bottom and top, respectively, base of the tank.
+We possess a plastic tank---an inverted, right, truncated cone with a rounded rectangle base (excluding the top rim). The top of the tank is open to the atmosphere.
 We drilled a small, circular orifice of radius $r_o$ [cm] in the side of the tank, parallel with the ground and a small height $h_o$ [cm] (to its center) from the bottom base.
+
+For a multi-view drawing of the tank geometry with its dimensions marked, see Fig.~\ref{fig:tank_geometry}.
+The height of the tank is $h_{\text{max}}$ [cm].
+Each cross-section of the tank [parallel to the ground] is a rounded rectangle \cite{rounded_rect} with length $l$ [cm], width $w$ [cm], and corner circle radius $r$ [cm].
+By definition, a rounded rectangle is the convex hull of four circles, each of radius $r$, whose centers lie at the vertices of a rectangle with length $l$ and width $w$ \cite{rounded_rect}.
+Now, the cross-sectional area [parallel to the ground] of the tank as a function of height $h$ [cm] from its bottom base is (see Fig.~\ref{fig:rounded_rectangle} for a visual proof):
+\begin{equation}
+	a(h) = l(h) w(h) + 2 r(h) [l(h) + w(h)] + \pi [r(h)]^2, \label{eq:a_of_h}
+\end{equation}
+with the rounded rectangle's length, width, and corner-circle radius at height $h$:
+\begin{align}
+	l(h) &= \frac{h}{h_{\text{max}}}l_t + \left(1-\frac{h}{h_{\text{max}}}\right) l_b \\
+	w(h) &= \frac{h}{h_{\text{max}}}w_t + \left(1-\frac{h}{h_{\text{max}}}\right) w_b \\
+	r(h) &= \frac{h}{h_{\text{max}}}r_t + \left(1-\frac{h}{h_{\text{max}}}\right) r_b,
+\end{align}
+with $l_b$, $w_b$, and $r_b$ [cm] and $l_t$, $w_t$, and $r_t$ [cm] characterizing the rounded rectangle forming the bottom and top, respectively, base of the tank.
+In summary, we characterize $\alpha(h)$ by the parameters: $l_b$, $w_b$, $r_b$, $l_t$, $w_t$, and $r_t$, and $h_{\rm max}$.
 
 A tank draining experiment constitutes: 
 (1) optionally, placing an exogenous, heavy solid inside the tank; 
-(2) filling the tank with water, to an initial height $h_0$ [cm]; 
-(3) at time $t=0$ [s], allowing the water to drain out (driven by gravity) through the orifice; and 
+(2) nearly filling the tank with water, to an initial height $h_0$ [cm]; 
+(3) at time $t=0$ [s], allowing the water to drain out (driven by gravity) through the orifice, exiting to the atmosphere; and 
 (4) collecting time series data of the water level in the tank over time, $\{(t_i, h_{\text{obs}, i}) \}$, from a liquid level sensor communicating with an Arduino microcontroller. 
 
 The exogenous [rigid] solid (i) is heavier than water, and thus remains stationary at the bottom of the tank; (ii) displaces water in the tank; and (iii) has a geometry rendering it incapable of holding water (the solid cannot hold water iff it is locally convex at points on its (assume, smooth) surface where the normal vector to the surface is anti-parallel with the gravitational field). 
@@ -300,7 +315,7 @@ Let $\alpha(h)$ [cm$^2$] be the cross-sectional area of this solid as a function
 We place an eTape\texttrademark\xspace liquid level strip vertically inside the tank, immersed in the water. 
 The level strip gives an electrically-resistive output inversely proportional to the water level owing to its compression by the hydrostatic pressure of the water in which it is immersed \cite{eTape}.
 The sensor communicates with an Arduino microcontroller, providing us measurements of the water level over a sequence of times. 
-To map the reading from the level sensor [0-1023 integer values] to the liquid level in the tank [cm], we constructed a calibration curve (a smooth 1D spline) with a resolution of 1 cm.
+To map the reading from the level sensor [0-1023 integer values] to the liquid level in the tank [cm], we constructed a calibration curve constituting a smooth 1D spline fit to the observed sensor reading at increments of 1 cm height.
 
 \section{The forward and measurement models and likelihood} \label{sec:forward_model}
 The [deterministic] \emph{forward model} predicts the water level $h(t)$ [m] in our draining tank over time $t$ [s], given the \emph{inputs} $\alpha(h)$ and $h_0$ and \emph{parameters} $a_t$, $a_b$, $h_{\text{max}}$, $r_o$, $h_o$, and the discharge coefficient $c$. 
@@ -309,7 +324,8 @@ After we collect time series data \thedata from a tank drainage experiment, we u
 When any of the inputs/parameters are uncertain in an inverse problem concerning the draining tank, the likelihood function quantifies the support that the data \thedata lend for each possible set of inputs/parameters.
 
 \subsection{Forward model}
-Here, we mathematically model the height of water in our draining tank as a function of time, $h(t)$. (We assume the water at the top of the tank remains flat---allowed by a slow outflow rate). 
+Here, we mathematically model the height of water in our draining tank as a function of time, $h(t)$. 
+(We assume the water at the top of the tank remains flat---allowed by a slow outflow rate). 
 %We treat the water as incompressible (constant density: $\rho$ [g/cm$^3$]) and inviscid. 
 %Our model follows from (i) the law of conservation of mass and (ii) Torricelli's law.
 % outflow driven by gravity exerting a force on the water above the orifice, causing a hydrostatic pressure in the water at the entrance of the orifice. 
@@ -317,9 +333,15 @@ Here, we mathematically model the height of water in our draining tank as a func
 \paragraph{Torricelli's law.}
 We model the velocity $v$ [cm/s] of the jet of water flowing out of the orifice at time $t$, when the water height is $h(t)$, with Torricelli's law \cite{d2021torricelli}:
 \begin{equation}
-	v(h(t)) =  \sqrt{2 g(h(t)-h_o)}, \label{eq:Torricelli}
-\end{equation} where $g$ [cm/s$^2$] is the acceleration due to gravity. Torricelli's law follows from Bernoulli's equation \cite{welty2020fundamentals}, a mechanical energy balance on the flow through the orifice, treating (i) the flow as steady, plug, and absent of frictional forces and (ii) the water as inviscid and incompressible.
-Torricelli's law matches (i) the gain in kinetic energy, $(\Delta m) v^2/2$, when a small mass $\Delta m$ of water is ejected from the orifice, with (ii) the loss of gravitational potential energy, $(\Delta m)g(h-h_o)$, from the concomitant removal of a small slice of water of mass $\Delta m$ from the top of the body of water in the tank. \cite{groetsch1993inverse_tl,driver1998torricelli,williams2021vessel}
+	v\left(h(t) \right) =  \sqrt{2 g(h(t)-h_o)}, \label{eq:Torricelli}
+\end{equation} where $g$ [cm/s$^2$] is the gravitational acceleration constant. 
+Torricelli's law follows from applying Bernoulli's equation \cite{welty2020fundamentals}, a mechanical energy balance, to a streamline of the flow of water from (1) a point at the top in the body of water in the tank to (2) a point in the outlet stream just outside of the orifice. 
+This approximates the water as ideal (incompressible and inviscid) and the flow as at steady-state. See Sec.~\ref{sec:Torricelli} for details.
+Torricelli's law matches 
+(i) the gain in kinetic energy $(\Delta m) v^2/2$ with the 
+(ii) loss in gravitational potential energy $(\Delta m)g(h-h_o)$
+when a small parcel of water, of mass $\Delta m$, travels from the top of the liquid in the tank to just outside of the orifice.
+\cite{groetsch1993inverse_tl,driver1998torricelli,williams2021vessel}
 
 \paragraph{Volumetric outflow rate.}
 %If Torricelli's law held and the cross-sectional area of the liquid jet out of the tank were the same as the cross-sectional area of the orifice ($\pi r_o^2$), the volumetric flow rate out of the tank would be $v\pi r_o^2$.
