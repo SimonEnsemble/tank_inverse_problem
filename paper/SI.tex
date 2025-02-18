@@ -19,6 +19,9 @@
 
 \documentclass[a4paper,fleqn]{cas-sc}
 
+\renewcommand{\abstractname}{} 
+
+
 \usepackage{subcaption}
 
 \usepackage{multicol}
@@ -55,7 +58,6 @@
 %\newdefinition{rmk}{Remark}
 %\newproof{pf}{Proof}
 %\newproof{pot}{Proof of Theorem \ref{thm}}
-
 
 \begin{document}
 \let\WriteBookmarks\relax
@@ -159,10 +161,17 @@ Supporting Information: Scanning the cross-sectional area of a solid inside an o
 	}
 \end{figure}
 
+\clearpage
+
 \section{Cross-sectional area of the tank and solid contained in the tank}
 
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.75\textwidth]{../drawings_and_photos/a_of_h.pdf} 
+	\caption{We illustrate the cross-sectional area, from a helicopter-view, $\alpha(h)$ and $a(h)$, of the exogenous solid and the draining tank, respectively, as a function of height from the ground, $h$.}
+\end{figure}
 
-
+\clearpage
 
 \section{Obtaining Torricelli's Law from Bernoulli's Equation}
 
@@ -202,6 +211,61 @@ Supporting Information: Scanning the cross-sectional area of a solid inside an o
 	v_2 = \sqrt{2gz}.
 	\end{equation}
 	The velocity of the liquid ejecting from the side of the tank is proportional to the square root of the height of liquid $z$ above the hole. The gravitational acceleration constant appears because gravity is the force that drives the flow.
+	
+\clearpage
+	
+\section{
+A classical method 
+to infer the 
+cross-sectional area of a solid contained in a tank as a function of height
+from the liquid level dynamics as the tank drains}
+For comparison, we employ a classical (i.e., non-Bayesian nor probabilistic) method for our inverse problem.
+
+ \subsection{Forward model} Still, our forward model
+\begin{align}
+& \left[ a(h)-\alpha(h)\right] \diff{h}{t}= -c \pi r_o^2 \sqrt{2g (h(t)-h_o)}, \,\,\, t \geq 0\label{eq:SI_model} \\
+& h(0)=h_0, \nonumber 
+\end{align}
+ governs the liquid height $h(t)$ in our draining tank over time $t \geq 0$.
+ The cross-sectional area of the tank as a function of height $h$, $a(h)$, is known and characterized by our length measurements.
+ 
+ \subsection{Parameter identification}
+ To identify the discharge coefficient $c$, we use the experimental time series data of the liquid level $\{(t_i, h_i)\}_{i=0}^N$ from the tank drainage experiment where the tank does \emph{not} contain an exogenous object, so $\alpha(h) = 0$ $\forall h$. We then define a least-squares loss function:
+ \begin{equation}
+ 	\ell(c) = \displaystyle\sum_{i=1}^N [h_i - h(t_i; c)]^2
+ \end{equation} where $h(t;c)$ is the predicted liquid level (i.e. according to the model) at time $t$ if the discharge coefficient were $c$, given by eqn.~\ref{eq:SI_model} under $\alpha(h)=0$, the measured initial liquid level $h_0$, and measured orifice radius and height $r_o$ and $h_o$. (We use $g=9.8$ m/s$^2$.)
+ Using a numerical routine to minimize $\ell(c)$, we find the discharge coefficient of best-fit is $c=0.68$. Fig.~\ref{fig:mle} compares (line) the model with the optimal $c$ and (points) time series data used for the fitting.
+ 
+ \subsection{Reconstruction}
+Now that we have identified the discharge coefficient $c$, we use the forward model to tackle the inverse problem of reconstruction: given liquid level time series data from a tank drainage experiment when the tank \emph{does} contain an exogenous solid, predict the cross-sectional area of the exogenous solid as a function of height, $\alpha(h)$. For this task, we solve the forward model in eqn.~\ref{eq:SI_model} for the unknown we seek:
+\begin{equation}
+\alpha(h) = a(h) +  \frac{c \pi r_o^2 \sqrt{2g (h-h_o)}}{\diff{h}{t}} \label{eq:alpha_unknown}
+\end{equation} then
+employ a scheme to approximate $\diff{h}{t}$ as a function of $h$ and obtain a prediction for $\alpha(h)$. Specifically, we employ smoothed, quartic spline interpolation to approximate $h(t)$ from the time series data from the experiment with the solid, from which $\diff{h}{t}$ follows.
+First, Fig.~\ref{fig:spline_fit} shows: on the top panel, the liquid level time series data from the tank drainage experiment where the tank contained the exogenous solid along with the smoothed, quartic spline fit to the data giving a smooth representation $h(t)$; and, on the bottom panel, the approximated derivative of the liquid level over time $\diff{h}{t}$ from the spline fit. 
+Second, Fig.~\ref{fig:classical_soln} shows the predicted cross-sectional area of the exogenous object as a function of height $\alpha(h)$ following from eqn.~\ref{eq:alpha_unknown} when we use the smooth, quartic spline fit to the time series data for both $h(t)$ and $\diff{h}{t}$. For comparison, we also show is the directly-measured (via length-measurements) area of the exogenous object as a function of height. 
+We observe a reasonable prediction of the solid's area as a function of height. 
+However, unlike the Bayesian method in the main text, the uncertainty in the predicted exogenous solid's cross-sectional area as a function of height is not captured.
+
+\begin{figure}[h!]
+	\centering
+	\begin{subfigure}[b]{0.5\textwidth}
+		\includegraphics[width=\textwidth]{classic_MLE_fit.pdf} \caption{} \label{fig:mle}
+	\end{subfigure}
+	
+	 \begin{subfigure}[b]{0.525\textwidth}
+		\includegraphics[width=\textwidth]{classical_spline_fit.pdf} \caption{} \label{fig:spline_fit}
+	\end{subfigure}
+	\begin{subfigure}[b]{0.4\textwidth}
+		\includegraphics[width=\textwidth]{classical_soln.pdf} \caption{} \label{fig:classical_soln}
+	\end{subfigure}
+	\caption{Classical approach to the inverse problem.
+	(a) We use liquid level time series data in the draining tank when it does not contain an exogenous object to identify the discharge coefficient $c$ via minimizing a least-squares loss function. The model with the $c$ fit to the tdata is shown.
+	(b) (top) Liquid level time series data in the draining tank when it does contain an exogenous object, along with a smoothed, quartic spline fit to the data. (bottom) The time-derivative of the liquid level according to the spline fit to the data. 
+	(c) The measured and predicted square root of the area of the exogenous object as a function of $h$.
+	}
+\end{figure}
+
 % Biography
 %\bio{}
 % Here goes the biography details.

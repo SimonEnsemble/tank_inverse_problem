@@ -495,7 +495,7 @@ function viz_sim_fit(
 
 	axislegend(@sprintf("c=%.2f", c), titlefont=:regular)
 	if ! isnothing(savename)
-		save("$savename.pdf", fig)
+		save("paper/$savename.pdf", fig)
 	end
 	fig
 end
@@ -1286,7 +1286,7 @@ begin
 end
 
 # ╔═╡ 08cee0a9-d358-4954-8e46-74de23d48d86
-t_end_classical = 650.0 # s
+t_end_classical = data_w_object[end-2, "t [s]"]
 
 # ╔═╡ f3f886d6-3010-4dd9-b42a-d5309463beb6
 h_of_t_w_object(30.0)
@@ -1326,7 +1326,7 @@ function viz_spline_fit(
 	for ax in axs
 		xlims!(ax, 0, nothing)
 	end
-	save("classical_spline_fit.png", fig)
+	save("paper/classical_spline_fit.pdf", fig)
 	fig
 end
 
@@ -1369,6 +1369,9 @@ classical_α = classical_soln_A_object(
 	h_of_t_w_object, c_opt, tank_geometry
 )
 
+# ╔═╡ 57328e4f-e945-46eb-aba1-8b75dfeb4575
+tank_geometry
+
 # ╔═╡ 5feb46c0-3888-4586-8b12-f990d4d38912
 begin
 	local fig = Figure(size=(500, 500))
@@ -1388,20 +1391,31 @@ begin
 		-sqrt.(object_true_area[:, "area [cm²]"]), object_true_area[:, "h [cm]"],
 		color="black"
 	)
-	
+
+	# predicted area
 	lines!(
 		sqrt.(classical_α[:, "α [cm²]"]), classical_α[:, "h [cm]"], 
-		label="inferred", color=theme_colors[8]
+		label="predicted", color=theme_colors[8]
 	)
 	lines!(
 		-sqrt.(classical_α[:, "α [cm²]"]), classical_α[:, "h [cm]"], 
 		color=theme_colors[8]
 	)
+			
+	# plot area of tank for reference
+	local a_t = lwr_to_a(tank_geometry.l_t, tank_geometry.w_t, tank_geometry.r_t)
+	local a_b = lwr_to_a(tank_geometry.l_b, tank_geometry.w_b, tank_geometry.r_b)
+
+	r_tank = sqrt.([a_b, a_t])
+	lines!(r_tank, [0, tank_geometry.h_max], color="gray", label="tank")
+	lines!(-r_tank, [0, tank_geometry.h_max], color="gray")
+	lines!([-r_tank[2], r_tank[2]], [tank_geometry.h_max, tank_geometry.h_max], color="gray")
+	lines!([-r_tank[1], r_tank[1]], [0, 0], color="gray")
 	
 	# xlims!(0, nothing)
 	ylims!(0, nothing)
 	axislegend(position=:cb)
-	save("classical_soln.png", fig)
+	save("paper/classical_soln.pdf", fig)
 	fig
 end
 
@@ -1895,6 +1909,7 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═3385b22e-85ef-4bb0-8b1b-d03411c89b4f
 # ╠═29d3cc8f-780b-449a-87ba-8d543ad2473b
 # ╠═0a48e016-2fba-47cc-a212-47b4a3324b20
+# ╠═57328e4f-e945-46eb-aba1-8b75dfeb4575
 # ╠═5feb46c0-3888-4586-8b12-f990d4d38912
 # ╟─b23dc763-d91f-4d66-94d2-dcf96cb07f54
 # ╠═8897acea-5efb-47a6-83a2-0c70fccfdb46
