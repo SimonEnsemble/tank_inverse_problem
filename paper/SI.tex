@@ -188,7 +188,7 @@ From these, three measurements, we can determine $l$, $w$, and $r$ via solving t
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width=0.75\textwidth]{../drawings_and_photos/a_of_h.pdf} 
-	\caption{We illustrate the cross-sectional area, from a helicopter-view, $\alpha(h)$ and $a(h)$, of the exogenous solid and the draining tank, respectively, as a function of height from the ground, $h$. These two functions characterizing the geometry of the tank and exogenous object are key determinants of the dynamics of the liquid level in the draining tank when it contains the exogenous object.}
+	\caption{We illustrate the cross-sectional area, from a helicopter-view, $\alpha(h)$ and $a(h)$, of the exogenous solid and the draining tank, respectively, as a function of height from the ground, $h$. These two functions characterizing the geometry of the tank and exogenous object are key determinants of the dynamics of the liquid level in the draining tank when it contains the exogenous object.} \label{fig:a_and_alpha_of_h_illustration}
 \end{figure}
 
 \clearpage
@@ -295,7 +295,15 @@ However, unlike our Bayesian statistical inversion in the main text, the uncerta
 \clearpage
 
 \section{Expanded derivation of the forward model from a mass balance}
+Here, we begin with the first physical principle of conservation of mass to derive the model for the liquid level $h(t)$ in our draining tank.
 
+\paragraph{Volume of water in the tank.} 
+The volume $V$ [cm$^3$] of water in the tank at time $t$, when the water height is $h(t)$, follows from the method of cross-sections in calculus \cite{debook}:
+\begin{equation}
+	V(h(t))=\int_0^{h(t)} \left[a(y) - \alpha(y) \right] dy. \label{eq:volume}
+\end{equation}
+The integrand is the cross-sectional area of water in the tank at height $y$; subtraction of the area of the solid $\alpha(y)$ from the area of the tank $a(h)$ accounts for the solid displacing water. (We neglect the small volume of water displaced by the level sensor.) The expression assumes the solid did not retain water above $h(t)$.
+ 
 
 % Biography
 %\bio{}

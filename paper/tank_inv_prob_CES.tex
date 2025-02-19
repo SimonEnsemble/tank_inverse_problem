@@ -104,8 +104,8 @@ parbox=false
 
 % Main title of the paper
 \title [mode = title]{
-Scanning the cross-sectional area of a solid inside an opaque tank 
-  via liquid level dynamics during draining
+Scanning the cross-sectional area of a solid inside an opaque, draining tank 
+  via inference from liquid level dynamics
  }  
 
 % Title footnote mark
@@ -238,9 +238,10 @@ The cross-sectional area of the orifice affects the emptying time; theoretically
 However, a \emph{discharge coefficient} \cite{de2000pin,blasone2015discharge,wadhwa2021study,liu2008drainage} must be introduced into the model for agreement with experimentally-measured volumetric outflow rates \cite{farmer1992physical,driver1998torricelli,brady2009siphons,rother2024modelling,paldy1963apparatus,ivanov2014testing,williams2021vessel,pavesi2019investigating,planinvsivc2011holes,saleta2005experimental,lopac2015water,powell2012carrying}.
 The discharge coefficient \cite{teoman2022discharge,hicks2014determining,blasone2015discharge,lienhard1984velocity,wadhwa2021study}
 (i) is defined as the ratio of the observed outlet volumetric flow rate to that predicted by Torricelli's law, plug flow for the jet, and the area of the orifice \cite{hicks2014determining};
-(ii) accounts for (a) the vena contracta of the liquid jet (the cross-sectional area of the liquid jet issuing from the orifice is smaller than that of the orifice, owing to fluid streamlines in the tank, near the orifice, non-perpendicular to the face of the orifice \cite{horsch2020simple}), (b) frictional losses across the orifice, and (c) non-uniformity of the velocity profile; and
-(iii) depends on the rheology of the liquid, the geometry of the orifice, and, for laminar flow, the Reynolds number \cite{teoman2022discharge}. 
-%  and (ii) depends on the rheology of the fluid and the geometry of the orifice. 
+(ii) accounts for 
+   (a) the non-uniformity of the velocity profile and vena contracta of the liquid jet (the cross-sectional area of the liquid jet issuing from the orifice is smaller than that of the orifice, owing to fluid streamlines in the tank, near the orifice, non-perpendicular to the face of the orifice \cite{horsch2020simple}), 
+   (b) frictional losses, and (c) possibly, turbulence; and
+(iii) depends on the properties of the liquid (e.g., viscosity and density), the geometry of the orifice, and, for laminar flow, the Reynolds number \cite{teoman2022discharge}. 
 
 In contrast to the \emph{forward problem} of using this dynamic model to predict the trajectory of the liquid level in a draining tank of a given geometry, Groetsch \cite{groetsch1993inverse_tl,groetsch1999inverse} framed an \emph{inverse problem} \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse}: reconstruct the shape of the tank from its liquid level over time as it drains. 
 While impossible to infer the precise geometry of the tank, one can leverage the dynamic model to determine the cross-sectional area of the tank as a function of height from the liquid level as a function of time. (The rate of decrease of the liquid level provides information about the cross-sectional area of the tank at that height. The outlet flow rate depends on the height of water only; so, wider [say, cylindrical] tanks drain more slowly.)
@@ -275,31 +276,16 @@ First, we describe our experimental setup in Fig.~\ref{fig:photo_of_tank} for ta
 We possess a plastic tank---an inverted, right, truncated cone with a rounded rectangle base (excluding the top rim). The top of the tank is open to the atmosphere.
 We drilled a small, circular orifice of radius $r_o$ [cm] in the side of the tank, parallel with the ground and a small height $h_o$ [cm] (to its center) from the bottom base.
 
-For a multi-view drawing of the tank geometry with its dimensions marked, see Fig.~\ref{fig:tank_geometry}.
-The height of the tank is $h_{\text{max}}$ [cm].
-Each cross-section of the tank [parallel to the ground] is a rounded rectangle \cite{rounded_rect} with length $l$ [cm], width $w$ [cm], and corner circle radius $r$ [cm].
-By definition, a rounded rectangle is the convex hull of four circles, each of radius $r$, whose centers lie at the vertices of a rectangle with length $l$ and width $w$ \cite{rounded_rect}.
-Now, the cross-sectional area [parallel to the ground] of the tank as a function of height $h$ [cm] from its bottom base is (see Fig.~\ref{fig:rounded_rectangle} for a visual proof):
-\begin{equation}
-	a(h) = l(h) w(h) + 2 r(h) [l(h) + w(h)] + \pi [r(h)]^2, \label{eq:a_of_h}
-\end{equation}
-with the rounded rectangle's length, width, and corner-circle radius at height $h$:
-\begin{align}
-	l(h) &= \frac{h}{h_{\text{max}}}l_t + \left(1-\frac{h}{h_{\text{max}}}\right) l_b \\
-	w(h) &= \frac{h}{h_{\text{max}}}w_t + \left(1-\frac{h}{h_{\text{max}}}\right) w_b \\
-	r(h) &= \frac{h}{h_{\text{max}}}r_t + \left(1-\frac{h}{h_{\text{max}}}\right) r_b,
-\end{align}
-with $l_b$, $w_b$, and $r_b$ [cm] and $l_t$, $w_t$, and $r_t$ [cm] characterizing the rounded rectangle forming the bottom and top, respectively, base of the tank.
-In summary, we characterize $\alpha(h)$ by the parameters: $l_b$, $w_b$, $r_b$, $l_t$, $w_t$, and $r_t$, and $h_{\rm max}$.
+
 
 A tank draining experiment constitutes: 
 (1) optionally, placing an exogenous, heavy solid inside the tank; 
 (2) nearly filling the tank with water, to an initial height $h_0$ [cm]; 
-(3) at time $t=0$ [s], allowing the water to drain out (driven by gravity) through the orifice, exiting to the atmosphere; and 
+(3) at time $t=0$ [s], allowing the water to drain out (driven by gravity) through the orifice and exit to the atmosphere; and 
 (4) collecting time series data of the water level in the tank over time, $\{(t_i, h_{\text{obs}, i}) \}$, from a liquid level sensor communicating with an Arduino microcontroller. 
 
-The exogenous [rigid] solid (i) is heavier than water, and thus remains stationary at the bottom of the tank; (ii) displaces water in the tank; and (iii) has a geometry rendering it incapable of holding water (the solid cannot hold water iff it is locally convex at points on its (assume, smooth) surface where the normal vector to the surface is anti-parallel with the gravitational field). 
-Let $\alpha(h)$ [cm$^2$] be the cross-sectional area of this solid as a function of height $h$.
+The exogenous [rigid] solid (i) is heavier than water, and thus remains stationary at the bottom of the tank; (ii) displaces water in the tank; and (iii) has a geometry rendering it incapable of holding water itself (the solid cannot hold water iff it is locally convex at points on its (assume, smooth) surface where the normal vector to the surface is anti-parallel with the gravitational field). Let $\alpha(h)$ [cm$^2$] be the area of a horizontal cross section of the exogenous solid at height $h$ [cm] from its bottom base.
+
 
 \begin{figure}[h!]
 \begin{center}
@@ -311,7 +297,34 @@ Let $\alpha(h)$ [cm$^2$] be the cross-sectional area of this solid as a function
 \end{center}
 \end{figure}
 
-(More on the liquid level sensor:)
+\subsection{Geometry of the tank}
+%The dynamics of the liquid level in the draining tank depend on both the geometry of the tank and the geometry of the exogenous solid contained in the tank, which displaces water. 
+%According to our simplified mathematical model of the draining tank in Sec.~\ref{sec:forward_model}, the liquid level dynamics are dictated solely by the cross-sectional area available to the water inside the tank, as a function of height. 
+%For this reason, we distill the geometry of the tank and exogenous solid down into two functions: 
+%$a(h)$ and $\alpha(h)$ [cm$^2$], the cross-sectional area of the tank and exogenous solid, respectively, as a function of height $h$, illustrated in Fig.~\ref{fig:a_and_alpha_of_h_illustration}.
+Fig.~\ref{fig:tank_geometry} contains a multi-view drawing of the tank geometry with its dimensions marked.
+The height of the tank is $h_{\text{max}}$ [cm].
+Each horizontal [parallel to the ground] cross-section of the tank is a rounded rectangle with length $l$ [cm], width $w$ [cm], and corner-circle radius $r$ [cm].
+By definition, a rounded rectangle is the convex hull of four circles, each of radius $r$, whose centers lie at the vertices of a rectangle with length $l$ and width $w$. \cite{rounded_rect}
+The length, width, and corner-circle radius of the rounded rectangle constituting the horizontal cross-section at height $h$ are:
+\begin{align}
+	l(h) &= \frac{h}{h_{\text{max}}}l_t + \left(1-\frac{h}{h_{\text{max}}}\right) l_b \\
+	w(h) &= \frac{h}{h_{\text{max}}}w_t + \left(1-\frac{h}{h_{\text{max}}}\right) w_b \\
+	r(h) &= \frac{h}{h_{\text{max}}}r_t + \left(1-\frac{h}{h_{\text{max}}}\right) r_b.
+\end{align}
+where $l_b$, $w_b$, and $r_b$ [cm] and $l_t$, $w_t$, and $r_t$ [cm] are the length, width, and corner-circle radius of the rounded rectangles forming the bottom and top, respectively, bases of the tank.
+In summary, the tank geometry is characterized by the parameters: $l_b$, $w_b$, $r_b$, $l_t$, $w_t$, and $r_t$, and $h_{\rm max}$.
+
+The area of a horizontal cross section of the tank at height $h$ [cm] from its bottom base is (see Fig.~\ref{fig:rounded_rectangle} for a visual proof):
+\begin{equation}
+	a(h) = l(h) w(h) + 2 r(h) [l(h) + w(h)] + \pi [r(h)]^2. \label{eq:a_of_h}
+\end{equation}
+%
+%where $l_b$, $w_b$, and $r_b$ [cm] and $l_t$, $w_t$, and $r_t$ [cm] are the length, width, and corner-circle radius of the rounded rectangles forming the bottom and top, respectively, bases of the tank.
+%In summary, we characterize $\alpha(h)$ by the parameters: $l_b$, $w_b$, $r_b$, $l_t$, $w_t$, and $r_t$, and $h_{\rm max}$.
+
+
+\subsection{The liquid level sensor}
 We place an eTape\texttrademark\xspace liquid level strip vertically inside the tank, immersed in the water. 
 The level strip gives an electrically-resistive output inversely proportional to the water level owing to its compression by the hydrostatic pressure of the water in which it is immersed \cite{eTape}.
 The sensor communicates with an Arduino microcontroller, providing us measurements of the water level over a sequence of times. 
@@ -323,9 +336,13 @@ The probabilistic \emph{measurement model} characterizes the noise contaminating
 After we collect time series data \thedata from a tank drainage experiment, we use the forward and measurement models to construct the \emph{likelihood function}---the probability density of the data \thedata conditioned upon proposed functions/values for the inputs/parameters. 
 When any of the inputs/parameters are uncertain in an inverse problem concerning the draining tank, the likelihood function quantifies the support that the data \thedata lend for each possible set of inputs/parameters.
 
-\subsection{Forward model}
-Here, we mathematically model the height of water in our draining tank as a function of time, $h(t)$. 
+\subsection{Forward model} \label{sec:forward_model}
+Here, we develop a mathematical model the height of water in our draining tank as a function of time, $h(t)$ for $t\geq 0$.
 (We assume the water at the top of the tank remains flat---allowed by a slow outflow rate). 
+
+To derive a model, we apply a mass balance on the draining tank as the control volume.
+Treating the water as incompressible (i.e., constant density), a mass balance implies a volume balance.
+So, the rate of decrease of the volume of water in the tank [cm$^3$/s] equals the volumetric outflow rate at each time. We apply simple geometry and Torricelli's law, respectively, to write both terms, then equate them to arrive at our dynamic model for $h(t)$.
 %We treat the water as incompressible (constant density: $\rho$ [g/cm$^3$]) and inviscid. 
 %Our model follows from (i) the law of conservation of mass and (ii) Torricelli's law.
 % outflow driven by gravity exerting a force on the water above the orifice, causing a hydrostatic pressure in the water at the entrance of the orifice. 
@@ -335,35 +352,41 @@ We model the velocity $v$ [cm/s] of the jet of water flowing out of the orifice 
 \begin{equation}
 	v\left(h(t) \right) =  \sqrt{2 g(h(t)-h_o)}, \label{eq:Torricelli}
 \end{equation} where $g$ [cm/s$^2$] is the gravitational acceleration constant. 
-Torricelli's law follows from applying Bernoulli's equation \cite{welty2020fundamentals}, a mechanical energy balance, to a streamline of the flow of water from (1) a point at the top in the body of water in the tank to (2) a point in the outlet stream just outside of the orifice. 
-This approximates the water as ideal (incompressible and inviscid) and the flow as at steady-state. See Sec.~\ref{sec:Torricelli} for details.
+Torricelli's law follows from applying Bernoulli's equation \cite{welty2020fundamentals}, a mechanical energy balance, to a streamline of the flow of water from (1) a point at the top of the body of water inside the tank to (2) a point in the outlet stream just outside of the orifice. 
+This approximates the water as ideal (incompressible and inviscid) and the flow along the streamline as at steady-state. See Sec.~\ref{sec:Torricelli} for details.
 Torricelli's law matches 
 (i) the gain in kinetic energy $(\Delta m) v^2/2$ with the 
 (ii) loss in gravitational potential energy $(\Delta m)g(h-h_o)$
 when a small parcel of water, of mass $\Delta m$, travels from the top of the liquid in the tank to just outside of the orifice.
 \cite{groetsch1993inverse_tl,driver1998torricelli,williams2021vessel}
 
-\paragraph{Volumetric outflow rate.}
 %If Torricelli's law held and the cross-sectional area of the liquid jet out of the tank were the same as the cross-sectional area of the orifice ($\pi r_o^2$), the volumetric flow rate out of the tank would be $v\pi r_o^2$.
-Invoking Torricelli's law, we model the volumetric flow rate out of the tank at time $t$, when the water height is $h(t)$, as:
+\paragraph{Volumetric outflow rate.}
+Invoking Torricelli's law, we model the volumetric flow rate out of the tank at time $t$, when the water height is $h(t)$, as the product of the velocity $v(h(t))$ of the outlet stream, the area of the orifice $\pi r_o^2$, and a [dimensionless] discharge coefficient $c\in(0, 1)$:
 \begin{equation}
-	c \pi r_o^2 \sqrt{2 g(h(t)-h_o)}, \label{eq:outletflow}
+	c \pi r_o^2 \sqrt{2 g(h(t)-h_o)}. \label{eq:outletflow}
 \end{equation}
-with $c\in(0,1)$ the [dimensionless] discharge coefficient---a ``fudge factor'' to account for the vena contracta in the water jet, non-plug flow through the orifice, and frictional losses as the water flows through the orifice \cite{horsch2020simple,teoman2022discharge,hicks2014determining,blasone2015discharge,lienhard1984velocity,wadhwa2021study}. 
-Note, $c=1$ corresponds with an ``ideal'' water jet with cross-sectional area equal to that of the orifice ($\pi r_o^2$), plug flow, and zero frictional losses.
+The discharge coefficient is intended to account for the non-plug flow through the orifice, the vena contracta in the water jet, and frictional losses
+\cite{horsch2020simple,teoman2022discharge,hicks2014determining,blasone2015discharge,lienhard1984velocity,wadhwa2021study}. 
+% Note, $c=1$ corresponds with an ``ideal'' water jet with cross-sectional area equal to that of the orifice ($\pi r_o^2$), plug flow, and zero frictional losses.
 
-\paragraph{Volume of water in the tank.} 
+\paragraph{Volume of water in the tank.}
 The volume $V$ [cm$^3$] of water in the tank at time $t$, when the water height is $h(t)$, follows from the method of cross-sections in calculus \cite{debook}:
 \begin{equation}
 	V(h(t))=\int_0^{h(t)} \left[a(y) - \alpha(y) \right] dy. \label{eq:volume}
 \end{equation}
-The integrand is the cross-sectional area of water in the tank at height $y$; subtraction of the area of the solid $\alpha(y)$ from the area of the tank $a(h)$ accounts for the solid displacing water. (We neglect the small volume of water displaced by the level sensor.) The expression assumes the solid did not retain water above $h(t)$.
+The integrand is the cross-sectional area of water in the tank at height $y$, which is the area of the horizontal cross-section of the tank $a(y)$ minus that of the exogenous solid $\alpha(y)$ displacing water. (We neglect the small volume of water displaced by the level sensor.) 
+This expression assumes the solid did not retain water above $h(t)$ as the tank drained.
 
-\paragraph{Conservation of mass.}
-% A mass balance on the draining tank [as the control volume] at time $t \geq 0$ equates the rate of decrease of water in the tank [g/s] with the outflow rate [g/s].
-Treating the water as incompressible (constant density: $\rho$ [g/cm$^3$]) and using expression~\ref{eq:outletflow} for the outflow, a mass balance on the draining tank for $t\geq 0$ gives:
+%The dynamics of the liquid level in the draining tank depend on both the geometry of the tank and the geometry of the exogenous solid contained in the tank, which displaces water. 
+
+%For this reason, we distill the geometry of the tank and exogenous solid down into two functions: 
+%$a(h)$ and $\alpha(h)$ [cm$^2$], the cross-sectional area of the tank and exogenous solid, respectively, as a function of height $h$, illustrated in Fig.~\ref{fig:a_and_alpha_of_h_illustration}.
+
+\paragraph{Conservation of volume.}
+Conservation of volume implies the rate of accumulation of water [cm$^3$/s] in the tank is equal to the negative volumetric outflow rate:
 \begin{equation}
-	\overbrace{\diff{}{t} \Bigl( \rho V(h(t)) \Bigr )}^{\text{rate of accumulation}}= - \overbrace{\rho c \pi r_o^2 \sqrt{2 g(h(t)-h_o)}}^{\text{rate of outflow}}. \label{eq:massbalance}
+	\overbrace{\diff{}{t} \Bigl( V(h(t)) \Bigr )}^{\text{rate of accumulation}}= - \overbrace{ c \pi r_o^2 \sqrt{2 g(h(t)-h_o)}}^{\text{rate of outflow}}. \label{eq:massbalance}
 \end{equation}
 
 \paragraph{The forward model.}
@@ -374,6 +397,8 @@ Differentiating $V(h(t))$ in eqn.~\ref{eq:volume} and using the chain rule \cite
 & h(0)=h_0, \nonumber
 \end{empheq}
 a [generally] nonlinear, first-order, ordinary differential equation (ODE) in $h(t)$ subject to an initial condition.
+
+\subparagraph{Numerical method to solve the forward model.}
 Given the geometry of the tank and solid through $a(h)$ and $\alpha(h)$, the discharge coefficient $c$, the orifice radius and height $r_o$ and $h_o$, and initial water height $h_0$, we numerically solve the ODE in eqn.~\ref{eq:forward_model} (with \texttt{DifferentialEquations.jl} \cite{rackauckas2017differentialequations}, which uses a Runge-Kutta method \cite{tsitouras2011runge}) to predict the water height in our draining tank over time, $h(t)$. 
 % I.e., this \emph{forward} model makes predictions of the system output $h(t)$ (an \emph{effect}) when given the parameters and initial condition (the \emph{cause} of the effect).
 
@@ -397,7 +422,7 @@ Then, we construct the function $\alpha(h)$ for $h\in [0, h_{\text{max}}]$ via p
 We
 %In the language of inverse problems \cite{groetsch1999inverse,waqar2023tutorial}, we 
 consider the solid's area $\boldsymbol \alpha$ and initial water level $h_0$ as \emph{inputs} (causal factors) to the system and the water level as a function of time $h(t)$ as the \emph{output} (effect) of the system.
-The \emph{model parameters} $\boldsymbol \theta \in \mathbb{R}^6$ characterize the geometry of the tank and orifice and, loosely, the rheology of water (embedded in $c$):
+The \emph{model parameters} $\boldsymbol \theta \in \mathbb{R}^6$ characterize the geometry of the tank and orifice and, loosely, the viscosity and density of water (embedded in $c$):
 \begin{equation}
 	\boldsymbol \theta := [h_{\text{max}}, a_b, a_t, r_o, h_o, c]. \label{eq:theta}
 \end{equation}
