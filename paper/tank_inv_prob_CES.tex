@@ -415,7 +415,7 @@ Given the area profiles of the tank and solid $a(h)$ and $\alpha(h)$, the discha
 
 
 \subparagraph{Parameterizing the solid's area profile.}
-We parameterize the horizontal cross-sectional area profile of the solid in the tank $\alpha(h)$, with a list of $n+1$ discrete evaluations of $\alpha(h)$ on a uniform grid of points on its domain $[0, h_{\text{max}}]$:
+We parameterize the horizontal cross-sectional area profile of the solid in the tank $\alpha(h)$, with a list of $n+1$ evaluations of $\alpha(h)$ on a uniform grid of points on its domain $[0, h_{\text{max}}]$:
 \begin{equation}
 	\boldsymbol \alpha := [\alpha_0, \alpha_1, ... \alpha_n] \label{eq:alpha}
 \end{equation}
@@ -428,15 +428,14 @@ Then, we construct the function $\alpha(h)$ for $h\in [0, h_{\text{max}}]$ via p
 
 
 \subparagraph{Inputs, output, and model parameters.} 
-We
-%In the language of inverse problems \cite{groetsch1999inverse,waqar2023tutorial}, we 
+In the language of inverse problems \cite{groetsch1999inverse,waqar2023tutorial}, we 
 consider the solid's area profile $\boldsymbol \alpha$ and initial water level $h_0$ as \emph{inputs} (causal factors) to the system and the water level as a function of time $h(t)$ as the \emph{output} (effect) of the system.
-The \emph{model parameters} $\boldsymbol \theta \in \mathbb{R}^6$ characterize the geometry of the tank and orifice and, loosely, the viscosity and density of water (embedded in $c$):
+The \emph{model parameters} $\boldsymbol \theta \in \mathbb{R}^{10}$ characterize the geometry of the tank and orifice and, loosely, the viscosity and density of water (embedded in $c$):
 \begin{equation}
-	\boldsymbol \theta := [h_{\text{max}}, a_b, a_t, r_o, h_o, c]. \label{eq:theta}
+	\boldsymbol \theta := [h_{\text{max}}, l_t, w_t, r_t, l_b, w_b, r_b, r_o, h_o, c]. \label{eq:theta}
 \end{equation}
 (We omit $g$ from $\boldsymbol \theta$ because we treat it as a constant known with certainty.)
-Hereafter, we write the forward model as \themodel to indicate the dependence of $h(t)$ on the inputs and parameters.
+Hereafter, we write the forward model as \themodel to indicate the dependence of the output $h(t)$ on the inputs and parameters.
 
 \subsection{Measurement model}
 Suppose at time $t$ our water level sensor measures the height of water in the tank, providing a data point $(t, h_{\text{obs}})$ (obs for ``observation''). 
@@ -448,7 +447,8 @@ with the Gaussian-distributed random variable $\Psi \overset{\text{iid}}{\sim} \
 Then, the probability density of the measured liquid level is a Gaussian centered at the model prediction:
 \begin{equation}
 	H_{\text{obs}} \mid h_0, \boldsymbol \alpha, \boldsymbol  \theta, \sigma^2 \overset{\text{iid}}{\sim} \mathcal{N}(\themodelnomath, \sigma^2). \label{eq:H_obs_distn}
-\end{equation} We are explicit that $H_{\text{obs}}$ is conditioned upon the inputs, parameters, and noise variance and neglect model discrepancy \cite{brynjarsdottir2014learning}.
+\end{equation} We are explicit here that this distribution of $H_{\text{obs}}$ is conditioned upon the inputs, parameters, and noise variance. 
+(Eqn.~\ref{eq:H_obs_distn} neglects model discrepancy \cite{brynjarsdottir2014learning}.)
 % Sources of this noise are: imprecision of the liquid level strip, our calibration curve for the liquid level strip, vibrations
 
 % TODO: plot residuals
@@ -461,14 +461,14 @@ Based on eqn.~\ref{eq:H_obs_distn}, the likelihood density is:
  \pi_{\text{like}}(\thedatanomath \mid h_0,\boldsymbol  \alpha, \boldsymbol \theta, \sigma^2 ) = \\ \prod_{i=1}^N \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left[-\frac{1}{2}\left(\frac{h_{\text{obs}, i} - h(t_i; h_0, \boldsymbol\alpha, \boldsymbol\theta)}{\sigma} \right)^2 \right]. \label{eq:like}
 \end{multline}
 Once we obtain the data \thedata, we view the likelihood as a function of $h_0$, $\boldsymbol \alpha$, $\boldsymbol \theta$, and $\sigma^2$.
-The likelihood function (i) scores the consistency between (a) the model predictions, with proposed values for the inputs and parameters, of the water level over time and (b) the water level time series data and, hence, (ii) quantifies the support the data lend for each possible set of values for the inputs and parameters \cite{van2021bayesian}. 
+The likelihood function scores the consistency between (a) the model predictions, under proposed values for the inputs and parameters, of the water level over time and (b) our observed water level time series data. Hence, the likelihood function quantifies the support the data lend for each possible set of values for the inputs and parameters \cite{van2021bayesian}. 
 % The key idea is: if the data were likely (unlikely) to be obtained under proposed values for the inputs and parameters, then the 
 
 \section{Bayesian statistical inversion (BSI)} \label{sec:bsi}
 Here, we outline Bayesian statistical inversion (BSI)  \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian,allmaras2013estimating}, a tool for solving inverse problems while incorporating prior information and quantifying uncertainty. 
 Later, we employ BSI to, using water level time series data from tank drainage experiments,  
 (1, parameter inference) calibrate our forward and measurement models and 
-(2, reconstruction) infer the shape of a solid in the tank.
+(2, reconstruction) infer the area profile of a solid in the tank.
 
 Under BSI, we treat the uncertain input(s) and/or parameters of a tank drainage experiment as random variables and model their probability distributions.
 The probability density over input/parameter space expresses our knowledge and beliefs about the inputs/parameters, namely 
@@ -496,7 +496,7 @@ When considered against the forward and measurement models, these data provide n
 In light of the data \thedata, we invoke Bayes's theorem  \cite{van2021bayesian,calvetti2018inverse} to update our prior density of the inputs and parameters to a \emph{posterior} density
 \begin{multline}
 	\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath) \propto \\ % \frac{
-	\pi_{\text{like}}(\thedatanomath \mid h_0,  \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 ) 
+	\phantom{xxx} \pi_{\text{like}}(\thedatanomath \mid h_0,  \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 ) 
 	\pi_{\text{pr}}(h_0, \boldsymbol\alpha, \boldsymbol \theta, \sigma^2).
 	%}{
 	%\pi_{\text{ev}}(\thedatanomath) 
@@ -517,9 +517,9 @@ Note, uncertainty (entropy) remains in the posterior because
 %(ii) queried e.g., ``what is the probability this input/parameter exceeds a certain value?''; and
 %(iii) exploited in conjunction with the forward model to make probabilistic predictions, such as predicting the distribution of emptying times for a draining tank.
 
-To approximate the posterior, we conduct a Markov chain Monte Carlo (MCMC) simulation \cite{robert1999monte,van2021bayesian} that sequentially draws a sample of inputs/parameters $(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 )$ from the posterior density $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$. 
-From many samples from the posterior, we draw empirical posterior distributions, compute credible intervals, and plot samples of liquid level trajectories when paired with the forward model.
-Specifically, we use the No-U-Turn Sampler (NUTS) \cite{hoffman2014no} implemented in the probabilistic programming language \cite{gordon2014probabilistic} \texttt{Turing.jl} \cite{ge2018turing}.
+To approximate the posterior, we conduct a Markov chain Monte Carlo (MCMC) simulation \cite{robert1999monte,van2021bayesian} to draw samples of inputs/parameters $(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 )$ from the posterior density $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$. 
+Using many samples from the posterior, we can visualize the empirical posterior distributions of inputs and parameters, compute credible intervals for inputs and parameters, and plot samples of liquid level trajectories by solving the forward model under samples of inputs and parameters.
+Specifically, we use the No-U-Turn Sampler (NUTS) \cite{hoffman2014no} implemented in the probabilistic programming language \cite{gordon2014probabilistic} \texttt{Turing.jl} \cite{ge2018turing}. Compared to less-sophisticated but commonly used MCMC samplers (random walk Metropolis and Gibbs), NUTS can converge to the stationary distribution faster and provide a larger effective sample size \cite{chong2017comparison,hoffman2014no}.
 A key advantage of MCMC samplers is that we can circumvent computing the evidence. 
 
 
@@ -821,7 +821,7 @@ Our ambition to reconstruct the geometry of an exogenous solid inside a draining
 (c) additional inputs/outputs of liquid by adding source/sink terms; 
 (d) Mariotte's bottle \cite{kirevs2006mariotte}; and/or
 (e) a flexible exogenous object compressible by hydrostatic pressure, such as a balloon \cite{muller2004rubber}. 
-(2) During Bayesian model calibration, a model discrepancy \cite{brynjarsdottir2014learning,kennedy2001bayesian} function could capture any bias---i.e., a difference between the true dynamics of the liquid level in the tank and the model $h(t; h_0^*,  \boldsymbol \alpha^*, \boldsymbol \theta^*)$ with the true/best-fit (indicated by $*$) initial water level, solid geometry, and parameters.
+(2) During Bayesian model calibration, a model discrepancy \cite{brynjarsdottir2014learning,kennedy2001bayesian,eugene2023learning} function could capture any bias---i.e., a difference between the true dynamics of the liquid level in the tank and the model $h(t; h_0^*,  \boldsymbol \alpha^*, \boldsymbol \theta^*)$ with the true/best-fit (indicated by $*$) initial water level, solid geometry, and parameters.
 % In other words, we assume our forward model is capable of capturing the true liquid level dynamics in the tank without bias.
 (3) Finally, another interesting inverse problem pertaining to a draining tank is time reversal: infer the initial water level from measurement(s) of the water level at later times.
 
