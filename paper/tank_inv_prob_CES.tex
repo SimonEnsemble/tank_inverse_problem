@@ -516,11 +516,18 @@ Note, uncertainty (entropy) remains in the posterior because
 %(i) summarized with a \emph{credible region} [that contains the bulk of the posterior density] for each parameter/input;
 %(ii) queried e.g., ``what is the probability this input/parameter exceeds a certain value?''; and
 %(iii) exploited in conjunction with the forward model to make probabilistic predictions, such as predicting the distribution of emptying times for a draining tank.
-
+\subparagraph{Markov chain Monte Carlo sampling from the posterior.}
 To approximate the posterior, we conduct a Markov chain Monte Carlo (MCMC) simulation \cite{robert1999monte,van2021bayesian} to draw samples of inputs/parameters $(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 )$ from the posterior density $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$. 
-Using many samples from the posterior, we can visualize the empirical posterior distributions of inputs and parameters, compute credible intervals for inputs and parameters, and plot samples of liquid level trajectories by solving the forward model under samples of inputs and parameters.
-Specifically, we use the No-U-Turn Sampler (NUTS) \cite{hoffman2014no} implemented in the probabilistic programming language \cite{gordon2014probabilistic} \texttt{Turing.jl} \cite{ge2018turing}. Compared to less-sophisticated but commonly used MCMC samplers (random walk Metropolis and Gibbs), NUTS can converge to the stationary distribution faster and provide a larger effective sample size \cite{chong2017comparison,hoffman2014no}.
-A key advantage of MCMC samplers is that we can circumvent computing the evidence. 
+Using many samples from the posterior, we can visualize the [marginal] empirical posterior distributions, compute credible intervals, and plot posterior samples of liquid level trajectories by solving the forward model with samples values.
+
+MCMC samplers construct and simulate a Markov chain \cite{dobrow2016introduction} over the input/parameter space, designed to have the posterior as its stationary distribution.
+A key advantage is bypassing the need to compute the evidence---a high-dimensional integral, over the input/parameter space, of the prior multiplied by the likelihood function.
+
+Specifically, we employ the No-U-Turn Sampler (NUTS) \cite{hoffman2014no}, implemented in the probabilistic programming language \cite{gordon2014probabilistic} \texttt{Turing.jl} \cite{ge2018turing,xu2020advancedhmc}, to sample from our posterior.
+NUTS is a variant of the Hamiltonian MC \cite{betancourt2017conceptual} sampler, which (i) at each iteration, proposes a state transition then accepts or rejects it and (ii) inspired by the dynamics of a physical system \cite{duane1987hybrid}, leverages the gradient of the $\log$ of the posterior (computed numerically via automatic differentiation \cite{baydin2018automatic}) to guide state transition proposals to, hopefully, achieve a higher rate of acceptance.
+Each iteration requires us to solve the forward model under multiple set of inputs/parameters. 
+% TODO: check
+Compared to less-sophisticated but commonly used MCMC samplers (e.g., random walk Metropolis and Gibbs), NUTS can converge to the stationary distribution with fewer iterations and provide a larger effective sample size under a given number of iterations, though each iteration is more computationally expensive \cite{chong2017comparison,hoffman2014no,robert2018accelerating,shi2024bayesian,turner2017well}.
 
 
 \section{Results}
