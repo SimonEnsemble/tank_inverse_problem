@@ -517,29 +517,32 @@ Note, uncertainty (entropy) remains in the posterior because
 %(ii) queried e.g., ``what is the probability this input/parameter exceeds a certain value?''; and
 %(iii) exploited in conjunction with the forward model to make probabilistic predictions, such as predicting the distribution of emptying times for a draining tank.
 \subparagraph{Markov chain Monte Carlo sampling from the posterior.}
-To approximate the posterior, we conduct a Markov chain Monte Carlo (MCMC) simulation \cite{robert1999monte,van2021bayesian} to draw samples of inputs/parameters $(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 )$ from the posterior density $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$. 
-Using many samples from the posterior, we can visualize the [marginal] empirical posterior distributions, compute credible intervals, and plot posterior samples of liquid level trajectories by solving the forward model with samples values.
+To approximate the posterior, we conduct Markov chain Monte Carlo (MCMC) simulations \cite{robert1999monte,van2021bayesian} to draw samples of inputs/parameters $(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 )$ from the posterior density $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$. 
+Using these samples, we can visualize the [marginal] (empirical) posterior distributions, compute credible intervals, and plot posterior samples of liquid level trajectories by solving the forward model with sampled input/parameter values.
 
-MCMC samplers construct and simulate a Markov chain \cite{dobrow2016introduction} over the input/parameter space, designed to have the posterior as its stationary distribution.
-A key advantage is bypassing the need to compute the evidence---a high-dimensional integral, over the input/parameter space, of the prior multiplied by the likelihood function.
+MCMC samplers construct and simulate a Markov chain \cite{dobrow2016introduction} on the input/parameter space, designed to have the posterior as its stationary distribution.
+A key advantage of MCMC is that it avoids the need to compute the evidence---a high-dimensional integral of the prior multiplied by the likelihood function \cite{van2021bayesian}.
 
-Specifically, we employ the No-U-Turn Sampler (NUTS) \cite{hoffman2014no}, implemented in the probabilistic programming language \cite{gordon2014probabilistic} \texttt{Turing.jl} \cite{ge2018turing,xu2020advancedhmc}, to sample from our posterior.
-NUTS is a variant of the Hamiltonian MC \cite{betancourt2017conceptual} sampler, which (i) at each iteration, proposes a state transition then accepts or rejects it and (ii) inspired by the dynamics of a physical system \cite{duane1987hybrid}, leverages the gradient of the $\log$ of the posterior (computed numerically via automatic differentiation \cite{baydin2018automatic}) to guide state transition proposals to, hopefully, achieve a higher rate of acceptance.
-Each iteration requires us to solve the forward model under multiple set of inputs/parameters. 
+We specifically employ the No-U-Turn Sampler (NUTS) \cite{hoffman2014no}, implemented in the probabilistic programming language \cite{gordon2014probabilistic} \texttt{Turing.jl} \cite{ge2018turing,xu2020advancedhmc}, to sample from the posterior.
+NUTS is an adaptive variant of the Hamiltonian MC \cite{betancourt2017conceptual} sampler, which (i) at each iteration, proposes a state transition then accepts or rejects it under a probabilistic criterion and (ii) leverages local geometric information about the log-posterior (its gradient, computed via automatic differentiation \cite{baydin2018automatic}) to guide state transition proposals, inspired by the dynamics of physical systems \cite{duane1987hybrid}.
+Each iteration involves evaluating the forward model under multiple sets of inputs/parameters (for the likelihood and its gradient) \cite{paun2022emulation,patel2024multi}. 
 % TODO: check
-Compared to less-sophisticated but commonly used MCMC samplers (e.g., random walk Metropolis and Gibbs), NUTS can converge to the stationary distribution with fewer iterations and provide a larger effective sample size under a given number of iterations, though each iteration is more computationally expensive \cite{chong2017comparison,hoffman2014no,robert2018accelerating,shi2024bayesian,turner2017well}.
+Compared to simpler MCMC samplers (e.g., random walk Metropolis and Gibbs), NUTS can ``converge'' \cite{roy2020convergence} with many fewer iterations
+% to the stationary distribution with fewer iterations and provide a larger effective sample size under a given number of iterations, 
+(though, each iteration is more computationally expensive)
+\cite{chong2017comparison,hoffman2014no,robert2018accelerating,shi2024bayesian,turner2017well}.
 
 
 \section{Results}
 We now employ BSI to, using water level time series data from tank drainage experiments,  
 (1, parameter inference) calibrate our forward and measurement models then
-(2, reconstruction) exploit our calibrated model to infer the shape of a solid contained in the tank.
+(2, reconstruction) exploit our calibrated model to infer the horizontal cross-sectional area profile of a solid contained in the tank.
 
 \subsection{Phase I: Bayesian calibration of the forward and measurement models}
 \label{sec:phaseI}
 Our objective now is to calibrate then test our forward and measurement models.
 At this point, the model parameters $\boldsymbol \Theta$ and measurement noise variance $\Sigma^2$ are highly uncertain and, thus, treated as random variables (notation: upper-case $\boldsymbol \Theta$ denotes the random variable, the lower-case version $\boldsymbol \theta$ denotes a realization).
-To gather information about $\boldsymbol \Theta$ and $\Sigma^2$, we (a) take length-measurements of the tank and orifice geometry and (b) collect water level time series data from a tank drainage experiment devoid of a solid (certainly, $\boldsymbol \alpha = \mathbf{0}$).
+To gather information about $\boldsymbol \Theta$ and $\Sigma^2$, we (a) take length-measurements of the tank and orifice geometry and (b) collect water level time series data from a tank drainage experiment without an exogenous solid (i.e., certainly, $\boldsymbol \alpha = \mathbf{0}$).
 The \emph{calibrated model} constitutes eqns.~\ref{eq:forward_model} and \ref{eq:H_obs_distn} with the resulting posterior distribution of $\boldsymbol \Theta$ and $\Sigma^2$. We test the calibrated model for its capability to predict the liquid level trajectory in a replicate tank drainage experiment.
 
 % The key idea is that our length-measurements of the tank and orifice geometry and water level time series data from a drainage experiment in a tank without an object provide information about the parameters and measurement noise variance. 
