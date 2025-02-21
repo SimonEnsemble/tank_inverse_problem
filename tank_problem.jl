@@ -187,6 +187,12 @@ end
 # ╔═╡ a391cd0a-f752-4efd-92de-43e7cec656d4
 tank_geometry = TankGeometry(length_measurements)
 
+# ╔═╡ dd4556a3-d6af-4aec-a59d-d6fcd4f4144d
+lwr_to_a(tank_geometry.l_t, tank_geometry.w_t, tank_geometry.r_t)
+
+# ╔═╡ c728c5d5-7aa8-437d-a6d8-8dc75974c86e
+lwr_to_a(tank_geometry.l_b, tank_geometry.w_b, tank_geometry.r_b)
+
 # ╔═╡ 9a7e5903-69be-4e0a-8514-3e05feedfed5
 begin
 	local fig = Figure()
@@ -699,8 +705,17 @@ md"""
 # ╔═╡ 7979b889-4782-45be-9a4f-91375f22f26f
 params_to_title = Dict(
 					"h_max" => rich("h", subscript("max"), " [cm]"), 
+	
 					"a_b" => rich("a", subscript("b"), " [cm²]"), 
 					"a_t" => rich("a", subscript("t"), " [cm²]"),
+	
+					"r_t" => rich("r", subscript("t"), " [cm]"), 
+					"l_t" => rich("l", subscript("t"), " [cm]"),
+					"w_t" => rich("w", subscript("t"), " [cm]"),
+					"r_b" => rich("r", subscript("b"), " [cm]"), 
+					"l_b" => rich("l", subscript("b"), " [cm]"),
+					"w_b" => rich("w", subscript("b"), " [cm]"),
+	
 					"rₒ" => rich("r", subscript("o"), " [cm]"),
 					"c" => "c",
 					"hₒ" => rich("h", subscript("o"), " [cm]"),
@@ -713,22 +728,34 @@ params_to_title = Dict(
 # ╔═╡ 73d702b9-cdc0-4ce9-802d-89443c8412ab
 params_to_units = Dict(
 	"a_b" => "cm²", "a_t" => "cm²", "rₒ" => "cm", "c" => "",
-	"hₒ" => "cm", "h₀" => "cm", "h_max" => "cm", "σ" => "cm"
+	"hₒ" => "cm", "h₀" => "cm", "h_max" => "cm", "σ" => "cm",
+	"l_t" => "cm", "w_t" => "cm", "r_t" => "cm",
+	"l_b" => "cm", "w_b" => "cm", "r_b" => "cm",
 )
 
 # ╔═╡ 5bb0b72a-8c77-4fcb-bbde-d144986d9c1e
-function viz_posterior(posterior::DataFrame, params::Matrix{String},
-			           lm::LengthMeasurements, h₀_obs::Float64
+function viz_posterior(
+	posterior::DataFrame, params::Matrix{String},
+	tg::TankGeometry, h₀_obs::Float64
 )
-	fig = Figure(size=(850, 425))
-	axs = [Axis(fig[i, j]) for i = 1:2, j = 1:4]
+	fig = Figure(size=(850, 600))
+	axs = [Axis(fig[i, j]) for i = 1:3, j = 1:4]
 
-	for i = 1:2
+	# l_t, w_t, r_t = l̂ŵp_to_lwr(lm.l̂_t, lm.ŵ_t, lm.p_t)
+	# l_b, w_b, r_b = l̂ŵp_to_lwr(lm.l̂_b, lm.ŵ_b, lm.p_b)
+
+	for i = 1:3
 		for j = 1:4
 			if j != 4
 				colgap!(fig.layout, j, Relative(0.03))
 			end
 			p = params[i, j]
+			if p == ""
+				hidedecorations!(axs[i, j])
+				hidespines!(axs[i, j])
+				axs[i, j].backgroundcolor = "white"
+				continue
+			end
 
 			if p in ["c", "σ"]
 				println(p)
@@ -752,17 +779,11 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 			end
 
 			p_obs = nothing
-			if ! (p in ["h₀", "c", "σ", "a_t", "a_b"])
-				p_obs = getfield(lm, Symbol(p))
+			if ! (p in ["h₀", "c", "σ"])
+				p_obs = getfield(tg, Symbol(p))
 				# plot measured value
 			elseif p == "h₀"
 				p_obs = h₀_obs
-			elseif p == "a_t"
-				l_t, w_t, r_t = l̂ŵp_to_lwr(lm.l̂_t, lm.ŵ_t, lm.p_t)
-				p_obs = lwr_to_a(l_t, w_t, r_t)
-			elseif p == "a_b"
-				l_b, w_b, r_b = l̂ŵp_to_lwr(lm.l̂_b, lm.ŵ_b, lm.p_b)
-				p_obs = lwr_to_a(l_b, w_b, r_b)
 			end
 			if ! isnothing(p_obs)
 				vlines!(axs[i, j], p_obs, linestyle=:dash, color=Cycled(4), 
@@ -800,11 +821,14 @@ function viz_posterior(posterior::DataFrame, params::Matrix{String},
 	return fig
 end
 
+# ╔═╡ d49936ff-c8c0-4a8d-a804-0fb56908b383
+tank_geometry
+
 # ╔═╡ ded5b462-06dd-43a4-93b0-c52ad87174eb
 viz_posterior(
 	train_posterior,
-	["a_b" "a_t" "h_max" "rₒ"; "hₒ" "h₀" "σ" "c"],
-	length_measurements, 
+	["l_t" "w_t" "r_t" ""; "l_b" "w_b" "r_b" "h_max"; "rₒ" "h₀" "σ" "c"],
+	tank_geometry,
 	train_data[1, "h [cm]"]
 )
 
@@ -1073,7 +1097,17 @@ function compute_mean_cov(posterior_data::DataFrame, var_list::Array{String})
 end
 
 # ╔═╡ aa9c9d45-bb7c-4eee-af87-6fbc01df271d
-var_list = ["a_t", "a_b", "h_max", "rₒ", "hₒ", "c", "σ"]
+var_list = [
+	"h_max", 
+	"l_t", "w_t", "r_t",
+	"l_b", "w_b", "r_b",
+	"rₒ", "hₒ", 
+	"c", 
+	"σ"
+]
+
+# ╔═╡ 868189ef-6a3f-425f-94ac-dbb0e1847b2e
+var_list
 
 # ╔═╡ bb0a7df4-7e84-472a-ab00-e3dd801daf8e
 μ_train, Σ_train = compute_mean_cov(train_posterior, var_list)
@@ -1085,7 +1119,7 @@ function viz_cov_matrix(
 	cmap = ColorSchemes.diverging_cwm_80_100_c22_n256
 	cbar_limits = (-0.01, 0.01)
 	
-	fig = Figure()
+	fig = Figure(size=(600, 600))
 	ax = Axis(
 		fig[1, 1], 
 		xticks=(1:length(var_list), [params_to_title[p] for p in var_list]),
@@ -1106,8 +1140,11 @@ function viz_cov_matrix(
 			end
 		end
 	end
-	Colorbar(fig[1, 2], label="covariance", limits=cbar_limits, 
-		colormap=cmap, highclip=cmap[end], lowclip=cmap[1])
+	Colorbar(
+		fig[1, 2], label="covariance", limits=cbar_limits, 
+		colormap=cmap, highclip=cmap[end], lowclip=cmap[1],
+		height=350
+	)
 	save("paper/posterior_cov_matrix.pdf", fig)
 	fig
 end
@@ -1809,6 +1846,8 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═109a382d-8d41-4bc3-a23b-439a987b17c7
 # ╠═a6687107-7448-451e-a3cf-04a3d2c3d7a5
 # ╠═a391cd0a-f752-4efd-92de-43e7cec656d4
+# ╠═dd4556a3-d6af-4aec-a59d-d6fcd4f4144d
+# ╠═c728c5d5-7aa8-437d-a6d8-8dc75974c86e
 # ╠═9a7e5903-69be-4e0a-8514-3e05feedfed5
 # ╟─418525b7-c358-41da-b865-5df3feb15855
 # ╠═a95e371e-9319-4c7e-b5d9-4c4a50d12cd7
@@ -1870,7 +1909,9 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═7979b889-4782-45be-9a4f-91375f22f26f
 # ╠═73d702b9-cdc0-4ce9-802d-89443c8412ab
 # ╠═5bb0b72a-8c77-4fcb-bbde-d144986d9c1e
+# ╠═d49936ff-c8c0-4a8d-a804-0fb56908b383
 # ╠═ded5b462-06dd-43a4-93b0-c52ad87174eb
+# ╠═868189ef-6a3f-425f-94ac-dbb0e1847b2e
 # ╟─86b56683-c80e-4c0f-8b03-a4869860d04f
 # ╠═323f3fd7-e9a9-4598-ad2e-c1790cf4a264
 # ╠═2ab35999-3615-4f5c-8d89-36d77802fe9b

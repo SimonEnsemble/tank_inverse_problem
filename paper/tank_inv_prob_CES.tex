@@ -559,24 +559,18 @@ We express our knowledge and beliefs about the inputs and parameters, before all
 Fig~\ref{fig:prior_train} shows samples of functions \themodel from the prior, which encodes a broad range of possible trajectories of the liquid level. 
 
 \subparagraph{Tank geometry.} We use a measuring tape to make length-measurements of the dimensions of the tank.
-Specifically, we measure the length, width, and perimeter of the rounded rectangle forming the top and bottom of the tank,
-$l_{t, \text{obs}}=14.6$\,cm, $w_{t, \text{obs}}=9.0$\,cm, $p_{t, \text{obs}}=44.3$\,cm,
-$l_{b, \text{obs}}=13.4$\,cm, $w_{b, \text{obs}}=7.8$\,cm, and $p_{b, \text{obs}}=40.1$\,cm, and the height of the tank $h_{\text{max}, \text{obs}}=28.6$\,cm.
+Specifically, we measure the length, width, and perimeter of the rounded rectangle forming the top and bottom of the tank, giving estimates 
+$l_{t, \text{obs}}=11.2$\,cm, $w_{t, \text{obs}}=5.6$\,cm, $r_{t, \text{obs}}=1.7$\,cm,
+$l_{b, \text{obs}}=10.7$\,cm, $w_{b, \text{obs}}=5.1$\,cm, and $r_{b, \text{obs}}=1.3$\,cm, and the height of the tank $h_{\text{max}, \text{obs}}=28.6$\,cm.
+(The corresponding estimates for the area of the top- and bottom-base of the tank are $a_{t, \text{obs}}=129.0$\,cm and $a_{b, \text{obs}}=103.0$\,cm.)
 Informed by these [noisy and imprecise] measurements, we impose Gaussian prior distributions:
 \begin{align}
 L_{t,b} &\sim \mathcal{N}(l_{t,b, \text{obs}}, \sigma_\ell^2) \\
 W_{t,b} &\sim \mathcal{N}(w_{t,b, \text{obs}}, \sigma_\ell^2) \\
-P_{t,b} &\sim \mathcal{N}(p_{t,b, \text{obs}}, \sigma_\ell^2) \\
+R_{t,b} &\sim \mathcal{N}(r_{t,b, \text{obs}}, \sigma_\ell^2) \\
 H_{\text{max}} &\sim \mathcal{N}(h_{\text{max}, \text{obs}}, \sigma_\ell^2)
 \end{align}
 where $\sigma_\ell=0.1$\,cm is the [assumed] standard deviation of our length-measurements, based on the markings on our measurement tape. 
-For the area of the rounded rectangle forming the top and bottom of the tank,
-we (i) solve for the radius of the circles at the four corners $R_{t/b}$ consistent with these measurements using $P_{t,b}=2(\pi R_{t,b} + L_{t,b}+W_{t,b}-4R_{t,b})$ then (ii) compute the area \cite{rounded_rect}
-\begin{multline}
-	A_{t,b}= (L_{t,b}-2R_{t,b})(W_{t,b}-2R_{t,b}) \\ + 2R_{t,b} (L_{t,b}+W_{t,b} -4R_{t,b}) + \pi R_{t,b}^2.
-\end{multline}
-The prior distributions of $A_t$ and $A_b$ follow accordingly. 
-(This gives point estimates $a_{t, \text{obs}}=129.9$\,cm and $a_{b, \text{obs}}=103.0$\,cm.)
 
 
 \subparagraph{Orifice height and geometry.} 
@@ -621,11 +615,11 @@ We impose a uniform prior on the standard deviation of the noise emanating from 
 
 \subsubsection{Water level time series data from a tank-drainage experiment} At time $t:=0$, we allow the tank to drain of water while our level sensor records the water level over time. 
 Fig.~\ref{fig:posterior_train} shows the resulting water level time series data \thedata.
+(When constructing our likelihood, we omit the last three data points because surface tension stopped flow out of the orifice despite $h>h_o$---a surface tension phenomenon not accounted for in the model.)
 
 \subsubsection{Posterior distribution}
 The posterior distribution $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$ follows from our prior and likelihood function constructed from the data \thedata (see eqn.~\ref{eq:post}). 
 We employ NUTS to draw $2000$/chain samples of inputs/parameters from the posterior over three independent chains, excluding the first half of each chain discarded for ``burn-in''. 
-(When constructing our likelihood, we omit the last three data points in the time series \thedata because surface tension stopped flow out of the orifice despite $h>h_o$---a phenomenon not accounted for in the model.)
 
 \begin{figure*}[!ht]
     \centering
@@ -662,7 +656,7 @@ We employ NUTS to draw $2000$/chain samples of inputs/parameters from the poster
 
 Fig.~\ref{fig:posterior_train_theta} visualizes the empirical posterior distribution. 
 The top panel shows the [marginal] empirical posterior distributions (histograms) of the parameters and initial water level along with their 80\% equal-tailed credible intervals. 
-For the variables we measured with our measuring tape, the credible intervals are centered at the measurements. 
+For the variables we estimated with our measuring tape, the credible intervals are centered at our estimates. 
 The measured initial water level, however, falls outside of the credible interval; a higher initial water level than measured is more consistent with the time series data.
 The bottom panel shows the covariance matrix of the parameters and input. E.g. $c$ positively covaries with both $a_t$ and $a_b$ because the dynamics of $h(t)$ depend on the ratio $c/a(h)$.
 
