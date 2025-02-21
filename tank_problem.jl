@@ -1117,7 +1117,7 @@ function viz_cov_matrix(
 	Σ::Matrix{Float64}, var_list::Array{String}; incl_values::Bool=false
 )
 	cmap = ColorSchemes.diverging_cwm_80_100_c22_n256
-	cbar_limits = (-0.01, 0.01)
+	cbar_limits = (-1.0, 1.0)
 	
 	fig = Figure(size=(600, 600))
 	ax = Axis(
@@ -1126,7 +1126,7 @@ function viz_cov_matrix(
 		xticklabelrotation=π/2,
 		yticks=(1:length(var_list), [params_to_title[p] for p in var_list]),
 		aspect=DataAspect(),
-		title="covariance matrix, C",
+		title="correlation matrix, C",
 		titlefont=:regular
 	)
 	hm = heatmap!(Σ, colormap=cmap, colorrange=cbar_limits)
@@ -1141,11 +1141,12 @@ function viz_cov_matrix(
 		end
 	end
 	Colorbar(
-		fig[1, 2], label="covariance", limits=cbar_limits, 
-		colormap=cmap, highclip=cmap[end], lowclip=cmap[1],
+		fig[1, 2], label="correlation", limits=cbar_limits, 
+		colormap=cmap, 
+		#highclip=cmap[end], lowclip=cmap[1],
 		height=350
 	)
-	save("paper/posterior_cov_matrix.pdf", fig)
+	save("paper/posterior_corr_matrix.pdf", fig)
 	fig
 end
 
@@ -1153,7 +1154,10 @@ end
 maximum(abs.(Σ_train[3:end, 3:end]))
 
 # ╔═╡ 3bb65b71-d191-498b-81bf-40ffff4df1f4
-viz_cov_matrix(Σ_train, var_list)
+begin
+	local C = cor(Matrix(train_posterior[:, var_list]))
+	viz_cov_matrix(C, var_list)
+end
 
 # ╔═╡ 7c8608ba-759a-4bbf-be14-32813dcbf79b
 Σ_train

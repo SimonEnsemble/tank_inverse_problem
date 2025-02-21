@@ -521,16 +521,16 @@ To approximate the posterior, we conduct Markov chain Monte Carlo (MCMC) simulat
 Using these samples, we can visualize the [marginal] (empirical) posterior distributions, compute credible intervals, and plot posterior samples of liquid level trajectories by solving the forward model with sampled input/parameter values.
 
 MCMC samplers construct and simulate a Markov chain \cite{dobrow2016introduction} on the input/parameter space, designed to have the posterior as its stationary distribution.
-A key advantage of MCMC is that it avoids the need to compute the evidence---a high-dimensional integral of the prior multiplied by the likelihood function \cite{van2021bayesian}.
+A key advantage of MCMC is that it avoids the computationally challenging task of directly computing the evidence---a high-dimensional integral of the prior multiplied by the likelihood function. \cite{van2021bayesian}
 
 We specifically employ the No-U-Turn Sampler (NUTS) \cite{hoffman2014no}, implemented in the probabilistic programming language \cite{gordon2014probabilistic} \texttt{Turing.jl} \cite{ge2018turing,xu2020advancedhmc}, to sample from the posterior.
 NUTS is an adaptive variant of the Hamiltonian MC \cite{betancourt2017conceptual} sampler, which (i) at each iteration, proposes a state transition then accepts or rejects it under a probabilistic criterion and (ii) leverages local geometric information about the log-posterior (its gradient, computed via automatic differentiation \cite{baydin2018automatic}) to guide state transition proposals, inspired by the dynamics of physical systems \cite{duane1987hybrid}.
-Each iteration involves evaluating the forward model under multiple sets of inputs/parameters (for the likelihood and its gradient) \cite{paun2022emulation,patel2024multi}. 
-% TODO: check
+Each iteration involves multiple evaluations of the forward model under different sets of inputs/parameters to compute the log-posterior and its gradient \cite{paun2022emulation,patel2024multi}. 
 Compared to simpler MCMC samplers (e.g., random walk Metropolis and Gibbs), NUTS can ``converge'' \cite{roy2020convergence} with many fewer iterations
-% to the stationary distribution with fewer iterations and provide a larger effective sample size under a given number of iterations, 
 (though, each iteration is more computationally expensive)
 \cite{chong2017comparison,hoffman2014no,robert2018accelerating,shi2024bayesian,turner2017well}.
+
+% to the stationary distribution with fewer iterations and provide a larger effective sample size under a given number of iterations, 
 
 
 \section{Results}
@@ -578,7 +578,7 @@ We measure the height of the orifice in the side of the tank as $h_{o, \text{obs
 \begin{equation}
 H_o \sim \mathcal{N}(h_{o, \text{obs}}, \sigma_\ell^2).
 \end{equation}
-Informed by the manufacturer-reported diameter (5/64\,in) of the drill bit we used to drill the hole in the tank, we estimate the radius of the orifice as $r_{o, \text{obs}}=0.1$\,cm and impose the prior:
+Informed by the manufacturer-reported diameter (5/64\,in) of the drill bit we used to drill the [circular] hole in the tank, we estimate the radius of the orifice as $r_{o, \text{obs}}=0.1$\,cm and impose the prior:
 \begin{equation}
 R_o \sim \mathcal{N}(r_{o, \text{obs}}, \sigma_d^2), \label{eq:R_o_prior}
 \end{equation}
@@ -596,8 +596,8 @@ With certainty, no solid resides in the tank, so $\boldsymbol \alpha=\mathbf{0}$
 \subparagraph{Discharge coefficient.} 
 Our prior distribution on the discharge coefficient is weakly informed:
 \begin{equation}
-	C \sim \mathcal{N}(0.65, 0.25^2).
-\end{equation} The mean is a reported discharge coefficient for water flow through a round orifice \cite{hicks2014determining}. 
+	C \sim \mathcal{N}(0.65, \sigma_c^2)
+\end{equation} with $\sigma_c=0.25$ expressing our uncertainty about it. The mean is a reported discharge coefficient for water flow through a round orifice \cite{hicks2014determining}. 
 
 
 \subparagraph{Variance of measurement noise.} 
@@ -615,11 +615,10 @@ We impose a uniform prior on the standard deviation of the noise emanating from 
 
 \subsubsection{Water level time series data from a tank-drainage experiment} At time $t:=0$, we allow the tank to drain of water while our level sensor records the water level over time. 
 Fig.~\ref{fig:posterior_train} shows the resulting water level time series data \thedata.
-(When constructing our likelihood, we omit the last three data points because surface tension stopped flow out of the orifice despite $h>h_o$---a surface tension phenomenon not accounted for in the model.)
 
 \subsubsection{Posterior distribution}
-The posterior distribution $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$ follows from our prior and likelihood function constructed from the data \thedata (see eqn.~\ref{eq:post}). 
-We employ NUTS to draw $2000$/chain samples of inputs/parameters from the posterior over three independent chains, excluding the first half of each chain discarded for ``burn-in''. 
+The posterior distribution $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$ follows from our prior and likelihood function constructed from the data \thedata (see eqn.~\ref{eq:post}). (We omit the last three data points in the time series because surface tension of the water, neglected by our model, stopped the outflow here, before $h$ reached $h_o$.)
+We employ NUTS with a target acceptance ratio of $0.65$ to draw $2500$/chain samples of inputs/parameters from the posterior over three independent chains, excluding the first half of each chain which is discarded for ``burn-in''. 
 
 \begin{figure*}[!ht]
     \centering
@@ -639,8 +638,8 @@ We employ NUTS to draw $2000$/chain samples of inputs/parameters from the poster
     
      \begin{subfigure}[b]{\textwidth}
      \center
-    	\includegraphics[width=0.65\textwidth]{posterior_train_theta.pdf}
-	\includegraphics[width=0.34\textwidth]{posterior_cov_matrix.pdf}
+    	\includegraphics[width=0.6\textwidth]{posterior_train_theta.pdf}
+	\includegraphics[width=0.38\textwidth]{posterior_corr_matrix.pdf}
 	\caption{Posterior distribution} \label{fig:posterior_train_theta}
     \end{subfigure}
     \caption{
@@ -648,17 +647,17 @@ We employ NUTS to draw $2000$/chain samples of inputs/parameters from the poster
       (a) We fill our tank (devoid of an exogenous solid) with water, then, at $t=0$, allow it to drain through the orifice in its side. A level sensor measures the water level.     
       (b) Samples of water level trajectories from the prior.
       (c) Time series data from the tank drainage experiment and samples of water level trajectories from the posterior (hollow points omitted).
-       (d) Visualizing the posterior. Left: marginals (vertical red lines: measurements, horizontal black bars: 80\% credible intervals). Right: (clipped) covariance matrix.      
+       (d) Visualizing the posterior. Left: marginals (vertical red lines: measurements, horizontal black bars: 80\% credible intervals). Right: correlation matrix.      
       }
 \end{figure*}
 
 %TODO how many samples
 
 Fig.~\ref{fig:posterior_train_theta} visualizes the empirical posterior distribution. 
-The top panel shows the [marginal] empirical posterior distributions (histograms) of the parameters and initial water level along with their 80\% equal-tailed credible intervals. 
+The left panel shows the [marginal] empirical posterior distributions (histograms) of the parameters and initial water level along with their 80\% equal-tailed credible intervals. 
 For the variables we estimated with our measuring tape, the credible intervals are centered at our estimates. 
 The measured initial water level, however, falls outside of the credible interval; a higher initial water level than measured is more consistent with the time series data.
-The bottom panel shows the covariance matrix of the parameters and input. E.g. $c$ positively covaries with both $a_t$ and $a_b$ because the dynamics of $h(t)$ depend on the ratio $c/a(h)$.
+The right panel shows the correlation matrix of the parameters and input. E.g. $c$ exhibits a negative correlation with $r_o$ because a given outflow rate is consistent with both large $r_o$ and small $c$ and small $r_0$ and large $c$ (see the $cr_0^2$ term in eqn.~\ref{eq:forward_model}).
 
 %The information that the data from this tank-draining experiment provided about $C$ and $\Sigma$ will be useful for the reconstruction inverse problem of inferring the shape of an object inside the tank from water level time series data. (We assume the object does not affect the discharge coefficient nor noise in the liquid level sensor.)
 
