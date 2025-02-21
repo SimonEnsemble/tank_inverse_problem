@@ -414,7 +414,7 @@ Given the area profiles of the tank and solid $a(h)$ and $\alpha(h)$, the discha
 \subparagraph{A regime of model invalidity.} If the radius of the orifice $r_o$ is small, surface tension of the water may stop flow out of the orifice when $h- h_o$ is positive (but small). In this regime, Torricelli's law and thus our forward model do not hold.
 
 
-\subparagraph{Parameterizing the solid's area profile.}
+\subparagraph{Parameterizing the solid's area profile.} \label{sec:alpha}
 We parameterize the horizontal cross-sectional area profile of the solid in the tank $\alpha(h)$, with a list of $n+1$ evaluations of $\alpha(h)$ on a uniform grid of points on its domain $[0, h_{\text{max}}]$:
 \begin{equation}
 	\boldsymbol \alpha := [\alpha_0, \alpha_1, ... \alpha_n] \label{eq:alpha}
@@ -657,13 +657,13 @@ Fig.~\ref{fig:posterior_train_theta} visualizes the empirical posterior distribu
 The left panel shows the [marginal] empirical posterior distributions (histograms) of the parameters and initial water level along with their 80\% equal-tailed credible intervals. 
 For the variables we estimated with our measuring tape, the credible intervals are centered at our estimates. 
 The measured initial water level, however, falls outside of the credible interval; a higher initial water level than measured is more consistent with the time series data.
-The right panel shows the correlation matrix of the parameters and input. E.g. $c$ exhibits a negative correlation with $r_o$ because a given outflow rate is consistent with both large $r_o$ and small $c$ and small $r_0$ and large $c$ (see the $cr_0^2$ term in eqn.~\ref{eq:forward_model}).
+The right panel shows the matrix of correlations between the parameters and input. E.g. $c$ exhibits a negative correlation with $r_o$ because a given outflow rate is consistent with both large $r_o$ and small $c$ and small $r_0$ and large $c$ (see the $cr_0^2$ term in eqn.~\ref{eq:forward_model}).
 
 %The information that the data from this tank-draining experiment provided about $C$ and $\Sigma$ will be useful for the reconstruction inverse problem of inferring the shape of an object inside the tank from water level time series data. (We assume the object does not affect the discharge coefficient nor noise in the liquid level sensor.)
 
 
-For a posterior predictive check, Fig.~\ref{fig:posterior_train} shows water level trajectories \themodel, with $(\thevars)$ sampled from the posterior distribution, agree reasonably with the measured water levels over time (mean absolute residual: 0.26\,cm). 
-Comparing the prior and posterior distributions of water level trajectories in Fig.~\ref{fig:prior_train} and Fig.~\ref{fig:posterior_train}, the reduced variance in the trajectories reflects information about the parameter vector gained from considering the water level time series data against the forward and measurement models.
+As a posterior predictive check, Fig.~\ref{fig:posterior_train} shows water level trajectories \themodel, with $(\thevars)$ sampled from the posterior distribution. The trajectories agree reasonably with the measured water level over time (mean absolute residual: 0.26\,cm). 
+Comparing the prior and posterior distributions of water level trajectories in Fig.~\ref{fig:prior_train} and Fig.~\ref{fig:posterior_train}, the much-reduced range among the posterior trajectories reflects the information about the parameter vector that we gained from considering the water level time series data against the forward and measurement models.
 
 
 
@@ -674,12 +674,12 @@ We approximate the posterior as a multi-variate Gaussian
 	\begin{bmatrix} \boldsymbol \Theta \\ \Sigma \end{bmatrix} \mid \thedatanomath \sim \mathcal{N}(\mathbf{m}, \mathbf{C}) \label{eq:post_theta_sigma}
 \end{equation}
 with mean $\mathbf{m}$ and covariance matrix $\mathbf{C}$ computed from our MCMC samples from the posterior. 
-(See Fig.~\ref{fig:posterior_train_theta} for the means of each parameter in $\mathbf{m}$ and the covariance matrix $\mathbf{C}$.)
+(See Fig.~\ref{fig:posterior_train_theta} for the means of each parameter in $\mathbf{m}$ and the correlation matrix, which is a normalized version of $\mathbf{C}$.)
 
 \subsubsection{Testing the calibrated model with a replicate experiment}
 Finally, we test our calibrated model for its capability to predict the dynamics of the water level in our draining tank in a new, replicate experiment (also, without an exogenous solid, so $\boldsymbol \alpha=\mathbf{0}$) with measured initial water level $h_{0, \text{obs}}=26.49$\,cm. 
 We sample water level trajectories \themodel predicted by the calibrated model by (1) sampling a $\boldsymbol \theta$ and $\sigma$ from the posterior distribution in eqn.~\ref{eq:post_theta_sigma}, (2) sampling an initial water level from $H_0 \mid \sigma \sim \mathcal{N}(h_{0, \text{obs}}, \sigma^2)$, then (3) numerically solving the forward model to obtain \themodel.
-Fig.~\ref{fig:test} shows the water level time series data collected from the replicate experiment, \thedata, agree well with the trajectories \themodel predicted by the calibrated model (mean absolute residual: 0.28\,cm). 
+Fig.~\ref{fig:test} shows the held-out water level time series data collected from the replicate experiment, \thedata, agree well with the trajectories \themodel predicted by the calibrated model (mean absolute residual: 0.29\,cm). 
 (For kicks, we also show the distribution of predicted tank-emptying times, $T_e := \min_{t \geq 0 :\, h(t)=h_o} t$.)
 
 \begin{figure}[h!]
@@ -692,9 +692,9 @@ Fig.~\ref{fig:test} shows the water level time series data collected from the re
       } \label{fig:test}
 \end{figure}
 
-\subsection{Phase II: Bayesian inference of the shape of a solid inside the tank} \label{sec:phaseII}
-Finally, we exploit our calibrated model to infer the shape of an exogenous, stationary, heavy solid (incapable of holding water itself) inside of our tank from water level time series data as it drains.
-Our objective is to obtain the posterior distribution of $\mathbf{A}$ (random variable version of $\boldsymbol \alpha$) characterizing the cross-sectional area of the solid as a function of height, $\alpha(h; \mathbf{A})$.
+\subsection{Phase II: Bayesian inference of the area profile of a solid inside the tank} \label{sec:phaseII}
+Finally, we exploit our calibrated model to infer the horizontal cross-sectional area profile of an exogenous, stationary, heavy solid (incapable of holding water itself) inside of our tank from water level time series data as it drains.
+Our objective is to obtain the posterior distribution of $\mathbf{A}$ (random variable version of $\boldsymbol \alpha$) characterizing the area profile of the solid, $\alpha(h; \mathbf{A})$ (see Sec.~\ref{sec:alpha}).
 
 \begin{figure*}[ht]
     \centering
@@ -719,30 +719,30 @@ Our objective is to obtain the posterior distribution of $\mathbf{A}$ (random va
     \caption{
       \textbf{Reconstructing the shape of an exogenous solid in the draining tank.} 
       (a) We fill our tank, containing a heavy glass bottle, with water, then, at $t=0$, allow it to drain through the orifice in its side.
-      (b) Samples from the prior of (left) the square root of the solid's area as a function of height (orange lines), along with the square root of the area of the tank (gray) and (right) associated liquid level trajectories.
+      (b) Samples from the prior of (left) the solid's area profile (orange lines), along with the area profile of the tank (gray), and (right) the liquid level trajectories.
       (c) Time series data from the tank drainage experiment and samples of water level trajectories from the posterior (hollow points omitted).
-      (d) Samples of the square root of the solid's inferred area as a function of height from the posterior distribution (orange lines) compared with held-out, direct measurements (points) and the tank's area (gray).
+      (d) Samples of the solid's inferred area profile from the posterior distribution (orange lines) compared our held-out, direct measurements (points) and the tank's area profile (gray).
       }
 \end{figure*}
 
 \subsubsection{Experimental setup}
 We set up a tank drainage experiment by:
-(i) placing a solid object---a large, capped, glass bottle filled with water [so it sinks]---inside of the tank, which remains stationary;
+(i) placing a solid object---a large, capped, glass bottle filled with water [so it sinks]---inside of the tank, which remains stationary as the tank drains;
 (ii) filling the tank to an initial water level (measured by the level strip) of $h_{0, \text{obs}}=26.49$\,cm. 
 See Fig.~\ref{fig:tank_w_bottle}.
 
 
 \subsubsection{Prior distributions}
 Before allowing the tank to drain, we express our prior knowledge and beliefs about the inputs and parameters below.
-Fig.~\ref{fig:prior_area} displays samples of our prior distribution over (left) the solid's area as a function of height (for perspective, the effective tank boundary is also shown) and (right) associated liquid level trajectories. 
-Our prior over the solid's area encodes a uniform distribution over the effective average radius of the solid in the tank, but promotes a smoothly changing area as a function of height. 
+Fig.~\ref{fig:prior_area} displays samples of our prior distribution over (left) the solid's area profile (for perspective, the area profile of the tank is also shown) and (right) liquid level trajectories. 
+Our prior over the solid's area profile encodes a uniform distribution over the radius of the solid in the tank, but promotes a smoothly-varying radius as a function of height. 
 %Our prior distribution for (i) the initial water level $H_0$ is informed by the initial water level measurement; (ii) the parameter vector $\boldsymbol \Theta$ and measurement noise variance $\Sigma^2$ is informed by the model calibration phase; and (iii) the object area $\mathbf{A}$ (a) is diffuse, to entertain a large range of possible object shapes in the tank, and (b) promotes a smooth function $\alpha(h)$. Fig.~\ref{fig:prior_area} displays samples from the prior distribution for the object shape vector $\mathbf{A}$. 
 % Below, we express our knowledge and beliefs about the inputs and parameters, before allowing the tank to train and collecting water level time series data, by constructing a prior probability density $\pi_{\text{pr}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2)$. 
 
 
 \subparagraph{The parameter vector and measurement noise variance.}
 Adopting the adage ``yesterday's posterior is today's prior'' \cite{calvetti2010subjective}, 
-our multi-variate Gaussian posterior distribution of the parameter vector $\boldsymbol \Theta$ and noise variance $\Sigma^2$ in eqn.~\ref{eq:post_theta_sigma} from model calibration now serves as our prior distribution.
+our multi-variate Gaussian posterior distribution of the parameter vector $\boldsymbol \Theta$ and noise variance $\Sigma^2$ from model calibration (in eqn.~\ref{eq:post_theta_sigma}) now serves as our prior distribution.
 Thereby, we exploit our \emph{calibrated} model for this reconstruction problem.
 (We assume the solid in the tank does not affect the discharge coefficient.)
 
@@ -753,20 +753,19 @@ Thereby, we exploit our \emph{calibrated} model for this reconstruction problem.
 \end{equation}
 
 \subparagraph{Shape of the exogenous solid.}
-We adopt the principle of indifference and impose a diffuse prior over the size of the solid in the tank, but impose smoothness on the cross-sectional area of the solid as a function of height to counter instability\cite{groetsch1993inverse_tl}. 
-By imposing a diffuse prior on the solid's size, we allow the water level time series data to ``speak for itself'' about the solid's size.
+We adopt the principle of indifference and impose a diffuse prior over the square root of the area of the horizontal cross-section of the solid in the tank, but impose smoothness as a function of height to counter instability\cite{groetsch1993inverse_tl}. 
+By imposing a diffuse prior on the solid's area profile, we allow the water level time series data to ``speak for itself'' about the solid's size.
 Specifically, we impose a uniform distribution on the square root of the area of the bottom base of the solid, $A_0$ (the random variable version of $\alpha(0)$):
 \begin{equation}
 	\sqrt{A_0} \mid a_b \sim \mathcal{U}(0, \sqrt{a_b}).
-\end{equation}
-So, we believe 
-(i) the area of the solid's bottom base can span from zero (corresponding to the lack of an exogenous solid) to the area of tank's bottom base $a_b$ (corresponding to the largest solid that can fit in the tank) and
-(ii) the effective radius of the solid (hence, we take the square root of $A_i$) is uniformly distributed.
-For the smoothness prior \cite{calvetti2018inverse}, we sequentially correlate the solid's effective radius at the sequence of heights: 
+\end{equation} 
+So, we believe the square root of the area of the solid's bottom base is equally probable to be anywhere within zero (corresponding to the lack of an exogenous solid) to the square root of the area of tank's bottom base $a_b$ (corresponding to the largest solid that can fit in the tank).
+(For a radially symmetric solid, we are imposing a uniform distribution on its radius.)
+For the smoothness prior \cite{calvetti2018inverse}, we sequentially correlate the solid's square-root-area at the sequence of heights: 
 \begin{equation}
  \sqrt{A_i} - \sqrt{A_{i-1}} \sim \mathcal{N}(0, \gamma^2) \text{ for } i \in \{1, ..., n\}.
 \end{equation} 
-The zero mean Gaussian distribution on the difference in the effective radius of the solid at two adjacent heights means we expect the function $\sqrt{\alpha(h)}$ to be locally flat and change slowly. 
+The zero mean Gaussian distribution on the difference in the square-root-area of the solid at two adjacent heights means we expect the function $\sqrt{\alpha(h)}$ to be locally flat and change slowly. 
 The variance hyperparameter $\gamma^2$ controls the degree to which we promote smoothness in $\sqrt{\alpha (h)}$ (smaller $\gamma^2$ promotes more smoothness). 
 Finally, for physicality, we also truncate each random variable $A_i$ so it falls within zero to the area of the tank at that height.
 
@@ -782,40 +781,38 @@ Again, we employ NUTS to obtain samples from the posterior $\pi_{\text{post}}(h_
 %Via Bayes's theorem in , the posterior distribution $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$ follows from (i) prior probability density $\pi_{\text{pr}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2)$---informed for $H_0$, $\boldsymbol \Theta$, and $\Sigma^2$ and diffuse but smooth for $\mathbf{A}$---and (ii) tank drainage data \thedata, from which we construct the likelihood function in eqn.~\ref{eq:like}, the posterior distribution $\pi_{\text{post}}(h_0, \boldsymbol \alpha, \boldsymbol \theta, \sigma^2 \mid \thedatanomath)$ follows from Bayes's theorem in eqn.~\ref{eq:post}. 
 %We employ the MCMC sampler, NUTS, to obtain samples $\{(h_{0,i}, \boldsymbol \alpha_i, \boldsymbol \theta_i, \sigma^2_i\}$ from the posterior distribution. 
 
-
-
-
-Fig.~\ref{fig:posterior_area} shows posterior samples of the square root of the area of the solid as a function of height---the BSI solution to the reconstruction problem. 
-For comparison, we also show (i) the bottle's [roughly-] ground-truth area at different heights, obtained from our length-measurements of its circumference at different heights, and (ii) for perspective, posterior samples of the tank's area as a function of height. First, the posterior of the solid's shape exhibits much lower variance than the prior in Fig.~\ref{fig:prior_area}---reflecting the information the water level time series data provided about the solid's shape. 
-Second, the posterior of the solid's shape agrees reasonably well with the measured area of the solid (mean residual radius: 0.35\,cm; mean bottle radius 3.2\,cm), but a little bias is present in $h\in[15, 20]$\,cm.
-Third, note the variance in the posterior over the solid's area in $h<h_o$ and $h>h_0$ is larger than in $h_o < h < h_0$. This reflects the impossibility for the water level data to provide information about the solid's area where the water was unable to ``scan'' the solid. 
-For $h<h_o$ and $h>h_0$, the smoothness prior restricts the variance of the predicted area---essentially, extrapolating. 
+Fig.~\ref{fig:posterior_area} shows posterior samples of the horizontal cross-sectional area profile of the solid---the BSI solution to the reconstruction problem (seeing the area profile of the unseen solid). 
+For comparison, we also show (i) the bottle's [roughly-] ground-truth area at different heights, obtained from our length-measurements of its circumference at different heights, and (ii) for perspective, posterior samples of the tank's area profile. First, the posterior of the solid's shape exhibits much lower variance than the prior in Fig.~\ref{fig:prior_area}. This reflects the information the water level time series data provided about the solid's area profile. 
+Second, the posterior of the solid's area profile agrees reasonably well with the measured area of the bottle (mean residual radius: 0.35\,cm; mean bottle radius 3.2\,cm), but a little bias is present in $h\in[15, 20]$\,cm.
+Third, note the variance in the posterior over the solid's area for $h<h_o$ and $h>h_0$ is larger than in $h_o < h < h_0$. This reflects the impossibility for the water level data to provide information about the solid's area where the water was unable to ``scan'' it. 
+For $h<h_o$ and $h>h_0$, the smoothness prior restricts the range of the predicted area---essentially, extrapolating. 
 
 As a posterior predictive check, Fig.~\ref{fig:posterior_object} displays samples of liquid level trajectories \themodel from the posterior distribution, which match the water level time series data \thedata reasonably well (mean absolute residual: 0.35\,cm). 
 
-\subsubsection{Conclusion} Overall, Fig.~\ref{fig:posterior_area} illustrates our ability to infer the shape of a solid inside a draining tank with quantified uncertainty---using (i) a calibrated dynamic model of the water level in the tank and (ii) water level time series data over the process of draining. % The key idea is that the water ``scans'' the object's area as a function of height as it drops.
+\subsubsection{Conclusion} Overall, Fig.~\ref{fig:posterior_area} illustrates our ability to infer the horizontal cross-sectional area profile of a solid contained in a draining tank with quantified uncertainty---using (i) a calibrated dynamic model of the water level in the tank as it drains through a small orifice and (ii) water level time series data over the process of draining. 
+The key idea is that the water ``scans'' the solid's area profile as it drops.
 
 
 \section{Conclusions and Discussion}
-We demonstrated our ability to reconstruct, with quantified uncertainty, the cross-sectional area of a heavy, exogenous solid (incapable of holding water) inside a tank from (i) a calibrated dynamic model of the liquid level in the tank as it drains (driven by gravity) through a small orifice and (ii) measurements of the liquid level in the tank over time as it drains.
-First, we constructed, Bayesian-calibrated, and tested a forward model for the dynamics of the liquid level in our tank draining of water.
-The calibrated model predicted the liquid level trajectory in our tank in a replicate experiment with a mean absolute residual of 0.28\,cm.
-Then, we exploited our Bayesian-calibrated forward model to reconstruct the shape of an exogenous, heavy solid (a bottle) inside our draining tank using water level time series data. 
-Essentially, the water ``scanned'' the area of the solid as a function of its height as the tank drained. 
-The posterior distribution of the bottle's area as a function of height agreed reasonably well with our [more] direct measurements of its area, with $\sim 10$\% reconstruction error over the bottle's radius. 
+We demonstrated our ability to reconstruct, with quantified uncertainty, the horizontal cross-sectional area profile of a heavy, exogenous solid (incapable of holding water) inside a tank from (i) a calibrated dynamic model of the liquid level in the tank as it drains (driven by gravity) through a small orifice and (ii) measurements of the liquid level in the tank over time as it drains.
+First, we constructed, Bayesian-calibrated, and tested a forward model for the dynamics of the water level in our draining tank.
+The calibrated model predicted the water level trajectory in our tank in a replicate experiment well.
+Then, we exploited our Bayesian-calibrated forward model to reconstruct the area profile of an exogenous, heavy solid (a bottle) inside our draining tank using water level time series data. 
+Essentially, the top of the water in the tank ``scanned'' the area of horizontal cross sections of the solid as the tank drained. 
+The posterior distribution of the bottle's area profile agreed reasonably well with our [more] direct measurements of its area profile, with $\sim 10$\% reconstruction error over the bottle's radius. 
 % In conclusion, a forward model of the dynamics of the liquid level in a draining tank containing an exogenous solid, a probabilistic measurement model of the liquid level sensor, and liquid level time series data during the process of draining together allow us to reconstruct the area of the exogenous solid as a function of height with quantified uncertainty via Bayesian statistical inversion. 
 
-Our methodology herein could be employed throughout engineering and the applied sciences to non-destructively characterize the shape of an exogenous solid inside of an opaque or inaccessible (e.g., underground \cite{gephart2010short}) liquid-holding tank.
-With some modification, one could also infer the height and/or porosity of a bed of small, heavy solid particles (e.g. gravel, sand) packed into a tank \cite{guellouz2020estimation}; we could infer the \emph{shape} of the particles as well, by coupling with a packing model \cite{zhang2006relationship}. 
+Our reconstruction methodology herein could be employed throughout engineering and applied sciences to non-destructively/non-invasively determine the area profile of an exogenous solid inside of an opaque or inaccessible (e.g., underground \cite{gephart2010short}) liquid-holding tank---with quantified uncertainty.
+With some modification, one could also infer the height and/or porosity of a bed of small, heavy solid particles (e.g. gravel, sand) packed into a tank \cite{guellouz2020estimation}; perhaps, we could infer the \emph{shape} of the particles as well, by coupling with a packing model \cite{zhang2006relationship}. 
 While our methodology requires access to the liquid level in the tank as it drains, we could infer the liquid level from the volumetric flow rate or the geometry of the liquid jet exiting from the tank \cite{groetsch1999inverse,davidovic2020visualizing}.
 
-
-
 \paragraph{Can we infer the precise geometry of a solid in an opaque, draining tank?}
-Our ambition to reconstruct the geometry of an exogenous solid inside a draining tank from its liquid level over time was limited to seeking the area of the solid a function of height; determining the precise geometry of the solid is impossible because the dynamics of $h(t)$ depend solely on the area of the solid as a function of height (see eqn.~\ref{eq:forward_model})---and, there are multiple non-congruent solids with an identical area as a function of height (e.g., a cylinder and rectangular prism with the same cross-sectional area as a function of height). We speculate that, by conducting multiple tank-draining experiments with the tank tilted and held at different angles, we may be able to reconstruct the precise geometry of the solid in the tank. The key idea is that two non-congruent solids with an identical area as a function of height may exhibit different areas as a function of height when tilted; thus, they can be distinguished by tilting the tank. A complication is that gravity could cause the shape to rotate when the tank is tilted. 
+Our ambition to reconstruct the geometry of an exogenous solid inside a draining tank from its liquid level over time was limited to seeking its horizontal cross-sectional area profile.
+Determining the precise geometry of the solid from liquid level dynamics is impossible because the dynamics of $h(t)$ depend solely on the horizontal cross-sectional area of the solid as a function of height (see eqn.~\ref{eq:forward_model}); and, there are multiple non-congruent solids with an identical horizontal cross-sectional area profile (e.g., a cylinder and rectangular prism with the same cross-sectional area as a function of height). We speculate that, by conducting multiple tank-draining experiments with the tank tilted and held at different angles, we may be able to reconstruct the precise geometry of the solid in the tank. The key idea is that two non-congruent solids with an identical \emph{horizontal} cross-sectional area profile exhibit different area profiles at differently-angled cross sections.
+Possibly, we can probe the area profiles at these different angles by tilting the tank. 
+Two complications are: (i) gravity could cause the shape to rotate when the tank is tilted and (ii) for large tanks, underground tanks, or tanks in confined spaces, tilting is not infeasible. 
 
-
-\paragraph{Remarks.} (1) We could have calibrated our forward and measurement models using data from a tank drainage experiment where the tank \emph{did} contain an exogenous solid, provided the area of the solid as a function of height were known with some certainty. (2) If we knew the solid's shape belonged to a certain category (e.g.\ a right circular cone), we could have parameterized its area as a function of height with fewer variables (e.g.\ height and base radius). 
+\paragraph{Remarks.} (1) We could have calibrated our forward and measurement models using data from a tank drainage experiment where the tank \emph{did} contain an exogenous solid, provided the horizontal cross-sectional area profile of the solid were known with some certainty. (2) If we knew the solid's shape belonged to a certain category (e.g.\ a right circular cone), we could have parameterized its area as a function of height with fewer variables (e.g.\ height and base radius). 
 
 \paragraph{Extensions.}
 (1) Our forward model of the dynamics of the liquid level in an \emph{open-top} tank, containing a \emph{solid}, draining of liquid through a \emph{small} orifice in its side \emph{without} additional input/output of liquid could be extended to handle inverse problems concerning
