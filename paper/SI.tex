@@ -78,8 +78,7 @@
 
 % Main title of the paper
 \title [mode = title]{
-Supporting Information: Scanning the cross-sectional area of a solid inside an opaque tank 
-  via liquid level dynamics during draining
+Supporting Information: Inferring the cross-sectional area profile of an unseen solid in a draining tank from liquid level dynamics
  }  
 
 % Title footnote mark
@@ -183,12 +182,12 @@ From these, three measurements, we can determine $l$, $w$, and $r$ via solving t
 
 \clearpage
 
-\section{Cross-sectional area of the tank and solid contained in the tank as a function of height}
+\section{Horizontal cross-sectional area profiles of the tank and solid contained in the tank}
 
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width=0.75\textwidth]{../drawings_and_photos/a_of_h.pdf} 
-	\caption{We illustrate the cross-sectional area, from a helicopter-view, $\alpha(h)$ and $a(h)$, of the exogenous solid and the draining tank, respectively, as a function of height from the ground, $h$. These two functions characterizing the geometry of the tank and exogenous object are key determinants of the dynamics of the liquid level in the draining tank when it contains the exogenous object.} \label{fig:a_and_alpha_of_h_illustration}
+	\caption{We illustrate the horizontal cross-sectional area, from a helicopter-view, $\alpha(h)$ and $a(h)$, of the exogenous solid and the draining tank, respectively, as a function of height from the ground, $h$. These two functions characterizing the geometry of the tank and exogenous object are key determinants of the dynamics of the liquid level in the draining tank when it contains the exogenous object.} \label{fig:a_and_alpha_of_h_illustration}
 \end{figure}
 
 \clearpage
@@ -238,9 +237,9 @@ From these, three measurements, we can determine $l$, $w$, and $r$ via solving t
 \section{
 A classical method 
 to infer 
-(a, unknown) the cross-sectional area, as a function of height, of an exogenous solid contained in a tank from 
+(a, unknown) the horizontal cross-sectional area profile of an exogenous solid contained in a tank from 
 (b, known) the liquid level dynamics as the tank, of known geometry, drains through a small orifice
-}
+} \label{sec:classical}
 For comparison to using Bayesian statistical inversion for this inverse problem of reconstruction, we employ a classical (i.e., non-Bayesian nor probabilistic) method here.
 
  \subsection{Forward model} Still, our forward model
@@ -249,7 +248,7 @@ For comparison to using Bayesian statistical inversion for this inverse problem 
 & h(0)=h_0, \nonumber 
 \end{align}
  governs the liquid height $h(t)$ in our draining tank over time $t \geq 0$.
- The cross-sectional area of the tank as a function of height $h$, $a(h)$, is known and characterized by our length measurements.
+ The horizontal cross-sectional area profile of the tank $a(h)$ is known and characterized by our length measurements.
  
  \subsection{Parameter identification}
  To identify the discharge coefficient $c$, we use the experimental time series data of the liquid level $\{(t_i, h_i)\}_{i=0}^N$ from the tank drainage experiment where the tank does \emph{not} contain an exogenous object, so $\alpha(h) = 0$ $\forall h$. We then define a least-squares loss function:
@@ -259,7 +258,7 @@ For comparison to using Bayesian statistical inversion for this inverse problem 
  Using a numerical routine (Brent's method \cite{brent2013algorithms}, which does not require a derivative) to minimize $\ell(c)$, we find the discharge coefficient of best-fit is $c^*=0.68$. Fig.~\ref{fig:mle} compares the model $h(t;c^*)$ with the optimal $c^*$ and the time series data $\{(t_i, h_i)\}_{i=0}^N$ used for the fitting.
  
  \subsection{Reconstruction}
-Now that we have identified the discharge coefficient $c=c^*$, we use the forward model in eqn.~\ref{eq:SI_model} to tackle the inverse problem of reconstruction: given new liquid level time series data $\{(\hat{t}_i, \hat{h}_i)\}_{i=0}^{\hat{N}}$ from a tank drainage experiment when the tank \emph{does} contain an exogenous solid, predict the cross-sectional area of the exogenous solid as a function of height, $\alpha(h)$. For this task, we solve the forward model in eqn.~\ref{eq:SI_model} for the unknown we seek, using the identified value for the discharge coefficient:
+Now that we have identified the discharge coefficient $c=c^*$, we use the forward model in eqn.~\ref{eq:SI_model} to tackle the inverse problem of reconstruction: given new liquid level time series data $\{(\hat{t}_i, \hat{h}_i)\}_{i=0}^{\hat{N}}$ from a tank drainage experiment when the tank \emph{does} contain an exogenous solid, predict the horizontal cross-sectional area profile of the exogenous solid, $\alpha(h)$. For this task, we solve the forward model in eqn.~\ref{eq:SI_model} for the unknown we seek, using the identified value for the discharge coefficient:
 \begin{equation}
 \alpha(h) = a(h) +  \frac{c^* \pi r_o^2 \sqrt{2g (h-h_o)}}{\diff{h}{t}}. \label{eq:alpha_unknown}
 \end{equation} 
@@ -268,8 +267,8 @@ Now, to obtain a prediction for $\alpha(h)$, we need a scheme to approximate $\d
 We employ smoothed, quartic splines (implemented in the DIERCKX library \cite{dierckx1995curve}) to estimate $h(t)$ from the time series data $\{(\hat{t}_i, \hat{h}_i)\}_{i=0}^{\hat{N}}$ from the draining experiment with the exogenous solid, from which $\diff{h}{t}$ follows through differentiation.
 Fig.~\ref{fig:spline_fit} shows: on the top panel, the data $\{(\hat{t}_i, \hat{h}_i)\}_{i=0}^{\hat{N}}$ along with the smoothed, quartic spline fit to the data giving our approximation of $h(t)$; and, on the bottom panel, the approximated time-derivative of the liquid level $\diff{h}{t}$ as a function of time, according to the spline representation of $h(t)$. At each point in time, Fig.~\ref{fig:spline_fit} gives a pair $\left(\diff{h(t)}{t}, h(t)\right)$ for the approximation of $\alpha(h)$ at some $h$ via eqn.\ref{eq:alpha_unknown}.
 
-Finally, a classical solution to the reconstruction problem: Fig.~\ref{fig:classical_soln} visualizes the predicted cross-sectional area of the exogenous object as a function of height, $\alpha(h)$, following from eqn.~\ref{eq:alpha_unknown} when we use the smooth splines visualized in Fig.~\ref{fig:spline_fit} for $h(t)$ and $\diff{h(t)}{t}$. For comparison, we also show the directly-measured (via length-measurements) area of the exogenous object as a function of height. 
-We obtain a reasonable prediction of the solid's area as a function of height. 
+Finally, a classical solution to the reconstruction problem: Fig.~\ref{fig:classical_soln} visualizes the predicted horizontal cross-sectional area profile of the exogenous object, $\alpha(h)$, following from eqn.~\ref{eq:alpha_unknown} when we use the smooth splines visualized in Fig.~\ref{fig:spline_fit} for $h(t)$ and $\diff{h(t)}{t}$. For comparison, we also show the directly-measured (via length-measurements) area profile of the exogenous object. 
+We obtain a reasonable prediction of the solid's area profile. 
 However, unlike our Bayesian statistical inversion in the main text, the uncertainty in the predicted cross sectional area of the solid is not captured.
 (Note, in Fig.~\ref{fig:classical_soln} we visualize the square root of the cross-sectional area of the object $\sqrt{\alpha(h)}$ since this has more perceptible units of length.
 
@@ -288,22 +287,10 @@ However, unlike our Bayesian statistical inversion in the main text, the uncerta
 	\caption{A classical approach to the inverse problem of reconstruction.
 	(a) We use liquid level time series data in the draining tank when it does not contain an exogenous object to identify the discharge coefficient $c$ via minimizing a least-squares loss function. The model with the identified discharge coefficient $c^*$ (fit to the data) is shown.
 	(b) (top) Liquid level time series data in the draining tank when it contains an exogenous object, along with a smoothed, quartic spline fit to the data for representing $h(t)$. (bottom) The time-derivative of the liquid level according to the spline representation of $h(t)$ on top.
-	(c) The measured and predicted square root of the area of the exogenous object as a function of $h$.
+	(c) The measured and predicted square root of the area of horizontal cross-sections of the exogenous object as a function of $h$.
+	(mean absolute error of radius: 0.3\,cm.)
 	}
 \end{figure}
-
-\clearpage
-
-\section{Expanded derivation of the forward model from a mass balance}
-Here, we begin with the first physical principle of conservation of mass to derive the model for the liquid level $h(t)$ in our draining tank.
-
-\paragraph{Volume of water in the tank.} 
-The volume $V$ [cm$^3$] of water in the tank at time $t$, when the water height is $h(t)$, follows from the method of cross-sections in calculus \cite{debook}:
-\begin{equation}
-	V(h(t))=\int_0^{h(t)} \left[a(y) - \alpha(y) \right] dy. \label{eq:volume}
-\end{equation}
-The integrand is the cross-sectional area of water in the tank at height $y$; subtraction of the area of the solid $\alpha(y)$ from the area of the tank $a(h)$ accounts for the solid displacing water. (We neglect the small volume of water displaced by the level sensor.) The expression assumes the solid did not retain water above $h(t)$.
- 
 
 % Biography
 %\bio{}
