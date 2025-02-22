@@ -704,25 +704,25 @@ md"""
 
 # ╔═╡ 7979b889-4782-45be-9a4f-91375f22f26f
 params_to_title = Dict(
-					"h_max" => rich("h", subscript("max"), " [cm]"), 
+					"h_max" => rich("h", subscript("max")), 
 	
-					"a_b" => rich("a", subscript("b"), " [cm²]"), 
-					"a_t" => rich("a", subscript("t"), " [cm²]"),
+					"a_b" => rich("a", subscript("b")), 
+					"a_t" => rich("a", subscript("t")),
 	
-					"r_t" => rich("r", subscript("t"), " [cm]"), 
-					"l_t" => rich("l", subscript("t"), " [cm]"),
-					"w_t" => rich("w", subscript("t"), " [cm]"),
-					"r_b" => rich("r", subscript("b"), " [cm]"), 
-					"l_b" => rich("l", subscript("b"), " [cm]"),
-					"w_b" => rich("w", subscript("b"), " [cm]"),
+					"r_t" => rich("r", subscript("t")), 
+					"l_t" => rich("l", subscript("t")),
+					"w_t" => rich("w", subscript("t")),
+					"r_b" => rich("r", subscript("b")), 
+					"l_b" => rich("l", subscript("b")),
+					"w_b" => rich("w", subscript("b")),
 	
-					"rₒ" => rich("r", subscript("o"), " [cm]"),
+					"rₒ" => rich("r", subscript("o")),
 					"c" => "c",
-					"hₒ" => rich("h", subscript("o"), " [cm]"),
-					"h₀" => rich("h", subscript("0"), " [cm]"),
-					"σₗ" => rich("σ", subscript("ℓ"), " [cm]"),
-					"H" => rich("h", subscript("max"), " [cm]"), 
-					"σ" => "σ [cm]"
+					"hₒ" => rich("h", subscript("o")),
+					"h₀" => rich("h", subscript("0")),
+					"σₗ" => rich("σ", subscript("ℓ")),
+					"H" => rich("h", subscript("max")), 
+					"σ" => "σ"
 )
 
 # ╔═╡ 73d702b9-cdc0-4ce9-802d-89443c8412ab
@@ -770,7 +770,9 @@ function viz_posterior(
 			lo, hi = quantile(posterior[:, p], [0.1, 0.9])
 			lines!(axs[i, j], [lo, hi], [1, 1], linewidth=8, color="black")
 			
-			axs[i, j].xlabel = params_to_title[p]
+			axs[i, j].xlabel = rich(
+				params_to_title[p], " [" * params_to_units[p] * "]"
+			)
 		
 			if j == 1
 				axs[i, j].ylabel = "# samples"
@@ -1039,7 +1041,11 @@ function viz_test(posterior::DataFrame, test_data::DataFrame;
 	println("mean abs residual: [cm] ", mar)
 	
 	# plot dist'n of emptying times
-	hist!(ax_stopping, emptying_time, color=Cycled(3), bins=12)
+	hist!(ax_stopping, emptying_time, color=colors["other"], bins=12)
+	# text!(ax_stopping, 1000, 11, 
+	# 	text="emptying\ntime\ndistribution", align=(:center, :center),
+	# 	fontsize=10, color=colors["other"]
+	# )
 
 	scatter!(
 		ax,
@@ -1149,9 +1155,6 @@ function viz_cov_matrix(
 	save("paper/posterior_corr_matrix.pdf", fig)
 	fig
 end
-
-# ╔═╡ bbe56504-b7c2-4601-9f56-1957bd42e4e5
-maximum(abs.(Σ_train[3:end, 3:end]))
 
 # ╔═╡ 3bb65b71-d191-498b-81bf-40ffff4df1f4
 begin
@@ -1932,7 +1935,6 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═aa9c9d45-bb7c-4eee-af87-6fbc01df271d
 # ╠═bb0a7df4-7e84-472a-ab00-e3dd801daf8e
 # ╠═3f640581-edcc-4c7a-86ba-b168f31fe4a3
-# ╠═bbe56504-b7c2-4601-9f56-1957bd42e4e5
 # ╠═3bb65b71-d191-498b-81bf-40ffff4df1f4
 # ╠═7c8608ba-759a-4bbf-be14-32813dcbf79b
 # ╠═2fc78ec1-bf53-49da-b31a-6b5bf165eb81

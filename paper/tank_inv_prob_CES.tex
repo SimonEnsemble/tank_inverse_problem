@@ -817,11 +817,11 @@ Two complications are: (i) gravity could cause the shape to rotate when the tank
 \paragraph{Extensions.}
 (1) Our forward model of the dynamics of the liquid level in an \emph{open-top} tank, containing a \emph{solid}, draining of liquid through a \emph{small} orifice in its side \emph{without} additional input/output of liquid could be extended to handle inverse problems concerning
 (a) closed tanks, where the air pressure in the headspace is not constant and atmospheric during draining \cite{cross2016filling}; 
-(b) larger orifices, where Torricelli's law does not hold and perhaps the liquid at the top does not remain flat (necessitating modeling of flow streamlines as in Refs.~\cite{mathew2014numerical,sakri2017numerical});
+(b) larger orifices, so the liquid at the top does not remain flat (necessitating computational fluid dynamics simulations \cite{mathew2014numerical,sakri2017numerical});
 (c) additional inputs/outputs of liquid by adding source/sink terms; 
 (d) Mariotte's bottle \cite{kirevs2006mariotte}; and/or
 (e) a flexible exogenous object compressible by hydrostatic pressure, such as a balloon \cite{muller2004rubber}. 
-(2) During Bayesian model calibration, a model discrepancy \cite{brynjarsdottir2014learning,kennedy2001bayesian,eugene2023learning} function could capture any bias---i.e., a difference between the true dynamics of the liquid level in the tank and the model $h(t; h_0^*,  \boldsymbol \alpha^*, \boldsymbol \theta^*)$ with the true/best-fit (indicated by $*$) initial water level, solid geometry, and parameters.
+(2) During Bayesian model calibration, a model discrepancy \cite{brynjarsdottir2014learning,kennedy2001bayesian,eugene2023learning} function could capture any bias---i.e., a difference between the true dynamics of the liquid level in the tank and the model $h(t; h_0^*,  \boldsymbol \alpha^*, \boldsymbol \theta^*)$ with the true/best-fit (indicated by $*$) initial water level, solid area profile, and parameters.
 % In other words, we assume our forward model is capable of capturing the true liquid level dynamics in the tank without bias.
 (3) Finally, another interesting inverse problem pertaining to a draining tank is time reversal: infer the initial water level from measurement(s) of the water level at later times.
 
@@ -830,7 +830,8 @@ Examples of other geometric inverse problems, where the unknown is a geometric s
 (i) from boundary measurements: the shape and location of cracks in a solid \cite{nishimura1991boundary}, fouling on the inner wall of a pipe \cite{chen2011inverse}, mines underground \cite{delbary2007inverse,lopez2003detection}, scattering objects like submarines \cite{yaman2013survey} underwater \cite{buchanan2004marine}, and inclusions or cavities inside thermal conductors \cite{wang2018numerical,nakamura2015reconstruction};
 (ii) the shape of obstacles in blood vessels from flow measurements \cite{aguayo2021distributed,nolte2022inverse}; 
 (iii) the shape of a membrane from the sound it produces when it vibrates \cite{kac1966can}; 
-and (iv) the potential energy of the interaction between a particle and a surface as a function of distance from the distribution of [fluctuating] distance measurements \cite{prieve1999measurement}.
+and 
+(iv) the potential energy of a particle interacting with a surface as a function of distance, from the distribution of [fluctuating] distance measurements \cite{prieve1999measurement}.
 Geometric inverse problems leading to optimal engineering designs include determining: 
 (i) the region in input space, constituting design and operating parameters, for a chemical reactor that gives an output falling in a desired set \cite{alves2023inverse,gazzaneo2019process}; 
 (ii) the shape of (a) an adhesive pillar that gives a desired interfacial stress distribution \cite{kim2020designing};
