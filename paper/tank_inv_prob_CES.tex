@@ -311,7 +311,7 @@ The sensor communicates with an Arduino microcontroller, providing measurements 
 To map the reading from the level sensor [0-1023 integer values] to the liquid level in the tank [cm], we constructed a calibration curve constituting a smooth 1D spline fit to the observed sensor reading at increments of 1 cm water height.
 
 \subsection{Remarks}
-For simplicity in a classroom setting, one could instead use a \emph{cylindrical} tank with a hole in its \emph{bottom} and measure the water level \emph{visually} or via smartphone video \cite{brown2009innovative,klein2015video}. We, however, elected to adopt a more complex tank (as may be encountered in practice) and disallow liquid from ``scanning'' the bottom $h_o \approx 1$\,cm of the solid---for a challenge. We employed an immersive level strip to measure the liquid level, corresponding to the practical setting where the tank is not transparent. (Even for the classroom, adopting [low-cost] Arduino microcontrollers can enable many different demonstrations and hands-on student experiments \cite{kubinova2015chemduino,kang2019applying,pino2018measuring} and teach students about troubleshooting, electronics, and coding.) 
+For simplicity in a classroom setting, one could instead use a \emph{cylindrical} tank with a hole in its \emph{bottom} and measure the water level \emph{visually} or via smartphone video \cite{brown2009innovative,klein2015video}. We, however, elected to adopt a more complex tank (as may be encountered in practice) and disallow liquid from ``scanning'' the bottom $h_o \approx 1$\,cm of the solid---for a challenge. We employed an immersive level strip to measure the liquid level, relevant for the practical setting where the tank is opaque. (Even for the classroom, adopting [low-cost] Arduino microcontrollers can enable many different demonstrations and hands-on student experiments \cite{kubinova2015chemduino,kang2019applying,Pino2018} and teach students about troubleshooting, electronics, and coding.) 
 
 
 \section{The forward and measurement models and likelihood}
@@ -375,7 +375,7 @@ Conservation of volume (implied by conservation of mass, treating the water as i
 Differentiating $V(h(t))$ in eqn.~\ref{eq:volume} and using the chain rule \cite{debook} to rewrite the accumulation term gives our forward model for $h(t)$:
 %\begin{empheq}[box=\mybox]{align}
 \begin{empheq}[box={\Garybox[forward model]}]{align}
-& \left[ a(h)-\alpha(h)\right] \diff{h}{t}= -c \pi r_o^2 \sqrt{2g (h(t)-h_o)}, \,\,\, t \geq 0 \label{eq:forward_model} \\
+& \left[ a(h)-\alpha(h)\right] \diff{h}{t}= -c \pi r_o^2 \sqrt{2g [h(t)-h_o]}, \,\,\, t \geq 0 \label{eq:forward_model} \\
 & h(0)=h_0, \nonumber
 \end{empheq}
 a [generally] nonlinear, first-order, ordinary differential equation (ODE) in $h(t)$ subject to an initial condition.
@@ -763,7 +763,8 @@ The key idea is that the water ``scans'' the solid's area profile as it drops.
 Note, we could \emph{not}, however, infer the precise shape (circle vs.\ square vs.\ ellipse, etc.) of the horizontal cross section(s) of the bottle from the liquid level dynamics; this is because the liquid level dynamics depend only on the solid's area profile, $\alpha(h)$.
 
 \subsection{Baseline: a classical reconstruction method}
-For comparison with BSI, in Sec.~\ref{sec:classical}, we (1) minimize a least-squares cost function to fit the discharge coefficient $c$ to the liquid level time series data from Phase I then (2) reconstruct the area profile of the solid using the liquid level time series data from Phase II via fitting then differentiating a smoothing spline to the data. The reconstructed area profile of the solid has error comparable to that from BSI, but (i) fails to quantify uncertainty and (ii) exhibits spurious curvature at the boundary of the heights scanned by the liquid.
+For comparison with BSI, in Sec.~\ref{sec:classical}, we (1) minimize a least-squares cost function to fit the discharge coefficient $c$ to the liquid level time series data from Phase I then (2) reconstruct the area profile of the solid using the liquid level time series data from Phase II via fitting then differentiating a smoothing spline to the data. (This is much less computationally expensive.)
+The error in the reconstructed area profile of the solid is the same as from BSI, but the inferred area profile (i) fails to quantify uncertainty and (ii) exhibits spurious curvature at the boundary of the heights scanned by the liquid.
 
 
 \section{Conclusions and Discussion}
@@ -779,17 +780,18 @@ Our reconstruction methodology herein could be employed throughout engineering a
 With some modification, one could also infer the height and/or porosity of a bed of small, heavy solid particles (e.g. gravel, sand) packed into a tank \cite{guellouz2020estimation}; perhaps, we could infer the \emph{shape} of the particles as well, by coupling with a packing model \cite{zhang2006relationship}. 
 While our methodology requires access to the liquid level in the tank as it drains, we could infer the liquid level, as well, from the volumetric outflow rate or the geometry of the liquid jet exiting from the tank \cite{groetsch1999inverse,davidovic2020visualizing}.
 
-\paragraph{Can we infer the precise geometry of a solid in an opaque, draining tank?}
+
+\paragraph{Remarks.} (1) We could have calibrated our forward and measurement models using data from a tank drainage experiment where the tank \emph{did} contain an exogenous solid, provided the horizontal cross-sectional area profile of the solid were known with some certainty. (2) If we knew the solid's shape belonged to a certain category (e.g.\ a right circular cone), we could have parameterized its area as a function of height with fewer variables (e.g.\ height and base radius). (3) If the solid in the tank \emph{did} exhibit a depression that allowed it to hold water itself, we would have obtained the area profile $\alpha(h)$ of a modification of the solid where these depressions, that retain water after tank draining, are filled-in with solid material.
+
+\subsection{Can we infer the precise geometry of a solid in an opaque, draining tank?}
 Our ambition to reconstruct the geometry of an exogenous solid inside a draining tank from its liquid level over time was limited to seeking its horizontal cross-sectional area profile.
 Determining the precise geometry of the solid from liquid level dynamics is impossible because the dynamics of $h(t)$ depend solely on the horizontal cross-sectional area profile of the solid (see eqn.~\ref{eq:forward_model}); and, there are multiple non-congruent (by rotation about the vertical axis) solids with an identical horizontal cross-sectional area profile (e.g., a cylinder and rectangular prism with the same cross-sectional area as a function of height). We speculate that, by conducting multiple tank-draining experiments with the tank tilted and held at different angles, we may be able to reconstruct the precise geometry of the solid in the tank. The key idea is that two non-congruent solids with an identical \emph{horizontal} cross-sectional area profile exhibit different area profiles at differently-angled cross sections.
 Possibly, we could probe the area profiles at these different angles by tilting the tank. 
 Two complications may render tank-tilting for inferring the solid's shape impractical: 
 (i) gravity could induce the shape to rotate in the tank when the tank is tilted, confounding the analysis, and (ii) for large tanks, underground tanks, or tanks in confined spaces, tilting is not infeasible. 
 
-\paragraph{Remarks.} (1) We could have calibrated our forward and measurement models using data from a tank drainage experiment where the tank \emph{did} contain an exogenous solid, provided the horizontal cross-sectional area profile of the solid were known with some certainty. (2) If we knew the solid's shape belonged to a certain category (e.g.\ a right circular cone), we could have parameterized its area as a function of height with fewer variables (e.g.\ height and base radius). 
-
-\paragraph{Extensions.}
-(1) Our forward model of the dynamics of the liquid level in an \emph{open-top, rigid} tank, containing a \emph{rigid solid}, draining of an \emph{ideal, pure} liquid through a \emph{small} orifice in its side \emph{without} additional input/output of liquid could be extended to handle inverse problems concerning
+\subsection{Extensions}
+Our forward model of the dynamics of the liquid level in an \emph{open-top, rigid} tank, containing a \emph{rigid solid}, draining of an \emph{ideal, pure} liquid through a \emph{small} orifice in its side \emph{without} additional input/output of liquid could be extended to handle inverse problems concerning
 (a) closed tanks, where the air pressure in the headspace is not constant and atmospheric during draining \cite{cross2016filling} and, perhaps, air bubbles enter the tank through the orifice (glug-glug) \cite{mayer2019bottle,clanet2004glug}; 
 (b) a non-flat liquid top as the tank drains, owing to a vortex \cite{caquas2023bathtub} or sloshing \cite{ibrahim2005liquid} (perhaps, necessitating computational fluid dynamics simulations \cite{mathew2014numerical,sakri2017numerical});
 (c) additional inputs/outputs of liquid by adding source/sink terms; 
@@ -797,11 +799,18 @@ Two complications may render tank-tilting for inferring the solid's shape imprac
 % TODO does it?
 (e) Mariotte's bottle \cite{kirevs2006mariotte}; and/or
 (f) a flexible exogenous object compressible by hydrostatic pressure, such as a balloon \cite{muller2004rubber}. 
-(2) During Bayesian model calibration, a model discrepancy \cite{brynjarsdottir2014learning,kennedy2001bayesian,eugene2023learning} function could capture any bias---i.e., a difference between the true dynamics of the liquid level in the tank and the model $h(t; h_0^*,  \boldsymbol \alpha^*, \boldsymbol \theta^*)$ with the true/best-fit (indicated by $*$) initial water level, solid area profile, and parameters.
-% In other words, we assume our forward model is capable of capturing the true liquid level dynamics in the tank without bias.
-(3) Finally, another interesting inverse problem pertaining to a draining tank is time reversal: infer the initial water level from measurement(s) of the water level at later times.
 
-\paragraph{Other geometric inverse problems.}
+During Bayesian model calibration, a model discrepancy \cite{brynjarsdottir2014learning,kennedy2001bayesian,eugene2023learning} function could capture any bias---i.e., a difference between the true dynamics of the liquid level in the tank and the model $h(t; h_0^*,  \boldsymbol \alpha^*, \boldsymbol \theta^*)$ with the true/best-fit (indicated by $*$) initial water level, solid area profile, and parameters.
+
+If the measurement noise were not identically distributed for each liquid level (e.g., if the variance $\sigma^2$ were not constant with $h$), the heteroscedastic noise could be treated in the measurement model by modeling $\sigma$ as a function of $h$, effectively assigning a different noise variance $\sigma_i$ to each data point $(t_i, h_{i, \text{obs}})$ \cite{minet2015bayesian,boscardin1994bayesian}. 
+% TODO
+% In other words, we assume our forward model is capable of capturing the true liquid level dynamics in the tank without bias.
+
+An alternative experimental setup to infer the horizontal cross-sectional area profile of a solid in a tank \emph{without} a hole is to start with a tank empty of liquid, then introduce liquid at a known flow rate and measure the liquid level over time as the tank \emph{fills}. Possibly, this tank filling, instead of draining, setup could allow us to detect depressions in the solid that hold water during draining.
+
+Other interesting inverse problems pertaining to a draining tank involve time reversal: infer either (a) the initial liquid level or (b) the initial time the tank began draining, from a measurement of the liquid level at a later time.
+
+\subsection{Survey of other geometric inverse problems}
 Examples of other geometric inverse problems, where the unknown is a geometric shape \cite{ameur2004level,burger2001level,harbrecht2013numerical,kawakami2020stabilities}, include inferring
 (i) from boundary measurements: the shape and location of cracks in a solid \cite{nishimura1991boundary}, fouling on the inner wall of a pipe \cite{chen2011inverse}, mines underground \cite{delbary2007inverse,lopez2003detection}, scattering objects like submarines \cite{yaman2013survey} underwater \cite{buchanan2004marine}, and inclusions or cavities inside thermal conductors \cite{wang2018numerical,nakamura2015reconstruction};
 (ii) the shape of obstacles in blood vessels from flow measurements \cite{aguayo2021distributed,nolte2022inverse}; 
