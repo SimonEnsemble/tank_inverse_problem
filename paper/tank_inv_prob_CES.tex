@@ -259,8 +259,6 @@ First, we describe our experimental setup in Fig.~\ref{fig:photo_of_tank} for ta
 We possess a plastic tank---an inverted, right, truncated cone with a rounded rectangle base (excluding the top rim). The top of the tank is open to the atmosphere.
 We drilled a small, circular orifice of radius $r_o$ [cm] in the side of the tank, parallel with the ground and a small height $h_o$ [cm] (to its center) from the bottom base.
 
-
-
 A tank draining experiment constitutes: 
 (1) optionally, placing an exogenous, heavy solid inside the tank; 
 (2) nearly filling the tank with water, to an initial height $h_0$ [cm]; 
@@ -268,7 +266,6 @@ A tank draining experiment constitutes:
 (4) collecting time series data of the water level in the tank over time, $\{(t_i, h_{\text{obs}, i}) \}$, from a liquid level sensor communicating with an Arduino microcontroller. 
 
 The exogenous [rigid] solid (i) is heavier than water, and thus remains stationary at the bottom of the tank; (ii) displaces water in the tank; and (iii) has a geometry rendering it incapable of holding water itself (the solid cannot hold water iff it is locally convex at points on its (assume, smooth) surface where the normal vector to the surface is anti-parallel with the gravitational field). Denote the area profile of the solid, $\alpha(h)$ [cm$^2$], as the area of a horizontal cross-section of the exogenous solid at height $h$ [cm] from its bottom base.
-
 
 \begin{figure}[h!]
 \begin{center}
@@ -289,7 +286,7 @@ Fig.~\ref{fig:tank_geometry} contains a multi-view drawing of the tank geometry,
 The height of the tank is $h_{\text{max}}$ [cm].
 Each horizontal cross-section of the tank is a rounded rectangle with length $l$ [cm], width $w$ [cm], and corner-circle radius $r$ [cm].
 By definition, a rounded rectangle is the convex hull of four circles, each of radius $r$, whose centers lie at the vertices of a rectangle with length $l$ and width $w$. \cite{rounded_rect}
-The length, width, and corner-circle radius of the rounded rectangle constituting the horizontal cross-section of the tank at height $h$ are:
+Since the faces of the tank are flat, the length, width, and corner-circle radius of the rounded rectangle constituting the horizontal cross-section of the tank at height $h$ are:
 \begin{align}
 	l(h) &= \frac{h}{h_{\text{max}}}l_t + \left(1-\frac{h}{h_{\text{max}}}\right) l_b \\
 	w(h) &= \frac{h}{h_{\text{max}}}w_t + \left(1-\frac{h}{h_{\text{max}}}\right) w_b \\
@@ -307,14 +304,22 @@ with $a(h)$ the area of a horizontal cross section of the tank at height $h$ [cm
 %where $l_b$, $w_b$, and $r_b$ [cm] and $l_t$, $w_t$, and $r_t$ [cm] are the length, width, and corner-circle radius of the rounded rectangles forming the bottom and top, respectively, bases of the tank.
 %In summary, we characterize $\alpha(h)$ by the parameters: $l_b$, $w_b$, $r_b$, $l_t$, $w_t$, and $r_t$, and $h_{\rm max}$.
 
-
 \subsection{The liquid level sensor}
 We place an eTape\texttrademark\xspace liquid level strip vertically inside the tank, immersed in the water. 
 The electrically-resistive output of the level strip decreases $\sim$monotonically with the water level as a result of the water compressing the strip via hydrostatic pressure \cite{eTape}.
 The sensor communicates with an Arduino microcontroller, providing measurements of the water level over a sequence of times. 
 To map the reading from the level sensor [0-1023 integer values] to the liquid level in the tank [cm], we constructed a calibration curve constituting a smooth 1D spline fit to the observed sensor reading at increments of 1 cm water height.
 
-
+\subsection{Remarks}
+For the classroom, our experiment, problem setup, and analysis can be simplified by 
+(i) using a cylindrical tank, whose area profile is constant and easy to measure,
+(ii) drilling a hole in the very bottom of the tank, and
+(iii) recording the liquid level in the tank at various time points by real-time visual inspection or by manual or automatic post-hoc analysis of video taken from a smart phone \cite{brown2009innovative,klein2015video}.
+We elected to 
+(i) use a tank of a more complicated geometry for a challenge (and, based on the inventory of containers in our kitchens);
+(ii) disallow the liquid to 'scan' the bottom of $\approx$1\,cm portion of the solid to illustrate extrapolation via a smoothing prior;
+and
+(iii) use an immersive liquid level strip to measure the liquid level, corresponding to the practical situation where we cannot see through the opaque tank.
 
 \section{The forward and measurement models and likelihood}
 The [deterministic] \emph{forward model} predicts the water level $h(t)$ [m] in our draining tank over time $t$ [s], given the \emph{inputs} $\alpha(h)$ and $h_0$ and \emph{parameters}  $l_b$, $w_b$, $r_b$, $l_t$, $w_t$, and $r_t$, $r_o$, $h_o$, and the discharge coefficient $c$. 
