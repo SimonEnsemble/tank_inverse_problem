@@ -555,7 +555,7 @@ md"""
 """
 
 # ╔═╡ 58eff13c-44b5-4f19-8a42-cf9907ac9515
-@bind n_MC_sample Select([25, 50, 100, 250, 2000], default=25)
+@bind n_MC_sample Select([25, 50, 100, 250, 1000], default=25)
 
 # ╔═╡ 68c9d88a-99b7-49be-9ac4-1e06c694c1a6
 @bind n_chains Select([3, 5], default=3)
@@ -1416,6 +1416,8 @@ function classical_soln_A_object(
 	# filter data where...
 	filter!(row -> ! isinf(row["α [cm²]"]), inferred_object_data) # dh/dt=0
 	filter!(row -> row["α [cm²]"] > 0.0, inferred_object_data) # α > 0
+
+	sort!(inferred_object_data)
 	
 	return inferred_object_data
 end
@@ -1426,7 +1428,41 @@ classical_α = classical_soln_A_object(
 )
 
 # ╔═╡ 57328e4f-e945-46eb-aba1-8b75dfeb4575
-tank_geometry
+# reconstruction error
+function reconstruction_error(
+	object_true_area::DataFrame,
+	classical_α::DataFrame,
+	data_w_object_spline_fit::DataFrame
+)		
+	residual = 0.0
+	n_pts = 0
+	
+	# estimate of radius
+	r̂ = Spline1D(
+		classical_α[:, "h [cm]"], sqrt.(classical_α[:, "α [cm²]"] / π)
+	)
+	for j = 1:nrow(object_true_area)
+		# get true radius.
+		hᵢ, aᵢ = object_true_area[j, "h [cm]"], object_true_area[j, "area [cm²]"]
+		rᵢ = sqrt(aᵢ / π)
+		
+		# get predicted radius
+		r̂ᵢ = r̂(hᵢ)
+
+		# add to residual
+		if hᵢ > minimum(data_w_object_spline_fit[:, "h [cm]"]) && hᵢ < maximum(data_w_object_spline_fit[:, "h [cm]"])
+			n_pts += 1
+			residual += abs(r̂ᵢ - rᵢ)
+		end
+	end
+	@show n_pts
+	return residual / n_pts
+end
+
+# ╔═╡ 8e785e48-f7ea-4d27-8977-f1879c8bd74b
+reconstruction_error(
+	object_true_area, classical_α, data_w_object_spline_fit
+)
 
 # ╔═╡ 5feb46c0-3888-4586-8b12-f990d4d38912
 begin
@@ -1969,6 +2005,7 @@ lines(object_prior[:, "sqrt_a_obj[1]"])
 # ╠═29d3cc8f-780b-449a-87ba-8d543ad2473b
 # ╠═0a48e016-2fba-47cc-a212-47b4a3324b20
 # ╠═57328e4f-e945-46eb-aba1-8b75dfeb4575
+# ╠═8e785e48-f7ea-4d27-8977-f1879c8bd74b
 # ╠═5feb46c0-3888-4586-8b12-f990d4d38912
 # ╟─b23dc763-d91f-4d66-94d2-dcf96cb07f54
 # ╠═8897acea-5efb-47a6-83a2-0c70fccfdb46
