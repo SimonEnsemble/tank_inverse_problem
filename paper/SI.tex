@@ -110,7 +110,7 @@ Supporting Information: Inferring the cross-sectional area profile of an unseen 
 \credit{}
 
 % Address/affiliation
-\affiliation[1]{organization={Oregon State University},
+\affiliation[1]{organization={Oregon State University, School of Chemical, Biological, and Environmental Engineering},
             % addressline={}, 
             city={Corvallis},
 %          citysep={}, % Uncomment if no comma needed between city and postcode
@@ -161,7 +161,7 @@ Supporting Information: Inferring the cross-sectional area profile of an unseen 
 		\includegraphics[width=\textwidth]{../drawings_and_photos/tank_geometry.png} \caption{tank geometry from each view}
 	\end{subfigure}
 	\caption{Geometry of our tank. 
-	(a) The 3D geometry of the tank with the four corresponding views we show. (b) The tank from four views, drawn approximately to scale, with variables denoting the dimensions marked. Each cross-section of the tank, taken parallel with the ground, is a rounded rectangle.
+	(a) The 3D geometry of the tank with the four corresponding views we show. (b) The tank from four views, drawn approximately to scale, with variables denoting the dimensions marked. Each horizontal cross-section of the tank is a rounded rectangle.
 	} \label{fig:tank_geometry}
 \end{figure}
 
@@ -187,7 +187,7 @@ From these, three measurements, we can determine $l$, $w$, and $r$ via solving t
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width=0.75\textwidth]{../drawings_and_photos/a_of_h.pdf} 
-	\caption{We illustrate the horizontal cross-sectional area, from a helicopter-view, $\alpha(h)$ and $a(h)$, of the exogenous solid and the draining tank, respectively, as a function of height from the ground, $h$. These two functions characterizing the geometry of the tank and exogenous object are key determinants of the dynamics of the liquid level in the draining tank when it contains the exogenous object.} \label{fig:a_and_alpha_of_h_illustration}
+	\caption{We illustrate the horizontal cross-sectional area, from a helicopter-view, $\alpha(h)$ and $a(h)$, of the exogenous solid and the draining tank, respectively, as a function of height from the bottom base, $h$. These two functions characterizing the geometry of the tank and exogenous object are key determinants of the dynamics of the liquid level in the draining tank when it contains the exogenous object.} \label{fig:a_and_alpha_of_h_illustration}
 \end{figure}
 
 \clearpage
@@ -214,7 +214,7 @@ From these, three measurements, we can determine $l$, $w$, and $r$ via solving t
 	(2) the liquid is inviscid (i.e., we neglect frictional forces internal to the liquid),
 	and
 	(3) the liquid is incompressible (i.e., its density, $\rho$ [kg/m$^3$], is constant).
-	Also, the flow is isothermal (for our tank draining experiments, we let the water reach room temperature).
+	Also, the flow is isothermal. (For our tank draining experiments, we let the water reach room temperature.)
 	
 	A mechanical energy balance then implies Bernoulli's equation \cite{welty2020fundamentals} holds for points (1) and (2) along the flow streamline, which relates the velocity $v_i$ [m/s], pressure $P_i$ [N/m$^2$ $[=]$ kg /(s$^2\cdot$m)], and elevation $y_i$ [m] of the liquid at the two points $i\in\{1,2\}$:
 	\begin{equation}
@@ -270,7 +270,7 @@ Fig.~\ref{fig:spline_fit} shows: on the top panel, the data $\{(\hat{t}_i, \hat{
 Finally, a classical solution to the reconstruction problem: Fig.~\ref{fig:classical_soln} visualizes the predicted horizontal cross-sectional area profile of the exogenous object, $\alpha(h)$, following from eqn.~\ref{eq:alpha_unknown} when we use the smooth splines visualized in Fig.~\ref{fig:spline_fit} for $h(t)$ and $\diff{h(t)}{t}$. For comparison, we also show the directly-measured (via length-measurements) area profile of the exogenous object. 
 We obtain a reasonable prediction of the solid's area profile. 
 However, unlike our Bayesian statistical inversion in the main text, the uncertainty in the predicted cross sectional area of the solid is not captured.
-(Note, in Fig.~\ref{fig:classical_soln} we visualize the square root of the cross-sectional area of the object $\sqrt{\alpha(h)}$ since this has more perceptible units of length.
+(Note, in Fig.~\ref{fig:classical_soln} we visualize the square root of the cross-sectional area of the object $\sqrt{\alpha(h)}$ since this has more comprehensible units of length.)
 
 \begin{figure}[h!]
 	\centering
@@ -287,7 +287,7 @@ However, unlike our Bayesian statistical inversion in the main text, the uncerta
 	\caption{A classical approach to the inverse problem of reconstruction.
 	(a) We use liquid level time series data in the draining tank when it does not contain an exogenous object to identify the discharge coefficient $c$ via minimizing a least-squares loss function. The model with the identified discharge coefficient $c^*$ (fit to the data) is shown.
 	(b) (top) Liquid level time series data in the draining tank when it contains an exogenous object, along with a smoothed, quartic spline fit to the data for representing $h(t)$. (bottom) The time-derivative of the liquid level according to the spline representation of $h(t)$ on top.
-	(c) The measured and predicted square root of the area of horizontal cross-sections of the exogenous object as a function of $h$.
+	(c) The measured and predicted/reconstructed square-root-area of horizontal cross-sections of the exogenous object as a function of $h$.
 	(mean absolute error of radius: 0.3\,cm.)
 	}
 \end{figure}
