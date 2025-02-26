@@ -74,9 +74,9 @@ parbox=false
 
 %\documentclass[a4paper,fleqn,longmktitle]{cas-dc}
 
-%\usepackage[numbers]{natbib}
+\usepackage[numbers]{natbib}
 %\usepackage[authoryear]{natbib}
-\usepackage[authoryear,longnamesfirst]{natbib}
+% \usepackage[authoryear,longnamesfirst]{natbib}
 
 %%%Author macros
 \def\tsc#1{\csdef{#1}{\textsc{\lowercase{#1}}\xspace}}
@@ -174,7 +174,7 @@ Inferring the cross-sectional area profile of an unseen solid in a draining tank
 
 % Here goes the abstract
 \begin{abstract}
-We aim to reconstruct the horizontal cross-sectional area profile of an exogenous, heavy, unseen solid contained in a tank from measurements of the liquid level in the tank as it drains (driven by gravity) through a small orifice in its side. (Because the solid displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at that height; as the liquid level drops, it ``scans’'/``images'' the solid.) We combine mathematical modeling, Bayesian statistical inversion, Monte Carlo simulation, and wet experiments of a tank draining of water to demonstrate and test our ability to infer the area profile of an exogenous solid with quantified uncertainty. In our experiment, the posterior distribution over the area profile of the solid (a bottle) in our draining tank agreed reasonably well with our [held-out] length-measurements ($<$10\% mean reconstruction error on the solid's radius). Our approach may be practically useful to non-destructively gather information about the geometry of an unknown solid, or a packed bed of solid particles, contained in an opaque or inaccessible tank.
+We aim to reconstruct the horizontal cross-sectional area profile of an exogenous, heavy, unseen solid contained in a tank from measurements of the liquid level in the tank as it drains (driven by gravity) through a small orifice in its side. (Because the solid displaces liquid, the rate of decrease of the liquid level provides information about the cross-sectional area of the solid at that height; as the liquid level drops, it ``scans’' the solid's area profile.) We combine mathematical modeling, Bayesian statistical inversion, Monte Carlo simulation, and wet experiments of a tank draining of water to demonstrate and test our ability to infer the area profile of an exogenous solid with quantified uncertainty. In our experiment, the posterior distribution over the area profile of the solid (a bottle) in our draining tank agreed reasonably well with our [held-out] length-measurements ($<$10\% mean reconstruction error on the solid's radius). Our approach may be practically useful to non-destructively gather information about the geometry of an unknown solid, or a packed bed of solid particles, contained in an opaque or inaccessible tank.
 \end{abstract}
 
 % Use if graphical abstract is present
@@ -347,7 +347,7 @@ Invoking Torricelli's law, we model the volumetric flow rate out of the tank at 
 \begin{equation}
 	c \pi r_o^2 \sqrt{2 g [ h(t)-h_o] }. \label{eq:outletflow}
 \end{equation}
-The discharge coefficient is intended to account for the non-plug flow through the orifice, the vena contracta in the water jet, and frictional losses
+The discharge coefficient is intended to account for the inter-related non-plug flow through the orifice and vena contracta in the water jet as well as frictional losses
 \cite{horsch2020simple,teoman2022discharge,hicks2014determining,blasone2015discharge,lienhard1984velocity,wadhwa2021study}. 
 % Note, $c=1$ corresponds with an ``ideal'' water jet with cross-sectional area equal to that of the orifice ($\pi r_o^2$), plug flow, and zero frictional losses.
 
