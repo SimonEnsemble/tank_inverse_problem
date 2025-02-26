@@ -237,7 +237,7 @@ The discharge coefficient \cite{teoman2022discharge,hicks2014determining,blasone
 
 In contrast to the \emph{forward problem} of using this dynamic model to predict the trajectory of the liquid level in a draining tank of a given geometry, Groetsch \cite{groetsch1993inverse_tl,groetsch1999inverse} framed an \emph{inverse problem} \cite{groetsch1993inverse,neto2012introduction,tarantola2005inverse}: reconstruct the shape of the tank from its liquid level over time as the tank drains. 
 While impossible to infer the precise geometry of the tank, one can leverage the dynamic model to determine
-(a) the horizontal cross-sectional area profile of the tank from (b) the liquid level as a function of time as it drains. (The rate of decrease of the liquid level provides information about the area of the horizontal cross-section of the tank at that height. The outlet flow rate depends on the \emph{height} of water in the tank, not the girth; so, wider [say, cylindrical] tanks drain more slowly.)
+(a) the horizontal cross-sectional area profile of the tank from (b) the liquid level as a function of time as it drains. (The rate of decrease of the liquid level provides information about the area of the horizontal cross-section of the tank at that height. The outlet flow rate depends on the \emph{height} of water in the tank, not the girth; so, the liquid level drops more slowly when the tank is wider.)
 However, this inverse problem of reconstruction is unstable: small errors in the measured liquid level can cause large errors in the estimated area profile of the tank. \cite{groetsch1993inverse_tl}
 
 Herein, we employ Bayesian statistical inversion \cite{calvetti2018inverse,waqar2023tutorial,kaipio2006statistical,dashti2013bayesian} to solve, with quantified uncertainty, an inverse problem of reconstruction (``seeing the unseen'' \cite{uhlmann2014inverse}): infer the horizontal cross-sectional area profile of an exogenous solid (of unknown geometry) contained in a draining tank (of known geometry) from measurements of the liquid level in the draining tank over time. 
@@ -311,7 +311,7 @@ The sensor communicates with an Arduino microcontroller, providing measurements 
 To map the reading from the level sensor [0-1023 integer values] to the liquid level in the tank [cm], we constructed a calibration curve constituting a smooth 1D spline fit to the observed sensor reading at increments of 1 cm water height.
 
 \subsection{Remarks}
-For simplicity in a classroom setting, one could instead use a \emph{cylindrical} tank with a hole in its \emph{bottom} and measure the water level \emph{visually} or via smartphone video \cite{brown2009innovative,klein2015video}. We, however, elected to adopt a more complex tank (as may be encountered in practice) and disallow liquid from ``scanning'' the bottom $h_o \approx 1$\,cm of the solid---for a challenge. We employed an immersive level strip to measure the liquid level, relevant for the practical setting where the tank is opaque. (Even for the classroom, adopting [low-cost] Arduino microcontrollers can enable many different demonstrations and hands-on student experiments \cite{kubinova2015chemduino,kang2019applying,Pino2018} and teach students about troubleshooting, electronics, and coding.) 
+For simplicity in a classroom setting, one could instead use a \emph{cylindrical} tank with a hole in its \emph{bottom} and measure the water level \emph{visually} or via smartphone video (perhaps, adding dye to the water to enhance contrast) \cite{brown2009innovative,klein2015video}. We, however, elected to adopt a more complex tank (as may be encountered in practice) and disallow liquid from ``scanning'' the bottom $h_o \approx 1$\,cm of the solid---for a challenge. We employed an immersive level strip to measure the liquid level, relevant for the practical setting where the tank is opaque. (Even for the classroom, adopting [low-cost] Arduino microcontrollers can enable many different demonstrations and hands-on student experiments \cite{kubinova2015chemduino,kang2019applying,Pino2018} and teach students about troubleshooting, electronics, and coding.) 
 
 
 \section{The forward and measurement models and likelihood}
@@ -338,7 +338,7 @@ We model the velocity $v$ [cm/s] of the jet of water flowing out of the orifice 
 \end{equation} where $g$ [cm/s$^2$] is the gravitational acceleration constant. 
 Torricelli's law follows from applying Bernoulli's equation \cite{welty2020fundamentals}, a mechanical energy balance, to a streamline of the flow of water from (1) a point at the top of the body of water inside the tank to (2) a point in the outlet stream just outside of the orifice. 
 This approximates the water as incompressible and inviscid and the flow along the streamline as at steady-state. See Sec.~\ref{sec:Torricelli} for details.
-Torricelli's law matches the gain in kinetic energy $(\Delta m) v^2/2$ of a small parcel of water, of mass $\Delta m$, that travels along this streamline from the surface of the liquid in the tank to just outside of the orifice, with its loss in gravitational potential energy $(\Delta m)g(h-h_o)$.
+Torricelli's law matches the gain in kinetic energy $m v^2/2$ of a small parcel of water, of mass $m$, that travels along this streamline from the surface of the liquid in the tank to just outside of the orifice, with its loss in gravitational potential energy $m g(h-h_o)$.
 \cite{groetsch1993inverse_tl,driver1998torricelli,williams2021vessel,epple2017verification}
 
 %If Torricelli's law held and the cross-sectional area of the liquid jet out of the tank were the same as the cross-sectional area of the orifice ($\pi r_o^2$), the volumetric flow rate out of the tank would be $v\pi r_o^2$.
@@ -838,7 +838,7 @@ CMS acknowledges support from the Intel Corporation through their Mindshare Prog
 GF acknowledges the US National Science Foundation, award \#2421967. 
 Thanks to 
 % Brian Wood for helpful discussions about the possibility to infer the precise shape of the solid in the tank by tilting it; 
-Adrian Henle for feedback on our manuscript and Axel Rodriguez for help articulating the condition for a solid to be incapable of holding water.
+Adrian Henle for feedback on our manuscript; Axel Rodriguez for help articulating the condition for a solid to be incapable of holding water; and the reviewers for their feedback that led to improvements.
 
 
 % To print the credit authorship contribution details
