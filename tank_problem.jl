@@ -829,7 +829,7 @@ tank_geometry
 # ╔═╡ ded5b462-06dd-43a4-93b0-c52ad87174eb
 viz_posterior(
 	train_posterior,
-	["l_t" "w_t" "r_t" ""; "l_b" "w_b" "r_b" "h_max"; "rₒ" "h₀" "σ" "c"],
+	["l_t" "w_t" "r_t" "hₒ"; "l_b" "w_b" "r_b" "h_max"; "rₒ" "h₀" "σ" "c"],
 	tank_geometry,
 	train_data[1, "h [cm]"]
 )
