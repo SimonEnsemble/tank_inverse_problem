@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.5
+# v0.20.4
 
 using Markdown
 using InteractiveUtils
@@ -301,10 +301,10 @@ md"# Bayesian inference of $c$"
 	c ~ Normal(0.65, 0.4)
 
 	# orifice radius
-	rₒ ~ Normal(rₒ_obs, rₒ_obs * 0.05)
+	rₒ ~ Normal(rₒ_obs, rₒ_obs * 0.1)
 	
 	# initial liquid level
-	h₀ ~ Normal(data[1, "h [cm]"], σ_h)
+	h₀ ~ Normal(h₀_obs, σ_h)
 
 	# for prior, do not show the algo the data :)
 	if prior_only
@@ -329,10 +329,15 @@ md"# Bayesian inference of $c$"
 	return nothing
 end
 
+# ╔═╡ 5de14c78-6c0a-4da9-8df0-e5859d666b8e
+vcat(exp_data[1], exp_data[2])
+
 # ╔═╡ b45eddf1-8fdc-424d-b655-70764d13515c
 begin
 	train_model = forward_model_ID_c(
-		exp_data[1]
+		# exp_data[1]
+		# vcat(exp_data[1], exp_data[2])
+		vcat(exp_data[1], exp_data[2], exp_data[3])
 	)
 	
 	train_posterior = DataFrame(
@@ -348,6 +353,15 @@ hist(
 	train_posterior[:, "c"],
 	axis=(; xlabel="c", ylabel="# samples")
 )
+
+# ╔═╡ c8ee4a00-89a1-4480-a447-0a5759f398f2
+mean(train_posterior[:, "σ_h"])
+
+# ╔═╡ c5737e97-33c2-401c-941e-63d4bf784542
+mean(train_posterior[:, "c"])
+
+# ╔═╡ 81373b01-bb57-4641-839c-6808e4feee02
+std(train_posterior[:, "c"])
 
 # ╔═╡ 43e439e8-2657-44ea-8641-b2ca75445cbe
 train_posterior
@@ -387,7 +401,10 @@ end
 posterior_predictive_check(train_posterior, exp_data[1])
 
 # ╔═╡ 6eab9bd4-1a04-403a-ba61-fc9c511305bf
+posterior_predictive_check(train_posterior, exp_data[2])
 
+# ╔═╡ 78a7aec1-b75a-48c7-bf11-0124556540e1
+posterior_predictive_check(train_posterior, exp_data[3])
 
 # ╔═╡ 72ec118e-02b4-4b2d-9498-9d0db08e0556
 md"# time reversal I: what was $h_0$?"
@@ -431,12 +448,17 @@ md"# time reversal I: what was $t_0$?"
 # ╠═8a7dfe16-d595-4c00-bfa6-3094749c7bed
 # ╟─ab5ac22a-97ae-4014-ad13-01faa608c82b
 # ╠═8a45adb0-c3a8-472b-89d2-72ad42e5e92c
+# ╠═5de14c78-6c0a-4da9-8df0-e5859d666b8e
 # ╠═b45eddf1-8fdc-424d-b655-70764d13515c
 # ╠═af0c1f1c-7732-494d-8780-98a7652d0c75
+# ╠═c8ee4a00-89a1-4480-a447-0a5759f398f2
+# ╠═c5737e97-33c2-401c-941e-63d4bf784542
+# ╠═81373b01-bb57-4641-839c-6808e4feee02
 # ╠═43e439e8-2657-44ea-8641-b2ca75445cbe
 # ╠═a03e6a2c-d0fc-4e4f-9477-677ee967921a
 # ╠═ecc138dd-fc9a-465f-bf38-0ec681966c09
 # ╠═6eab9bd4-1a04-403a-ba61-fc9c511305bf
+# ╠═78a7aec1-b75a-48c7-bf11-0124556540e1
 # ╟─72ec118e-02b4-4b2d-9498-9d0db08e0556
 # ╠═b60e64f9-e8d8-49f4-8381-fdeb4c3060c2
 # ╟─ea4b93dd-4eee-4d49-8a04-6da7cbc30d78
