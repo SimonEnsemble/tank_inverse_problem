@@ -7,7 +7,7 @@ using InteractiveUtils
 # ╔═╡ a855718e-9078-11ed-2fd1-73a706483e34
 begin
 	import Pkg; Pkg.activate()
-	using DifferentialEquations, CairoMakie, DataFrames, MakieThemes, Statistics, Interpolations
+	using DifferentialEquations, CairoMakie, DataFrames, MakieThemes, Statistics, Interpolations, Turing
 	
 	# modifying the plot scheme
 	# see here for other themes
@@ -26,52 +26,38 @@ md"🦫 take length-measurements to characterize the geometry of the tank."
 md"height of tank"
 
 # ╔═╡ 42b4f36a-d164-411b-867d-849bf0b8da26
-H = 14.0 # cm
+H_obs = 14.0 # cm
 
 # ╔═╡ e6bbe642-f899-43ad-8015-097a65415fe4
 md"top and bottom perimeter"
 
 # ╔═╡ 29f37729-12c1-45de-a13b-a71793683c0b
-P_b = 33.5 # cm
+P_b_obs = 33.5 # cm
 
 # ╔═╡ aba01fa8-57dc-4373-b674-7cafd02ef22d
-P_t = 34.8 # cm
+P_t_obs = 34.8 # cm
 
 # ╔═╡ dd438ccc-343c-4421-95af-a17796dc95e8
 md"top and bottom dimensions (approximate as a square)"
 
 # ╔═╡ 29f5ce09-b4ab-4c46-bdfc-80f146ca3474
-L_b = P_b / 4 # cm
+L_b_obs = P_b_obs / 4 # cm
 
 # ╔═╡ 151c5229-12bb-439e-8a35-1506184deaf3
-L_t = P_t / 4 # cm
+L_t_obs = P_t_obs / 4 # cm
 
 # ╔═╡ ee537c0a-7cab-4bc2-89bd-3db590b51172
 md"area of liquid, from a helicopter view, as a function of liquid level"
-
-# ╔═╡ eeffeefd-5d09-487d-8c62-d5c06fc5355c
-function A(h)
-	θ = h / H
-	# length of square here.
-	L = θ * L_t + (1 - θ) * L_b
-	return L ^ 2 # square
-end
-
-# ╔═╡ a7cc0cba-2046-4e12-92f9-5866982092d2
-lines(
-	range(0, H, 100), A.(range(0, H, 100)),
-	axis=(; xlabel="h [cm]", ylabel="A [cm²]")
-)
 
 # ╔═╡ 99dcb519-7ccc-489f-8c53-97a1cfe5d90f
 md"radius of orifice (drill bit size)"
 
 # ╔═╡ dde9e79e-0f30-4698-9d8e-35f565931e05
-rₒ = 3 / 32 * 2.54 / 2 # cm
+rₒ_obs = 3 / 32 * 2.54 / 2 # cm
 
 # ╔═╡ bcba0331-ae6b-493b-8a9c-763eb4b07426
 md"
-## prediction 
+# simulator 
 
 predict the trajectory of the liquid level $h(t)$ using the model.
 
@@ -92,8 +78,55 @@ where $\mathbf{p}$ is an optional vector of parameters we do not use here.
 # ╔═╡ 10c9de41-4bf6-447f-89a8-6b438390dd6d
 g = 9.8 * 100 # cm / s²
 
-# ╔═╡ 2ba54ac2-6b75-4e59-9ad5-5997d1b7555c
-time_span = (0.0, 625.0) # s
+# ╔═╡ 3424875e-c3e9-4a33-a8f2-ec6d3ab1bedd
+function sim_h(
+	# initial height
+	h₀,
+	# tank geometry
+	P_t, P_b, H, # cm
+	# discharge coefficient
+	c,
+	# orifice radius
+	rₒ,
+	# simulation time
+	tf=625.0 # s
+)
+	# assume square, calculate lengths from perimeter
+	L_t = P_t / 4.0
+	L_b = P_b / 4.0
+
+	# area of tank as a function of h
+	function A(h)
+		θ = h / H
+		# length of square here.
+		L = θ * L_t + (1 - θ) * L_b
+		return L ^ 2 # square
+	end
+
+	# RHS of ODE
+	function f!(dh, h, 🐸, t)
+		if h[1] < 0.0
+			dh[1] = 0.0
+			return 0.0
+		else
+			return dh[1] = - c * π * rₒ ^ 2 * sqrt(2 * g * h[1]) / A(h[1])
+		end
+	end
+
+	prob = ODEProblem(f!, [h₀], (0.0, tf))
+
+	sim_data = DataFrame(
+		solve(
+			prob, 
+			Tsit5(), saveat=0.5, 
+			reltol=1e-5, abstol=1e-5
+		)
+	)
+
+	h_of_t = linear_interpolation(sim_data[:, "timestamp"], sim_data[:, "value1"])
+	
+	return sim_data, h_of_t
+end
 
 # ╔═╡ 43389dd2-9237-4812-bfe5-a6570f552073
 md"🦫 viz the solution.
@@ -166,7 +199,41 @@ n_runs = length(Δts)
 [length(Δts[r]) for r = 1:n_runs]
 
 # ╔═╡ 22c9bf73-68fa-4b2c-8d7a-e3c63e084e10
-h₀ = 14.0 # cm
+h₀_obs = 14.0 # cm
+
+# ╔═╡ 931a34aa-25cd-48e0-968c-d8830c2d241e
+sim_data, h_of_t = sim_h(
+	h₀_obs,
+	P_t_obs, P_b_obs, H_obs,
+	0.45,
+	rₒ_obs
+)
+
+# ╔═╡ 5c1d708e-1442-4a53-941c-5b2013dc34c7
+begin
+	fig = Figure()
+	ax = Axis(
+		fig[1, 1],
+		xlabel="time, t [s]",
+		ylabel="liquid height, h(t) [m]"
+	)
+	lines!(
+		sim_data[:, "timestamp"], sim_data[:, "value1"], 
+		label="theory", color=Cycled(1)
+	)
+	
+	axislegend()
+	fig
+end
+
+# ╔═╡ 74f20bc5-e6ea-4a2b-8f4c-9b07a9256f84
+function Δts_to_data(Δts::Vector{Float64})
+	n = length(Δts) + 1
+	return DataFrame(
+	    "h [cm]" => [h₀_obs - i for i = 0:n-1],
+	    "t [s]" => [sum(Δts[1:i]) for i = 0:n-1]
+	)
+end
 
 # ╔═╡ 27e8ac1b-88bd-4d48-835f-f01f269a4fe9
 function data_to_c(exp_data::DataFrame)
@@ -178,64 +245,8 @@ function data_to_c(exp_data::DataFrame)
 	return c
 end
 
-# ╔═╡ 9e75496a-456c-4c54-9037-3ea0d951ad30
-function Δts_to_data(Δts::Vector{Float64})
-	n = length(Δts) + 1
-	return DataFrame(
-	    "h [cm]" => [h₀ - i for i = 0:n-1],
-	    "t [s]" => [sum(Δts[1:i]) for i = 0:n-1]
-	)
-end
-
 # ╔═╡ ca687109-e558-4329-9ba9-5045fc5ee455
 exp_data = [Δts_to_data(Δts[r]) for r = 1:n_runs]
-
-# ╔═╡ 8d2e68a5-d5d3-429e-896e-8aef48a7ab9e
-cs = [data_to_c(exp_data[r]) for r = 1:n_runs]
-
-# ╔═╡ ad774b05-ada2-4b75-bf9b-d76b9147b09c
-c = mean(cs)
-
-# ╔═╡ a1bd034e-b160-4687-8bea-fe7bf8b44c12
-# we aren't going to use the parameter vector argument, nor time here explicitly.
-function f(h, 🐸, t)
-	if h < 0.0
-		return 0.0
-	else
-		return - c * π * rₒ ^ 2 * sqrt(2 * g * h) / A(h)
-	end
-end
-
-# ╔═╡ 4abecf6e-9404-4672-bdac-234e735ee817
-f(h₀, [], 0.0) # initial rate of change
-
-# ╔═╡ bc95d069-698e-4587-a03e-04c5ea27a9d7
-# DifferentialEquations.jl syntax
-prob = ODEProblem(f, h₀, time_span, saveat=0.1)
-
-# ╔═╡ c5d7269b-ba22-4596-a0e6-e2266ad2ccc3
-# solve ODE, return data frame
-sim_data = DataFrame(solve(prob))
-
-# ╔═╡ 12ffea5c-bf4a-4030-a44b-9f2bc2c64b6b
-h_sim = linear_interpolation(sim_data[:, "timestamp"], sim_data[:, "value"])
-
-# ╔═╡ 5c1d708e-1442-4a53-941c-5b2013dc34c7
-begin
-	fig = Figure()
-	ax = Axis(
-		fig[1, 1],
-		xlabel="time, t [s]",
-		ylabel="liquid height, h(t) [m]"
-	)
-	lines!(
-		sim_data[:, "timestamp"], sim_data[:, "value"], 
-		label="theory", color=Cycled(1)
-	)
-	
-	axislegend()
-	fig
-end
 
 # ╔═╡ ee3cf773-0615-4d8e-a9b1-30c22efb0bad
 begin
@@ -258,13 +269,134 @@ begin
 	for r = 1:n_runs
 		scatter!(
 			ax,
-			exp_data[r][:, "h [cm]"], exp_data[r][:, "h [cm]"] .- h_sim.(exp_data[r][:, "t [s]"]),
+			exp_data[r][:, "h [cm]"], exp_data[r][:, "h [cm]"] .- h_of_t.(exp_data[r][:, "t [s]"]),
 			marker=:rect, markersize=18, strokewidth=3,
 			color=("white", 0.0), label="run $r", strokecolor=colors[r]
 		)
 	end
 	fig
 end
+
+# ╔═╡ ab5ac22a-97ae-4014-ad13-01faa608c82b
+md"# Bayesian inference of $c$"
+
+# ╔═╡ 8a45adb0-c3a8-472b-89d2-72ad42e5e92c
+@model function forward_model_ID_c(
+	data::DataFrame, prior_only::Bool=false
+)
+	#=
+	prior distributions
+	=#
+	# uncertainty for length measurements via tape
+	σ_ℓ = 0.2 # cm
+	# uncertainty for liquid level measurements
+	σ_h ~ Uniform(0.0, 0.5) # cm
+
+	# tank geo
+	P_t ~ Normal(P_t_obs, σ_ℓ)
+	P_b ~ Normal(P_b_obs, σ_ℓ)
+	H ~ Normal(H_obs, σ_ℓ)
+
+	# discharge coefficient
+	c ~ Normal(0.65, 0.4)
+
+	# orifice radius
+	rₒ ~ Normal(rₒ_obs, rₒ_obs * 0.05)
+	
+	# initial liquid level
+	h₀ ~ Normal(data[1, "h [cm]"], σ_h)
+
+	# for prior, do not show the algo the data :)
+	if prior_only
+		return nothing
+	end
+	
+	# set up, solve ODE
+	sim_data, h_of_t = sim_h(
+		h₀,
+		P_t, P_b, H,
+		c,
+		rₒ
+	)
+
+	# observations.
+	for i in 2:nrow(data)
+		tᵢ = data[i, "t [s]"]
+		ĥᵢ = h_of_t(tᵢ)
+		data[i, "h [cm]"] ~ Normal(ĥᵢ, σ_h)
+	end
+	
+	return nothing
+end
+
+# ╔═╡ b45eddf1-8fdc-424d-b655-70764d13515c
+begin
+	train_model = forward_model_ID_c(
+		exp_data[1]
+	)
+	
+	train_posterior = DataFrame(
+		sample(
+			train_model, 
+			NUTS(0.65), MCMCSerial(), 50, 2; progress=true
+		)
+	)
+end
+
+# ╔═╡ af0c1f1c-7732-494d-8780-98a7652d0c75
+hist(
+	train_posterior[:, "c"],
+	axis=(; xlabel="c", ylabel="# samples")
+)
+
+# ╔═╡ 43e439e8-2657-44ea-8641-b2ca75445cbe
+train_posterior
+
+# ╔═╡ a03e6a2c-d0fc-4e4f-9477-677ee967921a
+function posterior_predictive_check(posterior::DataFrame, exp_data::DataFrame)
+	fig = Figure()
+	ax = Axis(
+		fig[1, 1],
+		xlabel="time, t [s]",
+		ylabel="liquid height, h(t) [m]"
+	)
+	
+	n_sample = 25
+	for s = sample(1:nrow(posterior), n_sample)
+		sim_data, h_of_t = sim_h(
+			posterior[s, :h₀],
+			posterior[s, :P_t], posterior[s, :P_b], posterior[s, :H],
+			posterior[s, :c],
+			posterior[s, :rₒ]
+		)
+
+		lines!(
+			sim_data[:, "timestamp"], sim_data[:, "value1"], 
+			color=(colors[2], 0.2)
+		)
+	end
+	scatter!(
+		exp_data[:, "t [s]"], exp_data[:, "h [cm]"],
+		marker=:rect, markersize=18, strokewidth=3,
+		color=("white", 0.0), strokecolor="white"
+	)
+	fig
+end
+
+# ╔═╡ ecc138dd-fc9a-465f-bf38-0ec681966c09
+posterior_predictive_check(train_posterior, exp_data[1])
+
+# ╔═╡ 6eab9bd4-1a04-403a-ba61-fc9c511305bf
+
+
+# ╔═╡ 72ec118e-02b4-4b2d-9498-9d0db08e0556
+md"# time reversal I: what was $h_0$?"
+
+# ╔═╡ b60e64f9-e8d8-49f4-8381-fdeb4c3060c2
+
+
+# ╔═╡ ea4b93dd-4eee-4d49-8a04-6da7cbc30d78
+md"# time reversal I: what was $t_0$?"
 
 # ╔═╡ Cell order:
 # ╠═a855718e-9078-11ed-2fd1-73a706483e34
@@ -279,18 +411,12 @@ end
 # ╠═29f5ce09-b4ab-4c46-bdfc-80f146ca3474
 # ╠═151c5229-12bb-439e-8a35-1506184deaf3
 # ╟─ee537c0a-7cab-4bc2-89bd-3db590b51172
-# ╠═eeffeefd-5d09-487d-8c62-d5c06fc5355c
-# ╠═a7cc0cba-2046-4e12-92f9-5866982092d2
 # ╟─99dcb519-7ccc-489f-8c53-97a1cfe5d90f
 # ╠═dde9e79e-0f30-4698-9d8e-35f565931e05
 # ╟─bcba0331-ae6b-493b-8a9c-763eb4b07426
 # ╠═10c9de41-4bf6-447f-89a8-6b438390dd6d
-# ╠═a1bd034e-b160-4687-8bea-fe7bf8b44c12
-# ╠═4abecf6e-9404-4672-bdac-234e735ee817
-# ╠═2ba54ac2-6b75-4e59-9ad5-5997d1b7555c
-# ╠═bc95d069-698e-4587-a03e-04c5ea27a9d7
-# ╠═c5d7269b-ba22-4596-a0e6-e2266ad2ccc3
-# ╠═12ffea5c-bf4a-4030-a44b-9f2bc2c64b6b
+# ╠═3424875e-c3e9-4a33-a8f2-ec6d3ab1bedd
+# ╠═931a34aa-25cd-48e0-968c-d8830c2d241e
 # ╟─43389dd2-9237-4812-bfe5-a6570f552073
 # ╠═5c1d708e-1442-4a53-941c-5b2013dc34c7
 # ╟─0124ddb7-1bb6-44cd-a496-a02ada7b7131
@@ -298,10 +424,19 @@ end
 # ╠═05d6b493-7d6a-4414-94ac-9c80a5be220b
 # ╠═3b57a44c-3c8c-4f8e-8d8e-e6288b8dc073
 # ╠═22c9bf73-68fa-4b2c-8d7a-e3c63e084e10
+# ╠═74f20bc5-e6ea-4a2b-8f4c-9b07a9256f84
 # ╠═27e8ac1b-88bd-4d48-835f-f01f269a4fe9
-# ╠═8d2e68a5-d5d3-429e-896e-8aef48a7ab9e
-# ╠═ad774b05-ada2-4b75-bf9b-d76b9147b09c
-# ╠═9e75496a-456c-4c54-9037-3ea0d951ad30
 # ╠═ca687109-e558-4329-9ba9-5045fc5ee455
 # ╠═ee3cf773-0615-4d8e-a9b1-30c22efb0bad
 # ╠═8a7dfe16-d595-4c00-bfa6-3094749c7bed
+# ╟─ab5ac22a-97ae-4014-ad13-01faa608c82b
+# ╠═8a45adb0-c3a8-472b-89d2-72ad42e5e92c
+# ╠═b45eddf1-8fdc-424d-b655-70764d13515c
+# ╠═af0c1f1c-7732-494d-8780-98a7652d0c75
+# ╠═43e439e8-2657-44ea-8641-b2ca75445cbe
+# ╠═a03e6a2c-d0fc-4e4f-9477-677ee967921a
+# ╠═ecc138dd-fc9a-465f-bf38-0ec681966c09
+# ╠═6eab9bd4-1a04-403a-ba61-fc9c511305bf
+# ╟─72ec118e-02b4-4b2d-9498-9d0db08e0556
+# ╠═b60e64f9-e8d8-49f4-8381-fdeb4c3060c2
+# ╟─ea4b93dd-4eee-4d49-8a04-6da7cbc30d78
