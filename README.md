@@ -1,7 +1,8 @@
-# reconstructing the shape of a solid in a draining tank from its liquid level dynamics
+# Inferring the cross-sectional area profile of an unseen solid in a draining tank from liquid level dynamics
 
 this repo contains data and code to reproduce the results in our article:
-> G. Fabusola, C. Simon. "Reconstructing the shape of a solid inside a draining tank from its liquid level dynamics." _Chemical Engineering Science. (under revision)_ (2024)
+>Gbenga Fabusola, Cory M. Simon, Inferring the cross-sectional area profile of an unseen solid in a draining tank from liquid level dynamics, Chemical Engineering Science, Volume 309, 2025, 121488, ISSN 0009-2509, https://doi.org/10.1016/j.ces.2025.121488.
+
 
 ## raw data
 
